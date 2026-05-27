@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Command Palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  /* The background — an iframe of the editor, dimmed */
+  .bg-frame {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    pointer-events: none;
+  }
+
+  /* Dim overlay */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(24, 24, 27, 0.32);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    z-index: 10;
+    animation: scrim-in var(--duration-medium) var(--easing);
+  }
+  @keyframes scrim-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* ─── Modal ─────────────────────────────────────────── */
+  .palette-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 14vh;
+    pointer-events: none;
+  }
+  .palette {
+    width: 560px;
+    max-width: calc(100vw - 48px);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    pointer-events: auto;
+    overflow: hidden;
+    animation: pal-in var(--duration-medium) var(--easing);
+  }
+  @keyframes pal-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+
+  /* ─── Search input ───────────────────────────────────── */
+  .search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 52px;
+    padding: 0 var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .search-icon { color: var(--color-text-muted); flex: none; }
+  .search-input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    color: var(--color-text);
+    padding: 0;
+    line-height: 1;
+  }
+  .search-input::placeholder { color: var(--color-text-subtle); }
+  .search-caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.05em;
+    background: var(--color-text);
+    vertical-align: -0.15em;
+    margin-left: -2px;
+    animation: blink 1.05s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .kbd-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-muted);
+    border: var(--border-width) solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    line-height: 1;
+    flex: none;
+  }
+
+  /* ─── Command list ───────────────────────────────────── */
+  .list {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--space-2) 0 var(--space-2);
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: var(--weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: var(--space-3) var(--space-4) var(--space-1);
+  }
+  .section-label:first-child { padding-top: var(--space-2); }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 38px;
+    padding: 0 var(--space-3);
+    margin: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .row:hover { background: var(--color-bg-subtle); }
+  .row.focused {
+    background: var(--color-bg-muted);
+  }
+
+  .row-icon {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: var(--color-text-muted);
+    flex: none;
+  }
+  .row.focused .row-icon { color: var(--color-text); }
+
+  .row-label {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-label .ellip { color: var(--color-text-muted); }
+
+  .row-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: none;
+  }
+  .tag {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-muted);
+    border: var(--border-width) solid var(--color-border);
+    line-height: 1.3;
+  }
+  .row.focused .tag {
+    background: var(--color-bg);
+  }
+  .shortcut {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── Footer ────────────────────────────────────────── */
+  .footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    height: 32px;
+    padding: 0 var(--space-4);
+    border-top: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .footer-item { display: inline-flex; align-items: center; gap: 6px; }
+  .footer .spacer { flex: 1; }
+  .key {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- Background: the editor screen, dimmed -->
+<iframe class="bg-frame" src="Ledger Editor.html" title="" aria-hidden="true" tabindex="-1"></iframe>
+<div class="scrim" aria-hidden="true"></div>
+
+<!-- Command palette modal -->
+<div class="palette-wrap" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="palette">
+
+    <!-- Search -->
+    <div class="search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <div class="search-input" role="textbox" aria-label="Search commands">
+        <span style="color: var(--color-text-subtle);">Search commands…</span><span class="search-caret" aria-hidden="true"></span>
+      </div>
+      <span class="kbd-badge">⌘K</span>
+    </div>
+
+    <!-- List -->
+    <div class="list" role="listbox">
+
+      <div class="section-label">Recent</div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        </span>
+        <span class="row-label">Go to Inbox</span>
+        <span class="row-meta">
+          <span class="tag">Inbox</span>
+        </span>
+      </div>
+
+      <div class="section-label">Navigation</div>
+      <div class="row focused" role="option" aria-selected="true">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        </span>
+        <span class="row-label">Go to Ledger</span>
+        <span class="row-meta">
+          <span class="tag">Ledger</span>
+          <span class="shortcut">⌘1</span>
+        </span>
+      </div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        </span>
+        <span class="row-label">Go to Reports</span>
+        <span class="row-meta">
+          <span class="tag">Reports</span>
+        </span>
+      </div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </span>
+        <span class="row-label">Open file<span class="ellip">…</span></span>
+        <span class="row-meta">
+          <span class="tag">Ledger</span>
+        </span>
+      </div>
+
+      <div class="section-label">Actions</div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        </span>
+        <span class="row-label">Import CSV<span class="ellip">…</span></span>
+      </div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        </span>
+        <span class="row-label">Run Ledger Validation</span>
+      </div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v6"/><path d="M12 15v6"/></svg>
+        </span>
+        <span class="row-label">Commit with message<span class="ellip">…</span></span>
+      </div>
+      <div class="row" role="option">
+        <span class="row-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </span>
+        <span class="row-label">New entry</span>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="footer-item"><span class="key">↑</span><span class="key">↓</span> to navigate</span>
+      <span class="footer-item"><span class="key">↵</span> to select</span>
+      <span class="spacer"></span>
+      <span class="footer-item"><span class="key">esc</span> to close</span>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

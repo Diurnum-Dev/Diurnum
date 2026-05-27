@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+  /* ─── App shell ─────────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    height: 100vh;
+  }
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ─── Sidebar (shared with Inbox) ──────────────────────── */
+  .sidebar {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    width: 100%;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .brand:hover { background: var(--color-bg-subtle); }
+  .brand-text { flex: 1; min-width: 0; }
+  .brand-chevron { color: var(--color-text-subtle); flex: none; }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+  .brand-name { font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+  .brand-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nav-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .nav-item:hover { background: var(--color-bg-subtle); }
+  .nav-item svg { color: var(--color-text-muted); flex: none; }
+  .nav-item .label { flex: 1; }
+  .nav-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item.active svg { color: var(--color-accent); }
+  .count-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    border: var(--border-width) solid var(--color-border);
+  }
+  .nav-item.active .count-badge {
+    background: var(--color-bg);
+    color: var(--color-accent);
+    border-color: transparent;
+  }
+
+  .footer {
+    margin-top: auto;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .user-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    min-width: 0;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .user-btn:hover { background: var(--color-bg-subtle); }
+  .user-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #18181B;
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .user-name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user-btn svg.chev { color: var(--color-text-subtle); flex: none; }
+  .theme-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── Workspace ──────────────────────────────────────── */
+  .workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ─── Page header ──────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-8) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .page-header-left h1 {
+    margin: 0 0 6px;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl-lh);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.015em;
+  }
+  .page-header-left .page-subtitle {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+  }
+  .page-subtitle .dot-sep {
+    display: inline-block;
+    margin: 0 8px;
+    color: var(--color-text-subtle);
+  }
+
+  .page-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* ─── Buttons ──────────────────────────────────────── */
+  .btn {
+    font-family: var(--font-sans);
+    font-weight: var(--weight-medium);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .btn-sm { height: 28px; padding: 0 var(--space-3); font-size: var(--text-md); }
+  .btn-md { height: 32px; padding: 0 var(--space-4); font-size: var(--text-md); }
+  .btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-bg-muted); }
+
+  .period-select {
+    height: 32px;
+    padding: 0 var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .period-select:hover { background: var(--color-bg-muted); }
+  .period-select svg.cal { color: var(--color-text-muted); }
+  .period-select svg.chev { color: var(--color-text-subtle); }
+  .period-select .period-label {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-normal);
+    font-size: var(--text-sm);
+  }
+  .period-select .period-value {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+  }
+
+  /* ─── Scrollable content ───────────────────────────── */
+  .content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: var(--space-6) var(--space-8) var(--space-8);
+  }
+
+  /* ─── Summary cards ────────────────────────────────── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+  .stat-card {
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .stat-card.accent {
+    background: var(--color-accent-bg);
+    border-color: transparent;
+  }
+  .stat-label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stat-card.accent .stat-label {
+    color: var(--color-accent);
+    opacity: 0.85;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    line-height: 1.1;
+    font-weight: var(--weight-medium);
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-card.accent .stat-value { color: var(--color-accent); }
+  .stat-delta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-delta .delta-num {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+  }
+  .stat-delta.up .delta-num { color: var(--color-accent); }
+  .stat-delta.down .delta-num { color: var(--color-destructive); }
+  .stat-delta svg { flex: none; }
+  .stat-delta.up svg { color: var(--color-accent); }
+  .stat-delta.down svg { color: var(--color-destructive); }
+
+  /* ─── Section card (chart + table) ─────────────────── */
+  .section-card {
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-6);
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .section-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .section-sub {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: 2px 0 0;
+  }
+  .section-head-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .legend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-swatch {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .legend-swatch.revenue { background: var(--color-accent); }
+  .legend-swatch.expense { background: var(--color-border-strong); }
+
+  /* ─── Chart ────────────────────────────────────────── */
+  .chart-wrap {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+  }
+  .chart {
+    --bar-color-rev: var(--color-accent);
+    --bar-color-exp: #D4D4D8;
+    --chart-h: 220px;
+
+    position: relative;
+    height: var(--chart-h);
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: var(--space-3);
+  }
+  .y-axis {
+    position: relative;
+    height: 100%;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    font-variant-numeric: tabular-nums;
+  }
+  .y-tick {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    padding-right: 6px;
+    white-space: nowrap;
+  }
+  .plot {
+    position: relative;
+    height: 100%;
+    border-left: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-2);
+  }
+  .plot .grid-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .plot .grid-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: var(--color-border);
+  }
+  .plot .grid-line.baseline { background: var(--color-border-strong); }
+
+  .bars {
+    position: relative;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: end;
+    gap: var(--space-2);
+  }
+  .bar-group {
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 6px;
+    padding-bottom: 0;
+  }
+  .bar-group .month-label {
+    position: absolute;
+    bottom: -22px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    width: 28px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: opacity var(--duration-fast) var(--easing);
+  }
+  .bar.revenue { background: var(--bar-color-rev); }
+  .bar.expense { background: var(--bar-color-exp); }
+  .bar:hover { opacity: 0.8; }
+  .bar-value {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--easing);
+  }
+  .bar-group:hover .bar-value { opacity: 1; }
+
+  .chart-x-pad { height: 28px; }
+
+  /* ─── Income statement table ───────────────────────── */
+  .stmt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-md);
+  }
+  .stmt thead th {
+    text-align: left;
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg-subtle);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .stmt thead th.amt-col { text-align: right; }
+  .stmt thead th.pct-col {
+    text-align: right;
+    width: 80px;
+    font-family: var(--font-mono);
+  }
+  .stmt thead th.chev-col { width: 32px; }
+
+  .stmt .section-row td {
+    padding: var(--space-4) var(--space-5) var(--space-2);
+    background: var(--color-bg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .stmt .account-row td {
+    padding: 10px var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .stmt .account-row:hover td { background: var(--color-bg-subtle); }
+  .stmt .account-row td.name {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    padding-left: var(--space-8);
+  }
+  .stmt .account-row td.amt {
+    font-family: var(--font-mono);
+    text-align: right;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    width: 160px;
+  }
+  .stmt .account-row td.pct {
+    font-family: var(--font-mono);
+    text-align: right;
+    color: var(--color-text-subtle);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-sm);
+  }
+  .stmt .account-row td.chev {
+    text-align: center;
+    color: var(--color-text-subtle);
+    width: 32px;
+    padding-right: var(--space-4);
+  }
+  .stmt .account-row:hover td.chev { color: var(--color-text); }
+  .stmt .account-row td.chev .chev-char {
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  .stmt .subtotal-row td {
+    padding: 12px var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border-strong);
+    border-top: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+  }
+  .stmt .subtotal-row td.name { padding-left: var(--space-5); }
+  .stmt .subtotal-row td.amt {
+    font-family: var(--font-mono);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .stmt .subtotal-row td.pct {
+    font-family: var(--font-mono);
+    text-align: right;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-sm);
+  }
+
+  .stmt .net-row td {
+    padding: 14px var(--space-5);
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-semibold);
+    border-bottom: none;
+    font-size: var(--text-md);
+  }
+  .stmt .net-row td.name {
+    padding-left: var(--space-5);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: var(--text-sm);
+  }
+  .stmt .net-row td.amt {
+    font-family: var(--font-mono);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-lg);
+    letter-spacing: -0.01em;
+  }
+  .stmt .net-row td.pct {
+    font-family: var(--font-mono);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-sm);
+    color: var(--color-accent);
+    opacity: 0.7;
+  }
+
+  /* ─── Status bar ───────────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    height: var(--shell-status-bar-height);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .status-sep { color: var(--color-border-strong); }
+  .status-valid { color: var(--color-accent); }
+  .status-check { width: 12px; height: 12px; }
+
+  /* Scrollbar polish */
+  .content-scroll::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar { width: 10px; height: 10px; }
+  .content-scroll::-webkit-scrollbar-thumb,
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-bg);
+  }
+  .content-scroll::-webkit-scrollbar-thumb:hover,
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="04 Reports">
+
+  <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <button class="brand" type="button" aria-haspopup="menu" aria-label="Switch workspace">
+      <div class="brand-mark">L</div>
+      <div class="brand-text">
+        <div class="brand-name">Ledgerly</div>
+        <div class="brand-sub">Acme, Inc.</div>
+      </div>
+      <svg class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </button>
+
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">4</span>
+      </button>
+      <button class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="label">Accounts</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="label">Search</span>
+      </button>
+    </div>
+
+    <div class="nav-caps">Recent</div>
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">main.bean</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">2026-05.bean</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">accounts.bean</span>
+      </button>
+    </div>
+
+    <div class="footer">
+      <button class="user-btn" type="button" aria-haspopup="menu" aria-label="Open settings">
+        <div class="user-avatar">DR</div>
+        <span class="user-name">Dana Reyes</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="theme-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <section class="main">
+
+    <div class="workspace">
+
+      <!-- Page header -->
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1>Reports</h1>
+          <p class="page-subtitle">
+            Income statement &amp; cash position
+            <span class="dot-sep">·</span>
+            Accrual basis
+            <span class="dot-sep">·</span>
+            All accounts
+          </p>
+        </div>
+        <div class="page-header-right">
+          <button class="period-select" type="button" aria-haspopup="listbox">
+            <svg class="cal" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+            <span class="period-label">Period</span>
+            <span class="period-value">Jan – May 2026</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <button class="btn btn-md btn-secondary" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            Export
+          </button>
+        </div>
+      </header>
+
+      <div class="content-scroll">
+
+        <!-- ─── Summary cards ─────────────────────────────── -->
+        <div class="summary-grid">
+          <div class="stat-card">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-value">$84,200</div>
+            <div class="stat-delta up">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l5-5 5 5"/><path d="M7 11l5-5 5 5"/></svg>
+              <span class="delta-num">+12.4%</span>
+              <span>vs. prior period</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Expenses</div>
+            <div class="stat-value">$31,450</div>
+            <div class="stat-delta down">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l5 5 5-5"/><path d="M7 13l5 5 5-5"/></svg>
+              <span class="delta-num">+4.1%</span>
+              <span>vs. prior period</span>
+            </div>
+          </div>
+
+          <div class="stat-card accent">
+            <div class="stat-label">Net Income</div>
+            <div class="stat-value">$52,750</div>
+            <div class="stat-delta up">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l5-5 5 5"/><path d="M7 11l5-5 5 5"/></svg>
+              <span class="delta-num">+18.2%</span>
+              <span>vs. prior period</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Cash Balance</div>
+            <div class="stat-value">$67,320</div>
+            <div class="stat-delta up">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l5-5 5 5"/><path d="M7 11l5-5 5 5"/></svg>
+              <span class="delta-num">+$14,120</span>
+              <span>since Jan 1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Monthly trend chart ──────────────────────── -->
+        <div class="section-card">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Monthly trend</h2>
+              <p class="section-sub">Revenue vs. expenses · Jan – May 2026</p>
+            </div>
+            <div class="section-head-right">
+              <div class="legend">
+                <span class="legend-item"><span class="legend-swatch revenue"></span> Revenue</span>
+                <span class="legend-item"><span class="legend-swatch expense"></span> Expenses</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart">
+              <div class="y-axis" id="y-axis"></div>
+              <div class="plot">
+                <div class="grid-lines" id="grid-lines"></div>
+                <div class="bars" id="bars"></div>
+              </div>
+            </div>
+            <div class="chart-x-pad"></div>
+          </div>
+        </div>
+
+        <!-- ─── Income statement ─────────────────────────── -->
+        <div class="section-card">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Income statement</h2>
+              <p class="section-sub">Jan 1 – May 31, 2026 · USD</p>
+            </div>
+            <div class="section-head-right">
+              <button class="btn btn-sm btn-secondary" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+                Compare
+              </button>
+              <button class="btn btn-sm btn-secondary" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                Expand all
+              </button>
+            </div>
+          </div>
+
+          <table class="stmt">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th class="amt-col">Amount</th>
+                <th class="pct-col">% of Rev.</th>
+                <th class="chev-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <!-- REVENUE -->
+              <tr class="section-row"><td colspan="4">Revenue</td></tr>
+
+              <tr class="account-row">
+                <td class="name">Income:SaaS:Subscriptions</td>
+                <td class="amt">$71,400.00</td>
+                <td class="pct">84.8%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Income:Consulting</td>
+                <td class="amt">$10,800.00</td>
+                <td class="pct">12.8%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Income:Other</td>
+                <td class="amt">$2,000.00</td>
+                <td class="pct">2.4%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+
+              <tr class="subtotal-row">
+                <td class="name">Total revenue</td>
+                <td class="amt">$84,200.00</td>
+                <td class="pct">100.0%</td>
+                <td></td>
+              </tr>
+
+              <!-- COST OF SALES -->
+              <tr class="section-row"><td colspan="4">Cost of sales</td></tr>
+
+              <tr class="account-row">
+                <td class="name">Expenses:Hosting</td>
+                <td class="amt">$6,420.00</td>
+                <td class="pct">7.6%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Payment-processing</td>
+                <td class="amt">$2,184.00</td>
+                <td class="pct">2.6%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Contractors</td>
+                <td class="amt">$3,200.00</td>
+                <td class="pct">3.8%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+
+              <tr class="subtotal-row">
+                <td class="name">Total cost of sales</td>
+                <td class="amt">$11,804.00</td>
+                <td class="pct">14.0%</td>
+                <td></td>
+              </tr>
+
+              <tr class="subtotal-row">
+                <td class="name">Gross profit</td>
+                <td class="amt">$72,396.00</td>
+                <td class="pct">86.0%</td>
+                <td></td>
+              </tr>
+
+              <!-- OPERATING EXPENSES -->
+              <tr class="section-row"><td colspan="4">Operating expenses</td></tr>
+
+              <tr class="account-row">
+                <td class="name">Expenses:Software</td>
+                <td class="amt">$4,860.00</td>
+                <td class="pct">5.8%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Salaries</td>
+                <td class="amt">$8,200.00</td>
+                <td class="pct">9.7%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Marketing</td>
+                <td class="amt">$3,140.00</td>
+                <td class="pct">3.7%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Office</td>
+                <td class="amt">$1,840.00</td>
+                <td class="pct">2.2%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Meals</td>
+                <td class="amt">$986.00</td>
+                <td class="pct">1.2%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+              <tr class="account-row">
+                <td class="name">Expenses:Travel</td>
+                <td class="amt">$620.00</td>
+                <td class="pct">0.7%</td>
+                <td class="chev"><span class="chev-char">›</span></td>
+              </tr>
+
+              <tr class="subtotal-row">
+                <td class="name">Total operating expenses</td>
+                <td class="amt">$19,646.00</td>
+                <td class="pct">23.3%</td>
+                <td></td>
+              </tr>
+
+              <!-- NET INCOME -->
+              <tr class="section-row"><td colspan="4">Net income</td></tr>
+
+              <tr class="net-row">
+                <td class="name">Net income</td>
+                <td class="amt">$52,750.00</td>
+                <td class="pct">62.6%</td>
+                <td></td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="statusbar-item">Reports</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Income statement</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Jan – May 2026</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item status-valid">
+        <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        Ledger balanced
+      </span>
+      <span class="spacer"></span>
+      <span class="statusbar-item">P Period</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">E Export</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">⌘K Command</span>
+    </div>
+
+  </section>
+</div>
+
+<script>
+  // ─── Monthly trend chart (rendered from data) ───────────────
+  const monthly = [
+    { month: 'Jan', revenue: 14200, expense: 5820 },
+    { month: 'Feb', revenue: 15800, expense: 6140 },
+    { month: 'Mar', revenue: 17200, expense: 6480 },
+    { month: 'Apr', revenue: 18400, expense: 6420 },
+    { month: 'May', revenue: 18600, expense: 6590 },
+  ];
+
+  // Y-axis ticks at nice round numbers
+  const yMax = 20000;
+  const ticks = [0, 5000, 10000, 15000, 20000];
+
+  const fmtK = n => n === 0 ? '$0' : '$' + (n / 1000) + 'k';
+  const fmtMoney = n => '$' + n.toLocaleString('en-US');
+
+  const yAxis = document.getElementById('y-axis');
+  const grid = document.getElementById('grid-lines');
+  ticks.forEach(t => {
+    const pct = 1 - (t / yMax);
+    const label = document.createElement('div');
+    label.className = 'y-tick';
+    label.style.top = (pct * 100) + '%';
+    label.textContent = fmtK(t);
+    yAxis.appendChild(label);
+
+    const line = document.createElement('div');
+    line.className = 'grid-line' + (t === 0 ? ' baseline' : '');
+    line.style.top = (pct * 100) + '%';
+    grid.appendChild(line);
+  });
+
+  const bars = document.getElementById('bars');
+  monthly.forEach(m => {
+    const group = document.createElement('div');
+    group.className = 'bar-group';
+
+    const revH = (m.revenue / yMax) * 100;
+    const expH = (m.expense / yMax) * 100;
+
+    const rev = document.createElement('div');
+    rev.className = 'bar revenue';
+    rev.style.height = revH + '%';
+    rev.title = m.month + ' revenue · ' + fmtMoney(m.revenue);
+    const revVal = document.createElement('span');
+    revVal.className = 'bar-value';
+    revVal.textContent = fmtMoney(m.revenue);
+    rev.appendChild(revVal);
+
+    const exp = document.createElement('div');
+    exp.className = 'bar expense';
+    exp.style.height = expH + '%';
+    exp.title = m.month + ' expenses · ' + fmtMoney(m.expense);
+    const expVal = document.createElement('span');
+    expVal.className = 'bar-value';
+    expVal.textContent = fmtMoney(m.expense);
+    exp.appendChild(expVal);
+
+    group.appendChild(rev);
+    group.appendChild(exp);
+
+    const lbl = document.createElement('span');
+    lbl.className = 'month-label';
+    lbl.textContent = m.month;
+    group.appendChild(lbl);
+
+    bars.appendChild(group);
+  });
+</script>
+
+</body>
+</html>

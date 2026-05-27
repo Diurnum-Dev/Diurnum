@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Welcome</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+  }
+
+  /* ─── Page shell ──────────────────────────────────────── */
+  .page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: 1fr auto;
+  }
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16) var(--space-8) var(--space-12);
+    gap: var(--space-12);
+  }
+
+  /* ─── Wordmark + tagline ─────────────────────────────── */
+  .brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    line-height: 1;
+  }
+  .brand-name {
+    font-size: 28px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+  }
+  .brand-tagline {
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  /* ─── Cards row ──────────────────────────────────────── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, var(--welcome-card-width));
+    gap: var(--space-4);
+  }
+  .wcard {
+    appearance: none;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 184px;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing);
+  }
+  .wcard:hover {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border-strong);
+  }
+  .wcard:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .wcard-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-muted);
+    border: var(--border-width) solid var(--color-border);
+    display: grid;
+    place-items: center;
+    color: var(--color-text);
+  }
+  .wcard-icon svg { display: block; }
+  .wcard-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: auto;
+  }
+  .wcard-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    letter-spacing: -0.005em;
+  }
+  .wcard-desc {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+
+  /* ─── Recent workspaces ─────────────────────────────── */
+  .recent {
+    width: 100%;
+    max-width: calc(var(--welcome-card-width) * 3 + var(--space-4) * 2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .recent-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0 var(--space-2);
+  }
+  .recent-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .recent-clear {
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    transition: color var(--duration-fast) var(--easing),
+                background var(--duration-fast) var(--easing);
+  }
+  .recent-clear:hover {
+    color: var(--color-text-muted);
+    background: var(--color-bg-subtle);
+  }
+
+  .recent-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .recent-item {
+    appearance: none;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: var(--space-3) var(--space-3);
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .recent-item + .recent-item {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+  .recent-item:hover { background: var(--color-bg-subtle); }
+  .recent-item:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+  .recent-icon { color: var(--color-text-subtle); display: grid; place-items: center; }
+  .recent-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .recent-name {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-path {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-time {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    justify-self: end;
+    white-space: nowrap;
+  }
+
+  /* ─── Footnote ──────────────────────────────────────── */
+  .footnote {
+    text-align: center;
+    padding: var(--space-6);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  .footnote .dot {
+    width: 3px; height: 3px;
+    background: var(--color-text-subtle);
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Window-controls feel — purely decorative, sits in top-left */
+  .traffic {
+    position: fixed;
+    top: var(--space-4);
+    left: var(--space-4);
+    display: flex;
+    gap: 6px;
+  }
+  .traffic span {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="page" data-screen-label="08 Welcome">
+
+  <div class="traffic" aria-hidden="true">
+    <span></span><span></span><span></span>
+  </div>
+
+  <div class="content">
+
+    <!-- ─── Brand ───────────────────────────────────────── -->
+    <div class="brand">
+      <div class="brand-row">
+        <div class="brand-mark">L</div>
+        <div class="brand-name">Ledgerly</div>
+      </div>
+      <p class="brand-tagline">Own your books. Let AI help.</p>
+    </div>
+
+    <!-- ─── Three primary actions ──────────────────────── -->
+    <div class="cards" role="group" aria-label="Open a workspace">
+
+      <button class="wcard" type="button">
+        <div class="wcard-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <path d="M14 3v6h6"/>
+            <path d="M12 13v6"/>
+            <path d="M9 16h6"/>
+          </svg>
+        </div>
+        <div class="wcard-body">
+          <div class="wcard-title">New blank workspace</div>
+          <div class="wcard-desc">Start fresh with an empty ledger.</div>
+        </div>
+      </button>
+
+      <button class="wcard" type="button">
+        <div class="wcard-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.5l2.6 5.6 6.1.7-4.6 4.2 1.3 6-5.4-3-5.4 3 1.3-6L3.3 8.8l6.1-.7z"/>
+          </svg>
+        </div>
+        <div class="wcard-body">
+          <div class="wcard-title">Example workspace</div>
+          <div class="wcard-desc">Try Ledgerly with sample accounts and transactions.</div>
+        </div>
+      </button>
+
+      <button class="wcard" type="button">
+        <div class="wcard-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+        </div>
+        <div class="wcard-body">
+          <div class="wcard-title">Open existing workspace</div>
+          <div class="wcard-desc">Open a folder you previously created in Ledgerly.</div>
+        </div>
+      </button>
+
+    </div>
+
+    <!-- ─── Recent workspaces ──────────────────────────── -->
+    <div class="recent">
+      <div class="recent-head">
+        <div class="recent-title">Recent workspaces</div>
+        <button class="recent-clear" type="button">Clear</button>
+      </div>
+      <div class="recent-list">
+
+        <button class="recent-item" type="button">
+          <div class="recent-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <div class="recent-meta">
+            <div class="recent-name">Personal</div>
+            <div class="recent-path">~/Documents/Ledgers/personal</div>
+          </div>
+          <div class="recent-time">2h ago</div>
+        </button>
+
+        <button class="recent-item" type="button">
+          <div class="recent-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <div class="recent-meta">
+            <div class="recent-name">Consulting LLC — 2026</div>
+            <div class="recent-path">~/Work/books/consulting-llc-2026</div>
+          </div>
+          <div class="recent-time">Yesterday</div>
+        </button>
+
+        <button class="recent-item" type="button">
+          <div class="recent-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <div class="recent-meta">
+            <div class="recent-name">Rental property</div>
+            <div class="recent-path">~/Dropbox/Finance/rental-elm-street</div>
+          </div>
+          <div class="recent-time">3 days ago</div>
+        </button>
+
+        <button class="recent-item" type="button">
+          <div class="recent-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <div class="recent-meta">
+            <div class="recent-name">Household — joint</div>
+            <div class="recent-path">~/Documents/Ledgers/household-joint</div>
+          </div>
+          <div class="recent-time">Last week</div>
+        </button>
+
+        <button class="recent-item" type="button">
+          <div class="recent-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <div class="recent-meta">
+            <div class="recent-name">2024 archive</div>
+            <div class="recent-path">~/Documents/Ledgers/archive-2024</div>
+          </div>
+          <div class="recent-time">Mar 14</div>
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── Footnote ─────────────────────────────────────── -->
+  <div class="footnote">
+    <span>Your books are stored locally.</span>
+    <span class="dot" aria-hidden="true"></span>
+    <span>No account required.</span>
+  </div>
+
+</div>
+
+</body>
+</html>

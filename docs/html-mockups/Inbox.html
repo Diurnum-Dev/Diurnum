@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+  /* ─── App shell ─────────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    height: 100vh;
+  }
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ─── Sidebar ──────────────────────────────────────────── */
+  .sidebar {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    width: 100%;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .brand:hover { background: var(--color-bg-subtle); }
+  .brand-text { flex: 1; min-width: 0; }
+  .brand-chevron { color: var(--color-text-subtle); flex: none; }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+  .brand-name { font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+  .brand-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nav-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .nav-item:hover { background: var(--color-bg-subtle); }
+  .nav-item svg { color: var(--color-text-muted); flex: none; }
+  .nav-item .label { flex: 1; }
+  .nav-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item.active svg { color: var(--color-accent); }
+  .count-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    border: var(--border-width) solid var(--color-border);
+  }
+  .nav-item.active .count-badge {
+    background: var(--color-bg);
+    color: var(--color-accent);
+    border-color: transparent;
+  }
+
+  .footer {
+    margin-top: auto;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .user-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    min-width: 0;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .user-btn:hover { background: var(--color-bg-subtle); }
+  .user-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #18181B;
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .user-name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user-btn svg.chev { color: var(--color-text-subtle); flex: none; }
+  .theme-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── Workspace (main + inspector) ───────────────────── */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr var(--inspector-width);
+    min-height: 0;
+    min-width: 0;
+  }
+  .content-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ─── Page header ──────────────────────────────────── */
+  .page-header {
+    padding: var(--space-8) var(--space-8) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .page-header h1 {
+    margin: 0 0 6px;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl-lh);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.015em;
+  }
+  .page-subtitle {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+  }
+  .page-subtitle .dot-sep {
+    display: inline-block;
+    margin: 0 8px;
+    color: var(--color-text-subtle);
+  }
+  .page-subtitle .pill-count {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+
+  /* ─── Filter row ───────────────────────────────────── */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-8);
+    border-bottom: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    flex: none;
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+  .filter-control {
+    height: 28px;
+    padding: 0 var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-md);
+    line-height: 1;
+    color: var(--color-text);
+    cursor: pointer;
+    white-space: nowrap;
+    flex: none;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing);
+  }
+  .filter-control:hover { background: var(--color-bg-muted); }
+  .filter-control svg { color: var(--color-text-subtle); flex: none; }
+  .filter-control .filter-label {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-normal);
+  }
+  .filter-spacer { flex: 1; }
+  .status-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--color-bg-muted);
+    border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--color-border);
+    flex: none;
+    white-space: nowrap;
+  }
+  .status-tab {
+    height: 22px;
+    padding: 0 var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: var(--color-text-muted);
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .status-tab:hover { color: var(--color-text); }
+  .status-tab.active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    font-weight: var(--weight-medium);
+  }
+  .status-tab-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-subtle);
+    font-weight: var(--weight-normal);
+  }
+  .status-tab.active .status-tab-count { color: var(--color-text-muted); }
+
+  /* ─── Transaction list ─────────────────────────────── */
+  .tx-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .tx-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 220px 100px 28px;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-8);
+    height: 44px;
+    border-bottom: var(--border-width) solid var(--color-border);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .tx-row:hover { background: var(--color-bg-subtle); }
+  .tx-row.selected { background: var(--color-bg-muted); }
+  .tx-date {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .tx-desc {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tx-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .tx-cat .chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tx-cat .chip.unmatched {
+    background: var(--color-bg-muted);
+    color: var(--color-text-subtle);
+    border: 1px dashed var(--color-border-strong);
+    font-style: italic;
+    height: 22px;
+    padding: 0 var(--space-2);
+  }
+  .tx-cat .chip.transfer {
+    background: #FEF8E1;
+    color: #92580B;
+  }
+  .tx-amt {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .tx-amt.positive { color: var(--color-accent); }
+  .tx-source {
+    width: 22px; height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+  }
+  .tx-source.rule {
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+  }
+  .tx-source.ai {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+  }
+  .tx-source.empty { visibility: hidden; }
+
+  /* List section divider */
+  .tx-section-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-8) var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--color-bg);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .tx-section-head .count {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-normal);
+    color: var(--color-text-subtle);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .tx-section-head .head-rule {
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+
+  /* ─── Inspector ───────────────────────────────────── */
+  .inspector {
+    border-left: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .insp-head {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .insp-eyebrow {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-2);
+  }
+  .insp-amount {
+    font-family: var(--font-mono);
+    font-size: var(--text-3xl);
+    line-height: var(--text-3xl-lh);
+    font-weight: var(--weight-medium);
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+    margin-bottom: 6px;
+  }
+  .insp-merchant {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    margin-bottom: 2px;
+  }
+  .insp-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .insp-section {
+    padding: var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .insp-section:last-of-type { border-bottom: none; }
+  .insp-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-1);
+  }
+
+  .insp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .insp-field-label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .insp-field-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 4px var(--space-2);
+    border: var(--border-width) solid transparent;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    cursor: text;
+    transition: border-color var(--duration-fast) var(--easing),
+                background var(--duration-fast) var(--easing);
+    margin-left: -8px;
+  }
+  .insp-field-value:hover {
+    background: var(--color-bg-subtle);
+  }
+  .insp-field-value.editable:hover {
+    border-color: var(--color-border);
+  }
+  .insp-field-value .placeholder {
+    color: var(--color-text-subtle);
+    font-style: italic;
+  }
+  .insp-field-value .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+  }
+
+  .insp-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    font-size: var(--text-md);
+  }
+  .insp-row .key { color: var(--color-text-muted); }
+  .insp-row .val {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    text-align: right;
+  }
+
+  /* Suggestion card */
+  .suggestion {
+    background: var(--color-bg-subtle);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-3) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .suggestion-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .suggestion-head .conf {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: var(--weight-medium);
+  }
+  .suggestion-body {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    line-height: 1.5;
+  }
+  .suggestion-explanation {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+  .suggestion-explanation .ref {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--color-bg-muted);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--color-text);
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--font-sans);
+    font-weight: var(--weight-medium);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .btn-sm { height: 28px; padding: 0 var(--space-3); font-size: var(--text-md); }
+  .btn-md { height: 32px; padding: 0 var(--space-4); font-size: var(--text-md); }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+    border: var(--border-width) solid var(--color-accent);
+  }
+  .btn-primary:hover { background: #285F47; border-color: #285F47; }
+  .btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-bg-muted); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: var(--border-width) solid transparent;
+  }
+  .btn-ghost:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+  .insp-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+  .insp-actions .btn { flex: 1; }
+  .insp-actions .btn-ghost { flex: none; width: 32px; padding: 0; }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    line-height: 1;
+  }
+  .btn-secondary .kbd {
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  /* ─── Status bar ───────────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    height: var(--shell-status-bar-height);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .status-sep { color: var(--color-border-strong); }
+  .status-valid { color: var(--color-accent); }
+  .status-check { width: 12px; height: 12px; }
+
+  /* Scrollbar polish */
+  .tx-list::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar,
+  .inspector::-webkit-scrollbar { width: 10px; height: 10px; }
+  .tx-list::-webkit-scrollbar-thumb,
+  .sidebar::-webkit-scrollbar-thumb,
+  .inspector::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-bg);
+  }
+  .tx-list::-webkit-scrollbar-thumb:hover,
+  .sidebar::-webkit-scrollbar-thumb:hover,
+  .inspector::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="02 Inbox">
+
+  <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <button class="brand" type="button" aria-haspopup="menu" aria-label="Switch workspace">
+      <div class="brand-mark">L</div>
+      <div class="brand-text">
+        <div class="brand-name">Ledgerly</div>
+        <div class="brand-sub">Acme, Inc.</div>
+      </div>
+      <svg class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </button>
+
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">4</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="label">Accounts</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="label">Search</span>
+      </button>
+    </div>
+
+    <div class="nav-caps">Recent</div>
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">main.bean</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">2026-05.bean</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">accounts.bean</span>
+      </button>
+    </div>
+
+    <div class="footer">
+      <button class="user-btn" type="button" aria-haspopup="menu" aria-label="Open settings">
+        <div class="user-avatar">DR</div>
+        <span class="user-name">Dana Reyes</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="theme-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <section class="main">
+
+    <div class="workspace">
+
+      <!-- Left: list column -->
+      <div class="content-col">
+
+        <!-- Page header -->
+        <header class="page-header">
+          <h1>Inbox</h1>
+          <p class="page-subtitle">
+            <span class="pill-count">4</span> pending
+            <span class="dot-sep">·</span>
+            <span class="pill-count">31</span> matched by rules
+            <span class="dot-sep">·</span>
+            <span class="pill-count">1</span> possible transfer
+          </p>
+        </header>
+
+        <!-- Filter row -->
+        <div class="filter-row">
+          <button class="filter-control" type="button">
+            <span class="filter-label">Account</span>
+            <span>Chase Checking</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+
+          <button class="filter-control" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+            <span>May 1 – May 31, 2026</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+
+          <div class="filter-spacer"></div>
+
+          <div class="status-tabs" role="tablist">
+            <button class="status-tab" role="tab">All <span class="status-tab-count">36</span></button>
+            <button class="status-tab active" role="tab" aria-selected="true">Pending <span class="status-tab-count">4</span></button>
+            <button class="status-tab" role="tab">Matched <span class="status-tab-count">31</span></button>
+            <button class="status-tab" role="tab">Transfers <span class="status-tab-count">1</span></button>
+          </div>
+        </div>
+
+        <!-- Transaction list -->
+        <div class="tx-list" id="tx-list">
+
+          <!-- Section: Pending -->
+          <div class="tx-section-head">
+            <span>Pending</span>
+            <span class="count">4 transactions · needs your review</span>
+            <span class="head-rule"></span>
+          </div>
+
+          <!-- Row 1 — selected -->
+          <div class="tx-row selected" data-id="openai">
+            <div class="tx-date">May 8</div>
+            <div class="tx-desc">OPENAI *CHATGPT</div>
+            <div class="tx-cat">
+              <span class="chip">Expenses:Software</span>
+            </div>
+            <div class="tx-amt">−$20.00</div>
+            <div class="tx-source ai" title="AI suggested category">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.93 19.07 2.12-2.12"/><path d="m16.95 7.05 2.12-2.12"/></svg>
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="tx-row" data-id="lyft">
+            <div class="tx-date">May 8</div>
+            <div class="tx-desc">LYFT *RIDE TUE 8PM</div>
+            <div class="tx-cat">
+              <span class="chip unmatched">Uncategorized</span>
+            </div>
+            <div class="tx-amt">−$18.42</div>
+            <div class="tx-source empty"></div>
+          </div>
+
+          <!-- Row 3 — possible transfer -->
+          <div class="tx-row" data-id="transfer">
+            <div class="tx-date">May 7</div>
+            <div class="tx-desc">ONLINE TRANSFER TO SAV ***4421</div>
+            <div class="tx-cat">
+              <span class="chip transfer">Transfer → Ally Savings</span>
+            </div>
+            <div class="tx-amt">−$1,500.00</div>
+            <div class="tx-source ai" title="AI matched the offsetting deposit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.93 19.07 2.12-2.12"/><path d="m16.95 7.05 2.12-2.12"/></svg>
+            </div>
+          </div>
+
+          <!-- Row 4 -->
+          <div class="tx-row" data-id="wholefoods">
+            <div class="tx-date">May 7</div>
+            <div class="tx-desc">WHOLEFDS WLM #10234</div>
+            <div class="tx-cat">
+              <span class="chip">Expenses:Groceries</span>
+            </div>
+            <div class="tx-amt">−$84.16</div>
+            <div class="tx-source ai" title="AI suggested category">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.93 19.07 2.12-2.12"/><path d="m16.95 7.05 2.12-2.12"/></svg>
+            </div>
+          </div>
+
+          <!-- Section: Matched by rules -->
+          <div class="tx-section-head">
+            <span>Matched by rules</span>
+            <span class="count">31 transactions · auto-posted</span>
+            <span class="head-rule"></span>
+          </div>
+
+          <div class="tx-row" data-id="aws">
+            <div class="tx-date">May 6</div>
+            <div class="tx-desc">AMAZON WEB SERVICES</div>
+            <div class="tx-cat"><span class="chip">Expenses:Hosting</span></div>
+            <div class="tx-amt">−$412.83</div>
+            <div class="tx-source rule" title="Posted by rule: aws → Expenses:Hosting">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="stripe">
+            <div class="tx-date">May 5</div>
+            <div class="tx-desc">STRIPE PAYOUT 5T9XKZ</div>
+            <div class="tx-cat"><span class="chip">Income:SaaS:Subscriptions</span></div>
+            <div class="tx-amt positive">+$3,240.00</div>
+            <div class="tx-source rule" title="Posted by rule: stripe payout">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="notion">
+            <div class="tx-date">May 5</div>
+            <div class="tx-desc">NOTION LABS, INC.</div>
+            <div class="tx-cat"><span class="chip">Expenses:Software:Tools</span></div>
+            <div class="tx-amt">−$192.00</div>
+            <div class="tx-source rule" title="Posted by rule: notion">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="sweetgreen">
+            <div class="tx-date">May 4</div>
+            <div class="tx-desc">SWEETGREEN #224 NYC</div>
+            <div class="tx-cat"><span class="chip">Expenses:Meals</span></div>
+            <div class="tx-amt">−$87.40</div>
+            <div class="tx-source rule" title="Posted by rule: sweetgreen → Expenses:Meals">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="con-ed">
+            <div class="tx-date">May 3</div>
+            <div class="tx-desc">CON EDISON AUTOPAY</div>
+            <div class="tx-cat"><span class="chip">Expenses:Utilities</span></div>
+            <div class="tx-amt">−$112.50</div>
+            <div class="tx-source rule" title="Posted by rule: con edison">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="verizon">
+            <div class="tx-date">May 2</div>
+            <div class="tx-desc">VZWRLSS *APOCC VISN</div>
+            <div class="tx-cat"><span class="chip">Expenses:Telecom</span></div>
+            <div class="tx-amt">−$74.99</div>
+            <div class="tx-source rule" title="Posted by rule: verizon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+          <div class="tx-row" data-id="brex">
+            <div class="tx-date">May 1</div>
+            <div class="tx-desc">BREX CARD PAYMENT</div>
+            <div class="tx-cat"><span class="chip">Liabilities:CreditCard:Brex</span></div>
+            <div class="tx-amt">−$2,418.62</div>
+            <div class="tx-source rule" title="Posted by rule: brex payment">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.16.66.41.88.72"/></svg>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right: inspector -->
+      <aside class="inspector" aria-label="Transaction inspector">
+
+        <div class="insp-head">
+          <div class="insp-eyebrow">Pending · Selected</div>
+          <div class="insp-amount">−$20.00</div>
+          <div class="insp-merchant">OPENAI *CHATGPT</div>
+          <div class="insp-meta">May 8, 2026 · Chase Checking ···4421</div>
+        </div>
+
+        <div class="insp-section">
+          <div class="insp-caps">Suggestion</div>
+          <div class="suggestion">
+            <div class="suggestion-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);"><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.93 19.07 2.12-2.12"/><path d="m16.95 7.05 2.12-2.12"/></svg>
+              <span>AI suggestion</span>
+              <span class="conf">96% confident</span>
+            </div>
+            <div class="suggestion-body">Expenses:Software</div>
+            <div class="suggestion-explanation">
+              Matches 4 prior <span class="ref">OPENAI *</span> charges, all posted to <span class="ref">Expenses:Software</span>. Same merchant string, same amount within $5.
+            </div>
+          </div>
+          <div class="insp-actions">
+            <button class="btn btn-sm btn-primary">
+              Accept <span class="kbd">⏎</span>
+            </button>
+            <button class="btn btn-sm btn-secondary">
+              Edit <span class="kbd">E</span>
+            </button>
+            <button class="btn btn-sm btn-ghost" title="Skip">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="insp-section">
+          <div class="insp-caps">Posting</div>
+
+          <div class="insp-field">
+            <span class="insp-field-label">Payee</span>
+            <div class="insp-field-value editable">OpenAI</div>
+          </div>
+
+          <div class="insp-field">
+            <span class="insp-field-label">Narration</span>
+            <div class="insp-field-value editable">
+              <span class="placeholder">Add a note…</span>
+            </div>
+          </div>
+
+          <div class="insp-field">
+            <span class="insp-field-label">Category</span>
+            <div class="insp-field-value editable" style="padding-top:2px;padding-bottom:2px;">
+              <span class="chip">Expenses:Software</span>
+            </div>
+          </div>
+
+          <div class="insp-field">
+            <span class="insp-field-label">Counter account</span>
+            <div class="insp-field-value editable">Assets:Bank:Chase</div>
+          </div>
+        </div>
+
+        <div class="insp-section">
+          <div class="insp-caps">Source record</div>
+          <div class="insp-row"><span class="key">Statement memo</span><span class="val">OPENAI *CHATGPT</span></div>
+          <div class="insp-row"><span class="key">Posted</span><span class="val">2026-05-08</span></div>
+          <div class="insp-row"><span class="key">Import batch</span><span class="val">chase-may-26-08:14</span></div>
+          <div class="insp-row"><span class="key">Statement ID</span><span class="val">tx_2YxK•••4f</span></div>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="statusbar-item">Inbox</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Chase Checking</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item status-valid">
+        <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        Synced 2 min ago
+      </span>
+      <span class="spacer"></span>
+      <span class="statusbar-item">⏎ Accept</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">J / K Navigate</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">E Edit</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">⌘K Command</span>
+    </div>
+
+  </section>
+</div>
+
+<script>
+  // Row selection — clicking a row updates the .selected highlight.
+  // The inspector content is static for this screen; full inspector wiring
+  // belongs to Screen 3.
+  document.querySelectorAll('.tx-row').forEach(row => {
+    row.addEventListener('click', () => {
+      document.querySelectorAll('.tx-row.selected').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+    });
+  });
+</script>
+
+</body>
+</html>

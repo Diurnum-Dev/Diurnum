@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Git</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+  /* Diff-specific colors — derived from accent + destructive tokens */
+  :root {
+    --diff-add-bg:    #ECF6EE;
+    --diff-add-gut:   #E0EFE4;
+    --diff-add-text:  #1F5A3F;
+    --diff-del-bg:    #FCEBEB;
+    --diff-del-gut:   #F4D9D9;
+    --diff-del-text:  #B22A2A;
+    --diff-hunk-bg:   #F4F4F5;
+    --diff-hunk-text: #71717A;
+  }
+
+  /* ─── App shell ─────────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    height: 100vh;
+  }
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ─── Sidebar (mirrors Ledger Editor) ───────────────────── */
+  .sidebar {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px; width: 100%;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .brand:hover { background: var(--color-bg-subtle); }
+  .brand-text { flex: 1; min-width: 0; }
+  .brand-chevron { color: var(--color-text-subtle); flex: none; }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+  .brand-name { font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+  .brand-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nav-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .nav-item:hover { background: var(--color-bg-subtle); }
+  .nav-item svg { color: var(--color-text-muted); flex: none; }
+  .nav-item .label { flex: 1; }
+  .nav-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item.active svg { color: var(--color-accent); }
+  .count-badge {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    border: var(--border-width) solid var(--color-border);
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-top: var(--space-2);
+    display: flex; align-items: center; gap: var(--space-1);
+  }
+  .user-btn {
+    flex: 1;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    min-width: 0;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .user-btn:hover { background: var(--color-bg-subtle); }
+  .user-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #18181B; color: #fff;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .user-name {
+    flex: 1; min-width: 0;
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .user-btn svg.chev { color: var(--color-text-subtle); flex: none; }
+  .theme-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── Page header ──────────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; gap: var(--space-3);
+    height: var(--shell-header-height);
+    padding: 0 var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    flex: none;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.01em;
+  }
+  .branch-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px;
+    padding: 0 10px 0 8px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-muted);
+    border: var(--border-width) solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .branch-chip:hover { background: var(--color-bg-subtle); }
+  .branch-chip svg { color: var(--color-text-muted); }
+  .auto-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .auto-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-accent-strong);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent-strong) 22%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+  .header .spacer { flex: 1; }
+  .header-meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .header-meta .sep { color: var(--color-border-strong); margin: 0 var(--space-2); }
+
+  /* ─── Body split: commits list | diff viewer ───────────── */
+  .body {
+    display: grid;
+    grid-template-columns: minmax(380px, 1fr) minmax(0, 1.6fr);
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ─── Left pane: commits list ──────────────────────────── */
+  .commits-pane {
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    border-right: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+  }
+  .pane-header {
+    display: flex; align-items: center; gap: var(--space-2);
+    height: 40px;
+    padding: 0 var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    flex: none;
+  }
+  .pane-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pane-header .spacer { flex: 1; }
+  .btn-custom {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), border-color var(--duration-fast) var(--easing);
+  }
+  .btn-custom:hover {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border-strong);
+  }
+  .btn-custom svg { color: var(--color-text-muted); }
+
+  /* Working tree banner */
+  .working-tree {
+    border-bottom: var(--border-width) solid var(--color-border);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg);
+    flex: none;
+  }
+  .wt-head {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-2);
+  }
+  .wt-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-muted);
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.4;
+  }
+  .wt-files { display: flex; flex-direction: column; gap: 2px; }
+  .wt-file {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+  .wt-flag {
+    width: 14px;
+    text-align: center;
+    font-weight: var(--weight-semibold);
+    flex: none;
+  }
+  .wt-flag.m { color: #8B6914; }
+  .wt-note {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    font-style: italic;
+    margin-top: var(--space-2);
+  }
+
+  /* Commits list */
+  .commits {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+  }
+  .day-header {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--color-bg);
+    position: sticky; top: 0;
+    z-index: 1;
+  }
+  .day-header::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+    margin-left: var(--space-2);
+  }
+
+  .commit-row {
+    display: grid;
+    grid-template-columns: 76px 1fr auto;
+    align-items: center;
+    column-gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-left: 2px solid transparent;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .commit-row + .commit-row {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+  .commit-row:hover { background: var(--color-bg-subtle); }
+  .commit-row.selected {
+    background: var(--color-bg-subtle);
+    border-left-color: var(--color-accent);
+  }
+  .commit-hash {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+  }
+  .commit-row.selected .commit-hash {
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .commit-body { min-width: 0; }
+  .commit-msg {
+    font-size: var(--text-md);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-normal);
+  }
+  .commit-row.selected .commit-msg { font-weight: var(--weight-medium); }
+  .commit-msg .commit-prefix { color: var(--color-accent); }
+  .commit-msg .commit-iso { color: var(--color-text-muted); }
+  .commit-sub {
+    margin-top: 3px;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    display: flex; align-items: center; gap: var(--space-2);
+  }
+  .commit-sub .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--color-text-subtle); }
+  .commit-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex: none;
+  }
+  .commit-sub > * { flex: none; }
+  .commit-sub > span:not(.commit-tag):not(.dot) { white-space: nowrap; }
+  .commit-tag.auto { background: var(--color-accent-bg); color: var(--color-accent); }
+  .commit-time {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-subtle);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── Right pane: diff viewer ──────────────────────────── */
+  .diff-pane {
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    background: var(--color-bg);
+  }
+  .diff-header {
+    padding: var(--space-3) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    flex: none;
+  }
+  .diff-header-top {
+    display: flex; align-items: baseline; gap: var(--space-3);
+    margin-bottom: var(--space-2);
+  }
+  .diff-hash {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+    padding: 2px 8px;
+    background: var(--color-accent-bg);
+    border-radius: var(--radius-sm);
+    line-height: 1.4;
+  }
+  .diff-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .diff-title .commit-prefix { color: var(--color-accent); }
+  .diff-meta {
+    display: flex; align-items: center; gap: var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    flex-wrap: wrap;
+  }
+  .diff-meta .sep { color: var(--color-border-strong); }
+  .diff-stat {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+  .diff-stat .add { color: var(--diff-add-text); font-weight: var(--weight-medium); }
+  .diff-stat .del { color: var(--diff-del-text); font-weight: var(--weight-medium); }
+  .diff-stat .bar { display: inline-flex; gap: 1px; }
+  .diff-stat .bar i {
+    width: 6px; height: 8px;
+    background: var(--color-bg-muted);
+    display: inline-block;
+  }
+  .diff-stat .bar i.a { background: var(--color-accent-strong); }
+  .diff-stat .bar i.d { background: #E89090; }
+
+  /* Diff body */
+  .diff-body {
+    flex: 1; min-height: 0;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+  .file-block + .file-block { margin-top: var(--space-4); }
+  .file-head {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    position: sticky; top: 0;
+    z-index: 2;
+  }
+  .file-head svg { color: var(--color-text-muted); }
+  .file-head .path { font-weight: var(--weight-medium); }
+  .file-head .spacer { flex: 1; }
+  .file-head .mini-stat {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+  }
+  .file-head .mini-stat .add { color: var(--diff-add-text); }
+  .file-head .mini-stat .del { color: var(--diff-del-text); }
+
+  .hunk-head {
+    padding: 4px var(--space-4);
+    color: var(--diff-hunk-text);
+    background: var(--diff-hunk-bg);
+    font-size: var(--text-xs);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .diff-line {
+    display: grid;
+    grid-template-columns: 40px 40px 14px 1fr;
+    align-items: baseline;
+    column-gap: 0;
+  }
+  .ln, .lnr {
+    text-align: right;
+    color: var(--color-text-subtle);
+    padding: 0 8px 0 0;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  .ln  { padding-left: var(--space-4); }
+  .marker {
+    text-align: center;
+    color: var(--color-text-subtle);
+    user-select: none;
+    font-weight: var(--weight-medium);
+  }
+  .code {
+    white-space: pre;
+    color: var(--color-text);
+    padding-right: var(--space-4);
+  }
+  .diff-line.add        { background: var(--diff-add-bg); }
+  .diff-line.add .ln    { background: var(--diff-add-gut); color: var(--diff-add-text); }
+  .diff-line.add .lnr   { background: var(--diff-add-gut); color: var(--diff-add-text); }
+  .diff-line.add .marker { color: var(--diff-add-text); }
+  .diff-line.del        { background: var(--diff-del-bg); }
+  .diff-line.del .ln    { background: var(--diff-del-gut); color: var(--diff-del-text); }
+  .diff-line.del .lnr   { background: var(--diff-del-gut); color: var(--diff-del-text); }
+  .diff-line.del .marker { color: var(--diff-del-text); }
+  .diff-line.ctx .ln,
+  .diff-line.ctx .lnr   { background: var(--color-bg-subtle); }
+
+  /* Token highlights inside diff code */
+  .code .str { color: #8B6914; }
+  .code .cmt { color: var(--color-text-muted); }
+  .code .flag-pending  { background: #FFE9B3; padding: 0 2px; border-radius: 2px; font-weight: var(--weight-medium); }
+  .code .flag-approved { background: #BFE6CC; padding: 0 2px; border-radius: 2px; font-weight: var(--weight-medium); color: var(--diff-add-text); }
+  .code .num { font-variant-numeric: tabular-nums; }
+
+  /* ─── Status bar ───────────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    height: var(--shell-status-bar-height);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .status-sep { color: var(--color-border-strong); }
+  .status-valid { color: var(--color-accent); }
+  .status-check { width: 12px; height: 12px; }
+
+  /* Scrollbar polish */
+  .commits::-webkit-scrollbar, .diff-body::-webkit-scrollbar, .sidebar::-webkit-scrollbar { width: 10px; height: 10px; }
+  .commits::-webkit-scrollbar-thumb, .diff-body::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-bg);
+  }
+  .commits::-webkit-scrollbar-thumb:hover, .diff-body::-webkit-scrollbar-thumb:hover, .sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <button class="brand" type="button" aria-haspopup="menu" aria-label="Switch workspace">
+      <div class="brand-mark">L</div>
+      <div class="brand-text">
+        <div class="brand-name">Ledgerly</div>
+        <div class="brand-sub">Acme, Inc.</div>
+      </div>
+      <svg class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </button>
+
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">4</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="label">Accounts</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        <span class="label">Import</span>
+      </button>
+      <!-- Git item — between Import and Settings, shown only when a repo is detected -->
+      <button class="nav-item active" aria-current="page">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M6 8.2v7.6"/><path d="M15.8 12H10a4 4 0 0 1-4-4"/></svg>
+        <span class="label">Git</span>
+        <span class="count-badge" title="Commits today">12</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 4.37 16.96l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="label">Settings</span>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="user-btn" type="button" aria-haspopup="menu" aria-label="Open settings">
+        <div class="user-avatar">DR</div>
+        <span class="user-name">Dana Reyes</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="theme-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <section class="main">
+
+    <!-- Page header -->
+    <header class="header">
+      <h1>Git</h1>
+      <button class="branch-chip" type="button" aria-label="Switch branch">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 8.2v7.6"/><path d="M18 8.2c0 4-4 4-6 4"/></svg>
+        main
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <span class="auto-status">
+        <span class="auto-dot" aria-hidden="true"></span>
+        auto-committing
+      </span>
+      <span class="spacer"></span>
+      <span class="header-meta">
+        github.com/acme/books<span class="sep">·</span>↑0 ↓0<span class="sep">·</span>last sync 1m ago
+      </span>
+    </header>
+
+    <!-- Body -->
+    <div class="body">
+
+      <!-- ═══════ Left: commits list ═══════ -->
+      <aside class="commits-pane">
+        <div class="pane-header">
+          <span class="pane-title">Recent commits</span>
+          <span class="spacer"></span>
+          <button class="btn-custom" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Commit with custom message…
+          </button>
+        </div>
+
+        <!-- Working tree — rare since auto-commit runs continuously -->
+        <div class="working-tree" aria-label="Working tree">
+          <div class="wt-head">
+            <span>Working tree</span>
+            <span class="wt-count">1 file</span>
+          </div>
+          <div class="wt-files">
+            <div class="wt-file">
+              <span class="wt-flag m">M</span>
+              <span>transactions/2026-05.bean</span>
+            </div>
+          </div>
+          <div class="wt-note">Auto-commit in 8s — or commit now with a message.</div>
+        </div>
+
+        <div class="commits" id="commits">
+
+          <div class="day-header">Today · Friday, May 8</div>
+
+          <div class="commit-row">
+            <span class="commit-hash">7e1d4b</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">workspace backup</span> <span class="commit-iso">2026-05-08T14:31:22Z</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto</span>
+                <span>3 files changed</span>
+                <span class="dot"></span>
+                <span>+18 −4</span>
+              </div>
+            </div>
+            <span class="commit-time">14:31</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">c08a92</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">workspace backup</span> <span class="commit-iso">2026-05-08T09:12:05Z</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+2 −1</span>
+              </div>
+            </div>
+            <span class="commit-time">09:12</span>
+          </div>
+
+          <div class="commit-row selected" aria-current="true">
+            <span class="commit-hash">a3f2c1</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">ledgerly: approve</span> 5 entries (2026-05)</div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto · approval</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+5 −5</span>
+              </div>
+            </div>
+            <span class="commit-time">08:47</span>
+          </div>
+
+          <div class="day-header">Wednesday, May 6</div>
+
+          <div class="commit-row">
+            <span class="commit-hash">5fbe09</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">ledgerly: approve</span> 5 entries (2026-04)</div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto · approval</span>
+                <span>2 files changed</span>
+                <span class="dot"></span>
+                <span>+5 −5</span>
+              </div>
+            </div>
+            <span class="commit-time">16:02</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">d214a7</span>
+            <div class="commit-body">
+              <div class="commit-msg">Open <span class="commit-iso">Expenses:Meals</span> account</div>
+              <div class="commit-sub">
+                <span class="commit-tag">custom</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+1 −0</span>
+              </div>
+            </div>
+            <span class="commit-time">15:18</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">9b6710</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">workspace backup</span> <span class="commit-iso">2026-05-06T11:04:48Z</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+6 −0</span>
+              </div>
+            </div>
+            <span class="commit-time">11:04</span>
+          </div>
+
+          <div class="day-header">Tuesday, May 5</div>
+
+          <div class="commit-row">
+            <span class="commit-hash">f88c2e</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">ledgerly: import</span> Chase statement (Apr 2026)</div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto · import</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+87 −0</span>
+              </div>
+            </div>
+            <span class="commit-time">10:22</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">2a4c11</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">workspace backup</span> <span class="commit-iso">2026-05-05T08:00:00Z</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto</span>
+                <span>4 files changed</span>
+                <span class="dot"></span>
+                <span>+22 −9</span>
+              </div>
+            </div>
+            <span class="commit-time">08:00</span>
+          </div>
+
+          <div class="day-header">Monday, May 4</div>
+
+          <div class="commit-row">
+            <span class="commit-hash">6e0f3d</span>
+            <div class="commit-body">
+              <div class="commit-msg">Rename <span class="commit-iso">Expenses:Travel</span> → <span class="commit-iso">Expenses:Travel:Air</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag">custom</span>
+                <span>3 files changed</span>
+                <span class="dot"></span>
+                <span>+12 −12</span>
+              </div>
+            </div>
+            <span class="commit-time">17:41</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">b71992</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">ledgerly: approve</span> 11 entries (2026-04)</div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto · approval</span>
+                <span>1 file changed</span>
+                <span class="dot"></span>
+                <span>+11 −11</span>
+              </div>
+            </div>
+            <span class="commit-time">13:08</span>
+          </div>
+
+          <div class="commit-row">
+            <span class="commit-hash">044ae8</span>
+            <div class="commit-body">
+              <div class="commit-msg"><span class="commit-prefix">workspace backup</span> <span class="commit-iso">2026-05-04T08:00:00Z</span></div>
+              <div class="commit-sub">
+                <span class="commit-tag auto">auto</span>
+                <span>2 files changed</span>
+                <span class="dot"></span>
+                <span>+4 −2</span>
+              </div>
+            </div>
+            <span class="commit-time">08:00</span>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- ═══════ Right: diff viewer ═══════ -->
+      <section class="diff-pane" aria-label="Commit diff">
+        <div class="diff-header">
+          <div class="diff-header-top">
+            <span class="diff-hash">a3f2c1</span>
+            <span class="diff-title"><span class="commit-prefix">ledgerly: approve</span> 5 entries (2026-05)</span>
+          </div>
+          <div class="diff-meta">
+            <span>Dana Reyes &lt;dana@acme.co&gt;</span>
+            <span class="sep">·</span>
+            <span>May 8, 2026 at 08:47 — auto-committed on Approval</span>
+            <span class="sep">·</span>
+            <span class="diff-stat">
+              1 file
+              <span class="add">+5</span>
+              <span class="del">−5</span>
+              <span class="bar" aria-hidden="true">
+                <i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i>
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div class="diff-body">
+
+          <div class="file-block">
+            <div class="file-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              <span class="path">transactions/2026-05.bean</span>
+              <span class="spacer"></span>
+              <span class="mini-stat"><span class="add">+5</span> <span class="del">−5</span></span>
+            </div>
+
+            <div class="hunk-head">@@ −40,18 +40,18 @@ ; May 2026 — operating activity</div>
+
+            <div class="diff-line ctx"><span class="ln">40</span><span class="lnr">40</span><span class="marker"> </span><span class="code"> </span></div>
+            <div class="diff-line del"><span class="ln">41</span><span class="lnr"> </span><span class="marker">−</span><span class="code">2026-05-02 <span class="flag-pending">!</span> <span class="str">"Stripe"</span> <span class="str">"April subscription payout"</span></span></div>
+            <div class="diff-line add"><span class="ln"> </span><span class="lnr">41</span><span class="marker">+</span><span class="code">2026-05-02 <span class="flag-approved">*</span> <span class="str">"Stripe"</span> <span class="str">"April subscription payout"</span></span></div>
+            <div class="diff-line ctx"><span class="ln">42</span><span class="lnr">42</span><span class="marker"> </span><span class="code">    Assets:Bank:Chase                       <span class="num"> 3,240.00</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">43</span><span class="lnr">43</span><span class="marker"> </span><span class="code">    Income:SaaS:Subscriptions               <span class="num">-3,240.00</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">44</span><span class="lnr">44</span><span class="marker"> </span><span class="code"> </span></div>
+
+            <div class="diff-line del"><span class="ln">45</span><span class="lnr"> </span><span class="marker">−</span><span class="code">2026-05-03 <span class="flag-pending">!</span> <span class="str">"AWS"</span> <span class="str">"May infrastructure"</span>  <span class="cmt">; us-east-1, prod cluster</span></span></div>
+            <div class="diff-line add"><span class="ln"> </span><span class="lnr">45</span><span class="marker">+</span><span class="code">2026-05-03 <span class="flag-approved">*</span> <span class="str">"AWS"</span> <span class="str">"May infrastructure"</span>  <span class="cmt">; us-east-1, prod cluster</span></span></div>
+            <div class="diff-line ctx"><span class="ln">46</span><span class="lnr">46</span><span class="marker"> </span><span class="code">    Expenses:Hosting                          <span class="num">412.83</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">47</span><span class="lnr">47</span><span class="marker"> </span><span class="code">    Liabilities:CreditCard:Amex              <span class="num">-412.83</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">48</span><span class="lnr">48</span><span class="marker"> </span><span class="code"> </span></div>
+
+            <div class="diff-line del"><span class="ln">49</span><span class="lnr"> </span><span class="marker">−</span><span class="code">2026-05-05 <span class="flag-pending">!</span> <span class="str">"Notion"</span> <span class="str">"Team plan — annual"</span></span></div>
+            <div class="diff-line add"><span class="ln"> </span><span class="lnr">49</span><span class="marker">+</span><span class="code">2026-05-05 <span class="flag-approved">*</span> <span class="str">"Notion"</span> <span class="str">"Team plan — annual"</span></span></div>
+            <div class="diff-line ctx"><span class="ln">50</span><span class="lnr">50</span><span class="marker"> </span><span class="code">    Expenses:Software:Tools                   <span class="num">192.00</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">51</span><span class="lnr">51</span><span class="marker"> </span><span class="code">    Assets:Bank:Chase                        <span class="num">-192.00</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">52</span><span class="lnr">52</span><span class="marker"> </span><span class="code"> </span></div>
+
+            <div class="diff-line del"><span class="ln">53</span><span class="lnr"> </span><span class="marker">−</span><span class="code">2026-05-06 <span class="flag-pending">!</span> <span class="str">"Sweetgreen"</span> <span class="str">"Lunch — design team review"</span></span></div>
+            <div class="diff-line add"><span class="ln"> </span><span class="lnr">53</span><span class="marker">+</span><span class="code">2026-05-06 <span class="flag-approved">*</span> <span class="str">"Sweetgreen"</span> <span class="str">"Lunch — design team review"</span></span></div>
+            <div class="diff-line ctx"><span class="ln">54</span><span class="lnr">54</span><span class="marker"> </span><span class="code">    Expenses:Meals                            <span class="num">87.40</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">55</span><span class="lnr">55</span><span class="marker"> </span><span class="code">    Assets:Bank:Chase                         <span class="num">-87.40</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">56</span><span class="lnr">56</span><span class="marker"> </span><span class="code"> </span></div>
+
+            <div class="diff-line del"><span class="ln">57</span><span class="lnr"> </span><span class="marker">−</span><span class="code">2026-05-07 <span class="flag-pending">!</span> <span class="str">"OpenAI"</span> <span class="str">"ChatGPT Team subscription"</span></span></div>
+            <div class="diff-line add"><span class="ln"> </span><span class="lnr">57</span><span class="marker">+</span><span class="code">2026-05-07 <span class="flag-approved">*</span> <span class="str">"OpenAI"</span> <span class="str">"ChatGPT Team subscription"</span></span></div>
+            <div class="diff-line ctx"><span class="ln">58</span><span class="lnr">58</span><span class="marker"> </span><span class="code">    Expenses:Software:AI                       <span class="num">25.00</span> USD</span></div>
+            <div class="diff-line ctx"><span class="ln">59</span><span class="lnr">59</span><span class="marker"> </span><span class="code">    Liabilities:CreditCard:Amex               <span class="num">-25.00</span> USD</span></div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="statusbar-item">books.git</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">origin/main</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item status-valid">
+        <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        clean · synced
+      </span>
+      <span class="spacer"></span>
+      <span class="statusbar-item">a3f2c1 selected</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">+5 −5</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Beancount</span>
+    </div>
+
+  </section>
+</div>
+
+<script>
+  // Click-to-select commit rows (visual only)
+  const rows = document.querySelectorAll('.commit-row');
+  rows.forEach(r => r.addEventListener('click', () => {
+    rows.forEach(x => x.classList.remove('selected'));
+    rows.forEach(x => x.removeAttribute('aria-current'));
+    r.classList.add('selected');
+    r.setAttribute('aria-current', 'true');
+  }));
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+/* ============================================================
+   Ledgerly — Design Tokens
+   Source of truth for the design system.
+   All component styles must reference these via var(--token-name).
+   ============================================================ */
+
+:root {
+  /* ─────────────────────────────────────────────────────────
+     Surface colors
+     ───────────────────────────────────────────────────────── */
+  --color-bg:                 #FFFFFF;
+  --color-bg-muted:           #F4F4F5;
+  --color-bg-subtle:          #FAFAFA;
+
+  /* ─────────────────────────────────────────────────────────
+     Text colors
+     ───────────────────────────────────────────────────────── */
+  --color-text:               #18181B;
+  --color-text-muted:         #71717A;
+  --color-text-subtle:        #A1A1AA;
+
+  /* ─────────────────────────────────────────────────────────
+     Border colors
+     ───────────────────────────────────────────────────────── */
+  --color-border:             #E4E4E7;
+  --color-border-strong:      #D4D4D8;
+
+  /* ─────────────────────────────────────────────────────────
+     Accent — sage green (use sparingly)
+     ───────────────────────────────────────────────────────── */
+  --color-accent:             #2D6A4F;
+  --color-accent-bg:          #E6F4EA;
+  --color-accent-strong:      #4ADE80;
+
+  /* ─────────────────────────────────────────────────────────
+     Destructive / error
+     ───────────────────────────────────────────────────────── */
+  --color-destructive:        #DC2626;
+  --color-destructive-bg:     #FEE2E2;
+
+  /* ─────────────────────────────────────────────────────────
+     Editor-specific (Ledger Editor only)
+     ───────────────────────────────────────────────────────── */
+  --color-editor-string-bg:   #FEF8E1;
+  --color-editor-active-block:#FAFAFA;
+  --color-editor-ghost-text:  #A1A1AA;
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — families
+     ───────────────────────────────────────────────────────── */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — scale (size / line-height)
+     ───────────────────────────────────────────────────────── */
+  --text-xs:    11px;   --text-xs-lh:    1.4;
+  --text-sm:    12px;   --text-sm-lh:    1.4;
+  --text-base:  13px;   --text-base-lh:  1.5;
+  --text-md:    14px;   --text-md-lh:    1.5;
+  --text-lg:    16px;   --text-lg-lh:    1.4;
+  --text-xl:    20px;   --text-xl-lh:    1.3;
+  --text-2xl:   24px;   --text-2xl-lh:   1.25;
+  --text-3xl:   32px;   --text-3xl-lh:   1.2;
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — weights
+     ───────────────────────────────────────────────────────── */
+  --weight-normal:    400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+
+  /* ─────────────────────────────────────────────────────────
+     Spacing — 4px base
+     ───────────────────────────────────────────────────────── */
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+
+  /* ─────────────────────────────────────────────────────────
+     Borders & radii
+     ───────────────────────────────────────────────────────── */
+  --border-width:   1px;
+  --radius-sm:      4px;
+  --radius-md:      6px;
+  --radius-lg:      8px;
+  --radius-pill:    9999px;
+
+  /* ─────────────────────────────────────────────────────────
+     Shadows (floating elements only)
+     ───────────────────────────────────────────────────────── */
+  --shadow-none:    none;
+  --shadow-subtle:  0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-modal:   0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.08);
+
+  /* ─────────────────────────────────────────────────────────
+     Layout
+     ───────────────────────────────────────────────────────── */
+  --shell-sidebar-width:      200px;
+  --shell-status-bar-height:  28px;
+  --shell-tab-bar-height:     36px;
+  --shell-header-height:      48px;
+  --modal-width-sm:           420px;
+  --modal-width-md:           520px;
+  --modal-width-lg:           640px;
+  --welcome-card-width:       280px;
+  --inspector-width:          380px;
+
+  /* ─────────────────────────────────────────────────────────
+     Motion
+     ───────────────────────────────────────────────────────── */
+  --duration-fast:    100ms;
+  --duration-medium:  200ms;
+  --duration-slow:    300ms;
+  --easing:           cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast:   0ms;
+    --duration-medium: 0ms;
+    --duration-slow:   0ms;
+  }
+}

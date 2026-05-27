@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Documents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+  /* ─── App shell ───────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    height: 100vh;
+  }
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ─── Sidebar (shared) ────────────────────────────────── */
+  .sidebar {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; width: 100%;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .brand:hover { background: var(--color-bg-subtle); }
+  .brand-text { flex: 1; min-width: 0; }
+  .brand-chevron { color: var(--color-text-subtle); flex: none; }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent); color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+  .brand-name { font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+  .brand-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nav-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .nav-item:hover { background: var(--color-bg-subtle); }
+  .nav-item svg { color: var(--color-text-muted); flex: none; }
+  .nav-item .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item.active svg { color: var(--color-accent); }
+  .count-badge {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    border: var(--border-width) solid var(--color-border);
+  }
+
+  .footer {
+    margin-top: auto;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-top: var(--space-2);
+    display: flex; align-items: center; gap: var(--space-1);
+  }
+  .user-btn {
+    flex: 1;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; min-width: 0;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .user-btn:hover { background: var(--color-bg-subtle); }
+  .user-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #18181B; color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .user-name {
+    flex: 1; min-width: 0;
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .user-btn svg.chev { color: var(--color-text-subtle); flex: none; }
+  .theme-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── Workspace ───────────────────────────────────────── */
+  .workspace {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ─── Page header ─────────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: var(--space-6) var(--space-8) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .page-header-left h1 {
+    margin: 0 0 4px;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl-lh);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.015em;
+  }
+  .page-subtitle {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+  }
+  .page-subtitle .root {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+  .page-subtitle .dot-sep {
+    display: inline-block;
+    margin: 0 8px;
+    color: var(--color-text-subtle);
+  }
+
+  .header-actions {
+    display: flex; align-items: center; gap: var(--space-2);
+    flex: none;
+  }
+
+  /* ─── Two-pane area ──────────────────────────────────── */
+  .panes {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ─── Folder tree pane ─────────────────────────────────── */
+  .tree-pane {
+    border-right: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .tree-head {
+    display: flex; align-items: center;
+    padding: var(--space-3) var(--space-4) var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .tree-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 var(--space-2);
+    display: flex; flex-direction: column;
+    gap: 1px;
+  }
+  .tree-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .tree-item:hover { background: var(--color-bg-muted); }
+  .tree-item .folder-icon {
+    width: 14px; height: 14px;
+    color: var(--color-text-muted);
+    flex: none;
+  }
+  .tree-item .name {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--text-md);
+  }
+  .tree-item .file-count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+  .tree-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+  }
+  .tree-item.active .folder-icon { color: var(--color-accent); }
+  .tree-item.active .file-count { color: var(--color-accent); opacity: 0.85; }
+  .tree-foot {
+    padding: var(--space-2);
+    border-top: var(--border-width) solid var(--color-border);
+  }
+  .tree-new {
+    display: flex; align-items: center; gap: var(--space-2);
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-md);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .tree-new:hover { background: var(--color-bg-muted); color: var(--color-text); }
+  .tree-new .plus {
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: 3px;
+    color: var(--color-text-subtle);
+    flex: none;
+  }
+
+  /* ─── File pane (right) ────────────────────────────────── */
+  .file-pane {
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    background: var(--color-bg);
+    position: relative;
+  }
+
+  /* Drop hint banner */
+  .drop-hint {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) var(--space-6);
+    background: var(--color-accent-bg);
+    border-bottom: var(--border-width) solid var(--color-accent);
+    color: var(--color-accent);
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .drop-hint .drop-icon {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border: 1.5px dashed var(--color-accent);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
+  }
+  .drop-hint .drop-target {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+  }
+  .drop-hint .drop-meta {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-accent);
+    opacity: 0.75;
+  }
+
+  /* Breadcrumb / toolbar */
+  .file-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-6) var(--space-3);
+    flex: none;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    min-width: 0;
+  }
+  .breadcrumb .crumb {
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+  .breadcrumb .crumb:hover { color: var(--color-text); }
+  .breadcrumb .crumb.current {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+  .breadcrumb .crumb-sep { color: var(--color-text-subtle); }
+  .toolbar-right {
+    display: flex; align-items: center; gap: var(--space-2);
+  }
+  .search-input {
+    height: 28px;
+    padding: 0 var(--space-2) 0 var(--space-6);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/></svg>") no-repeat 8px center;
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    width: 200px;
+    outline: none;
+    transition: border-color var(--duration-fast) var(--easing);
+  }
+  .search-input::placeholder { color: var(--color-text-subtle); }
+  .search-input:focus { border-color: var(--color-accent); }
+
+  /* File list scroll */
+  .file-list-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .file-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-md);
+  }
+  .file-table thead th {
+    position: sticky; top: 0;
+    text-align: left;
+    background: var(--color-bg-subtle);
+    border-bottom: var(--border-width) solid var(--color-border);
+    padding: 8px var(--space-6);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    z-index: 1;
+  }
+  .file-table thead th.col-size,
+  .file-table thead th.col-date { text-align: right; }
+  .file-table thead th.col-actions { width: 36px; }
+
+  .file-table tbody tr {
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .file-table tbody tr td {
+    border-bottom: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-6);
+    height: 38px;
+    vertical-align: middle;
+    color: var(--color-text);
+  }
+  .file-table tbody tr:hover td { background: var(--color-bg-subtle); }
+  .file-table tbody tr.selected td {
+    background: var(--color-accent-bg);
+  }
+  .file-table tbody tr.selected td:first-child {
+    box-shadow: inset 2px 0 0 var(--color-accent);
+  }
+
+  .file-cell {
+    display: flex; align-items: center; gap: var(--space-3);
+    min-width: 0;
+  }
+  .file-icon {
+    width: 24px; height: 28px;
+    border-radius: 3px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+    flex: none;
+    border: var(--border-width) solid;
+    line-height: 1;
+  }
+  .file-icon.pdf { background: #FEE2E2; color: #B91C1C; border-color: #FCA5A5; }
+  .file-icon.csv { background: var(--color-accent-bg); color: var(--color-accent); border-color: #A7D7BA; }
+  .file-icon.img { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+  .file-icon.txt { background: var(--color-bg-muted); color: var(--color-text-muted); border-color: var(--color-border-strong); }
+  .file-icon.doc { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
+
+  .file-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .file-meta-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-text-muted);
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-muted);
+    line-height: 1;
+    flex: none;
+  }
+  .file-meta-tag.linked {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+  }
+  .file-date, .file-size {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .file-actions {
+    text-align: right;
+    color: var(--color-text-subtle);
+  }
+  .file-actions .more {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    display: inline-grid; place-items: center;
+    visibility: hidden;
+    color: var(--color-text-muted);
+  }
+  .file-table tbody tr:hover .more { visibility: visible; }
+  .file-actions .more:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+  /* ─── Preview panel ───────────────────────────────────── */
+  .preview-panel {
+    flex: none;
+    border-top: var(--border-width) solid var(--color-border);
+    background: var(--color-bg-subtle);
+    display: flex; flex-direction: column;
+    max-height: 360px;
+    min-height: 280px;
+  }
+  .preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-6);
+    background: var(--color-bg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .preview-head-left {
+    display: flex; align-items: center; gap: var(--space-3);
+    min-width: 0;
+  }
+  .preview-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .preview-meta-row {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .preview-meta-row .sep { color: var(--color-text-subtle); }
+  .preview-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+  .preview-body {
+    flex: 1;
+    overflow: auto;
+    padding: var(--space-4) var(--space-6);
+  }
+
+  /* PDF preview render */
+  .pdf-frame {
+    background: #fff;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-subtle);
+    width: 520px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--space-5);
+    font-family: "Times New Roman", Times, serif;
+    color: #1a1a1a;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .pdf-frame .pdf-bank {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-3);
+    border-bottom: 1.5px solid #1a1a1a;
+  }
+  .pdf-frame .pdf-bank-name {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+  }
+  .pdf-frame .pdf-stmt-tag {
+    font-family: var(--font-sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: #6b6b6b;
+    text-transform: uppercase;
+  }
+  .pdf-frame .pdf-acct {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+    margin-bottom: var(--space-3);
+    font-size: 10.5px;
+  }
+  .pdf-frame .pdf-acct dt {
+    color: #6b6b6b;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pdf-frame .pdf-acct dd {
+    margin: 0 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+  .pdf-frame .pdf-summary {
+    background: #f7f7f5;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    margin-bottom: var(--space-3);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .pdf-frame .pdf-summary .lbl {
+    font-family: var(--font-sans);
+    font-size: 8.5px;
+    color: #6b6b6b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+  }
+  .pdf-frame .pdf-summary .val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .pdf-frame table.pdf-tx {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  .pdf-frame table.pdf-tx th {
+    text-align: left;
+    border-bottom: 1px solid #1a1a1a;
+    padding: 4px 6px;
+    font-family: var(--font-sans);
+    font-size: 8.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+    font-weight: 600;
+  }
+  .pdf-frame table.pdf-tx th.r,
+  .pdf-frame table.pdf-tx td.r { text-align: right; }
+  .pdf-frame table.pdf-tx td {
+    padding: 4px 6px;
+    border-bottom: 1px dotted #d4d4d4;
+    font-family: var(--font-mono);
+    color: #1a1a1a;
+  }
+
+  /* CSV / monospace preview */
+  .mono-preview {
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+  .mono-preview .mono-line {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .mono-preview .mono-line:last-child { border-bottom: none; }
+  .mono-preview .mono-num {
+    background: var(--color-bg-subtle);
+    color: var(--color-text-subtle);
+    text-align: right;
+    padding: 4px 10px;
+    border-right: var(--border-width) solid var(--color-border);
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .mono-preview .mono-text {
+    padding: 4px 12px;
+    color: var(--color-text);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .mono-preview .mono-line.header .mono-text {
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+    background: var(--color-accent-bg);
+  }
+  .mono-preview .csv-tok-num { color: #B45309; }
+  .mono-preview .csv-tok-str { color: var(--color-text); }
+  .mono-preview .csv-tok-comma { color: var(--color-text-subtle); }
+
+  /* ─── Buttons ─────────────────────────────────────────── */
+  .btn {
+    font-family: var(--font-sans);
+    font-weight: var(--weight-medium);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .btn-sm { height: 28px; padding: 0 var(--space-3); font-size: var(--text-md); }
+  .btn-md { height: 32px; padding: 0 var(--space-4); font-size: var(--text-md); }
+  .btn-primary {
+    background: var(--color-accent); color: #fff;
+    border: var(--border-width) solid var(--color-accent);
+  }
+  .btn-primary:hover { background: #285F47; border-color: #285F47; }
+  .btn-secondary {
+    background: var(--color-bg); color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-bg-muted); }
+  .btn-ghost {
+    background: transparent; color: var(--color-text-muted);
+    border: var(--border-width) solid transparent;
+  }
+  .btn-ghost:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+  /* ─── Status bar ──────────────────────────────────────── */
+  .statusbar {
+    display: flex; align-items: center;
+    height: var(--shell-status-bar-height);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .status-sep { color: var(--color-border-strong); }
+  .status-link { color: var(--color-accent); }
+
+  /* Scrollbar polish */
+  .tree-list::-webkit-scrollbar,
+  .file-list-wrap::-webkit-scrollbar,
+  .preview-body::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar { width: 10px; height: 10px; }
+  .tree-list::-webkit-scrollbar-thumb,
+  .file-list-wrap::-webkit-scrollbar-thumb,
+  .preview-body::-webkit-scrollbar-thumb,
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-bg);
+  }
+  .tree-list::-webkit-scrollbar-thumb:hover,
+  .file-list-wrap::-webkit-scrollbar-thumb:hover,
+  .preview-body::-webkit-scrollbar-thumb:hover,
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="06 Documents">
+
+  <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <button class="brand" type="button" aria-haspopup="menu" aria-label="Switch workspace">
+      <div class="brand-mark">L</div>
+      <div class="brand-text">
+        <div class="brand-name">Ledgerly</div>
+        <div class="brand-sub">Acme, Inc.</div>
+      </div>
+      <svg class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </button>
+
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">4</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="label">Accounts</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        <span class="label">Import</span>
+      </button>
+      <button class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4a2 2 0 0 1 2-2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M13 2v5h5"/></svg>
+        <span class="label">Documents</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="label">Search</span>
+      </button>
+    </div>
+
+    <div class="nav-caps">Recently opened</div>
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">chase_statement</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">lyft_2026-05-08</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">stripe_payout</span>
+      </button>
+    </div>
+
+    <div class="footer">
+      <button class="user-btn" type="button" aria-haspopup="menu" aria-label="Open settings">
+        <div class="user-avatar">DR</div>
+        <span class="user-name">Dana Reyes</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="theme-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <section class="main">
+
+    <div class="workspace">
+
+      <!-- Page header -->
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1>Documents</h1>
+          <p class="page-subtitle">
+            <span class="root">documents/</span>
+            <span class="dot-sep">·</span>
+            5 folders
+            <span class="dot-sep">·</span>
+            49 files
+            <span class="dot-sep">·</span>
+            12.4 MB
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-md btn-secondary" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+            Upload
+          </button>
+          <button class="btn btn-md btn-primary" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            New folder
+          </button>
+        </div>
+      </header>
+
+      <!-- Two pane -->
+      <div class="panes">
+
+        <!-- Folder tree -->
+        <aside class="tree-pane">
+          <div class="tree-head">Folders</div>
+          <div class="tree-list">
+
+            <button class="tree-item active" type="button">
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">chase-checking</span>
+              <span class="file-count">12</span>
+            </button>
+
+            <button class="tree-item" type="button">
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">amex-platinum</span>
+              <span class="file-count">8</span>
+            </button>
+
+            <button class="tree-item" type="button">
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">stripe</span>
+              <span class="file-count">4</span>
+            </button>
+
+            <button class="tree-item" type="button">
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">receipts</span>
+              <span class="file-count">23</span>
+            </button>
+
+            <button class="tree-item" type="button">
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">contracts</span>
+              <span class="file-count">2</span>
+            </button>
+
+          </div>
+          <div class="tree-foot">
+            <button class="tree-new" type="button">
+              <span class="plus">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              </span>
+              <span>New folder</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- File pane -->
+        <div class="file-pane">
+
+          <!-- Drop hint (always visible state shown — represents "drop to add" hint) -->
+          <div class="drop-hint" role="status" aria-live="polite">
+            <span class="drop-icon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            </span>
+            <span>Drop to add to <span class="drop-target">chase-checking/</span></span>
+            <span class="drop-meta">PDF · CSV · PNG · JPG up to 25 MB</span>
+          </div>
+
+          <!-- Breadcrumb / search -->
+          <div class="file-toolbar">
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <span class="crumb">documents</span>
+              <span class="crumb-sep">/</span>
+              <span class="crumb current">chase-checking</span>
+            </nav>
+            <div class="toolbar-right">
+              <input class="search-input" type="text" placeholder="Filter files…" />
+              <button class="btn btn-sm btn-secondary" type="button" aria-label="Sort">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M6 12h12"/><path d="M10 18h4"/></svg>
+                Modified
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- File table -->
+          <div class="file-list-wrap">
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th class="col-date">Modified</th>
+                  <th class="col-size">Size</th>
+                  <th class="col-actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="selected">
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon pdf">PDF</span>
+                      <span class="file-name">2026-04-30_chase_statement.pdf</span>
+                      <span class="file-meta-tag linked">linked · 47 tx</span>
+                    </div>
+                  </td>
+                  <td class="file-date">May 1, 2026</td>
+                  <td class="file-size">218 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon csv">CSV</span>
+                      <span class="file-name">2026-05-08_chase_statement.csv</span>
+                      <span class="file-meta-tag">imported</span>
+                    </div>
+                  </td>
+                  <td class="file-date">May 8, 2026</td>
+                  <td class="file-size">12.8 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon csv">CSV</span>
+                      <span class="file-name">2026-04-07_chase_statement.csv</span>
+                      <span class="file-meta-tag">imported</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Apr 7, 2026</td>
+                  <td class="file-size">11.4 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon pdf">PDF</span>
+                      <span class="file-name">2026-03-31_chase_statement.pdf</span>
+                      <span class="file-meta-tag linked">linked · 52 tx</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Apr 1, 2026</td>
+                  <td class="file-size">204 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon csv">CSV</span>
+                      <span class="file-name">2026-03-07_chase_statement.csv</span>
+                      <span class="file-meta-tag">imported</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Mar 7, 2026</td>
+                  <td class="file-size">10.9 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon img">PNG</span>
+                      <span class="file-name">deposit-slip-2026-03-14.png</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Mar 14, 2026</td>
+                  <td class="file-size">486 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon pdf">PDF</span>
+                      <span class="file-name">2026-02-28_chase_statement.pdf</span>
+                      <span class="file-meta-tag linked">linked · 49 tx</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Mar 1, 2026</td>
+                  <td class="file-size">198 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon csv">CSV</span>
+                      <span class="file-name">2026-02-07_chase_statement.csv</span>
+                      <span class="file-meta-tag">imported</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Feb 7, 2026</td>
+                  <td class="file-size">10.2 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon txt">TXT</span>
+                      <span class="file-name">notes_reconciliation_q1.txt</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Feb 12, 2026</td>
+                  <td class="file-size">3.1 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon pdf">PDF</span>
+                      <span class="file-name">2026-01-31_chase_statement.pdf</span>
+                      <span class="file-meta-tag linked">linked · 44 tx</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Feb 1, 2026</td>
+                  <td class="file-size">192 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon csv">CSV</span>
+                      <span class="file-name">2026-01-07_chase_statement.csv</span>
+                      <span class="file-meta-tag">imported</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Jan 7, 2026</td>
+                  <td class="file-size">9.8 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="file-cell">
+                      <span class="file-icon pdf">PDF</span>
+                      <span class="file-name">2025-12-31_chase_statement.pdf</span>
+                      <span class="file-meta-tag linked">linked · 61 tx</span>
+                    </div>
+                  </td>
+                  <td class="file-date">Jan 1, 2026</td>
+                  <td class="file-size">221 KB</td>
+                  <td class="file-actions"><span class="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                  </span></td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Preview panel -->
+          <div class="preview-panel">
+            <div class="preview-head">
+              <div class="preview-head-left">
+                <span class="file-icon pdf" style="width:22px;height:26px;">PDF</span>
+                <div>
+                  <div class="preview-title">2026-04-30_chase_statement.pdf</div>
+                  <div class="preview-meta-row">
+                    <span>218 KB</span>
+                    <span class="sep">·</span>
+                    <span>4 pages</span>
+                    <span class="sep">·</span>
+                    <span>Modified May 1, 2026</span>
+                    <span class="sep">·</span>
+                    <span style="color:var(--color-accent);">linked to 47 transactions</span>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-actions">
+                <button class="btn btn-sm btn-ghost" type="button">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                  Download
+                </button>
+                <button class="btn btn-sm btn-secondary" type="button">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><path d="M8 12h8"/></svg>
+                  View linked tx
+                </button>
+                <button class="btn btn-sm btn-primary" type="button">
+                  Open
+                </button>
+              </div>
+            </div>
+
+            <div class="preview-body">
+              <div class="pdf-frame">
+                <div class="pdf-bank">
+                  <div class="pdf-bank-name">PLACEHOLDER BANK</div>
+                  <div class="pdf-stmt-tag">Statement · April 2026</div>
+                </div>
+
+                <dl class="pdf-acct">
+                  <dt>Account</dt>
+                  <dt>Statement period</dt>
+                  <dd>Checking ···4421</dd>
+                  <dd>Apr 1 – Apr 30, 2026</dd>
+                </dl>
+
+                <div class="pdf-summary">
+                  <div>
+                    <div class="lbl">Beginning balance</div>
+                    <div class="val">$11,204.72</div>
+                  </div>
+                  <div>
+                    <div class="lbl">Deposits / credits</div>
+                    <div class="val">+$8,450.00</div>
+                  </div>
+                  <div>
+                    <div class="lbl">Ending balance</div>
+                    <div class="val">$12,840.18</div>
+                  </div>
+                </div>
+
+                <table class="pdf-tx">
+                  <thead>
+                    <tr>
+                      <th style="width:74px;">Date</th>
+                      <th>Description</th>
+                      <th class="r" style="width:80px;">Amount</th>
+                      <th class="r" style="width:90px;">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>04/30</td>
+                      <td>OPENING BALANCE</td>
+                      <td class="r">—</td>
+                      <td class="r">11,204.72</td>
+                    </tr>
+                    <tr>
+                      <td>04/29</td>
+                      <td>WHOLEFDS WLM #10234</td>
+                      <td class="r">−84.16</td>
+                      <td class="r">11,120.56</td>
+                    </tr>
+                    <tr>
+                      <td>04/28</td>
+                      <td>STRIPE PAYOUT 8e2c</td>
+                      <td class="r">+4,250.00</td>
+                      <td class="r">15,370.56</td>
+                    </tr>
+                    <tr>
+                      <td>04/26</td>
+                      <td>LYFT *RIDE 04/26</td>
+                      <td class="r">−18.42</td>
+                      <td class="r">15,352.14</td>
+                    </tr>
+                    <tr>
+                      <td>04/24</td>
+                      <td>OPENAI *CHATGPT</td>
+                      <td class="r">−20.00</td>
+                      <td class="r">15,332.14</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="statusbar-item">Documents</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">documents/chase-checking</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">12 files · 1.6 MB</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item status-link">7 linked to transactions</span>
+      <span class="spacer"></span>
+      <span class="statusbar-item">↵ Open</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Space Preview</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">⌘K Command</span>
+    </div>
+
+  </section>
+</div>
+
+</body>
+</html>

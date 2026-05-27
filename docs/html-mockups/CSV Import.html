@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — Import CSV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+  /* ─── App shell (shared) ──────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    height: 100vh;
+  }
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ─── Sidebar ─────────────────────────────────────────── */
+  .sidebar {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    width: 100%;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .brand:hover { background: var(--color-bg-subtle); }
+  .brand-text { flex: 1; min-width: 0; }
+  .brand-chevron { color: var(--color-text-subtle); flex: none; }
+  .brand-mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+  .brand-name { font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+  .brand-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nav-caps {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .nav-item:hover { background: var(--color-bg-subtle); }
+  .nav-item svg { color: var(--color-text-muted); flex: none; }
+  .nav-item .label { flex: 1; }
+  .nav-item.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item.active svg { color: var(--color-accent); }
+  .count-badge {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    border: var(--border-width) solid var(--color-border);
+  }
+
+  .footer {
+    margin-top: auto;
+    border-top: var(--border-width) solid var(--color-border);
+    padding-top: var(--space-2);
+    display: flex; align-items: center; gap: var(--space-1);
+  }
+  .user-btn {
+    flex: 1;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    min-width: 0;
+    transition: background var(--duration-fast) var(--easing);
+  }
+  .user-btn:hover { background: var(--color-bg-subtle); }
+  .user-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #18181B;
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    flex: none;
+  }
+  .user-name {
+    flex: 1; min-width: 0;
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .user-btn svg.chev { color: var(--color-text-subtle); flex: none; }
+  .theme-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── Workspace ──────────────────────────────────────── */
+  .workspace {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ─── Page header ─────────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: var(--space-8) var(--space-8) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .page-header-left h1 {
+    margin: 0 0 6px;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl-lh);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.015em;
+  }
+  .page-subtitle {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+  }
+  .page-subtitle .file {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+  .page-subtitle .dot-sep {
+    display: inline-block;
+    margin: 0 8px;
+    color: var(--color-text-subtle);
+  }
+
+  /* ─── Stepper ─────────────────────────────────────────── */
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    flex: none;
+  }
+  .step {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-3);
+    border-radius: 3px;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .step:hover { color: var(--color-text); }
+  .step .step-num {
+    display: inline-grid; place-items: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+  }
+  .step.done {
+    color: var(--color-text);
+  }
+  .step.done .step-num {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+  }
+  .step.done .step-num .check {
+    width: 11px; height: 11px;
+  }
+  .step.active {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+  }
+  .step.active .step-num {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .step-sep {
+    width: 18px;
+    height: 1px;
+    background: var(--color-border-strong);
+    margin: 0 2px;
+    flex: none;
+  }
+
+  /* ─── Content scroll ──────────────────────────────────── */
+  .content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: var(--space-6) var(--space-8) var(--space-6);
+  }
+  .canvas {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  /* ─── Source account selector row ─────────────────────── */
+  .source-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+  .source-row-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+  .src-label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .acct-select {
+    height: 32px;
+    padding: 0 var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), border-color var(--duration-fast) var(--easing);
+  }
+  .acct-select:hover { border-color: var(--color-border-strong); background: var(--color-bg-subtle); }
+  .acct-select .acct-mark {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-semibold);
+    line-height: 1;
+  }
+  .acct-select .acct-name {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+  }
+  .acct-select .acct-last4 {
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+  .acct-select svg.chev { color: var(--color-text-subtle); }
+
+  .source-row-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .src-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .src-stat .num {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .src-stat-sep { color: var(--color-border-strong); }
+
+  /* ─── Card ────────────────────────────────────────────── */
+  .card {
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .card-head .titles { min-width: 0; }
+  .card-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .card-sub {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: 2px 0 0;
+  }
+  .card-head-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* ─── Mapping table ───────────────────────────────────── */
+  .mapping {
+    display: grid;
+    grid-template-columns: 1fr 28px 1fr;
+    align-items: stretch;
+  }
+  .map-col-head {
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg-subtle);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .map-col-head.arrow {
+    background: var(--color-bg-subtle);
+    justify-content: center;
+    padding: var(--space-3) 0;
+  }
+
+  .map-row {
+    display: contents;
+  }
+  .map-cell {
+    padding: var(--space-3) var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .map-row:last-of-type .map-cell { border-bottom: none; }
+  .map-cell.arrow {
+    padding: var(--space-3) 0;
+    justify-content: center;
+    color: var(--color-text-subtle);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+  .map-row:last-of-type .map-cell.arrow { border-bottom: none; }
+
+  /* CSV header cell (left column) */
+  .csv-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    width: 100%;
+  }
+  .csv-header .col-idx {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    width: 18px;
+    text-align: right;
+    flex: none;
+  }
+  .csv-header .col-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+  .csv-header .col-sample {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-left: var(--space-3);
+    padding: 2px var(--space-2);
+    background: var(--color-bg-subtle);
+    border-radius: 3px;
+    border: var(--border-width) solid var(--color-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+
+  /* Field select (right column) */
+  .field-select {
+    width: 100%;
+    height: 32px;
+    padding: 0 var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-md);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing), border-color var(--duration-fast) var(--easing);
+  }
+  .field-select:hover { background: var(--color-bg-subtle); border-color: var(--color-border-strong); }
+  .field-select .fs-icon {
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    border-radius: 3px;
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+    flex: none;
+  }
+  .field-select.ignore .fs-icon {
+    background: var(--color-bg-muted);
+    color: var(--color-text-subtle);
+  }
+  .field-select .fs-name {
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .field-select.ignore .fs-name {
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+  .field-select .fs-required {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-accent);
+    background: var(--color-accent-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    line-height: 1;
+    font-weight: var(--weight-medium);
+  }
+  .field-select svg.chev { color: var(--color-text-subtle); flex: none; }
+
+  /* ─── Preview table ───────────────────────────────────── */
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg-subtle);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .preview-meta .pm-count {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .preview-meta .pm-rule {
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+  .preview-meta .pm-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-text-muted);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .pm-legend .swatch-row {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    background: var(--color-accent-bg);
+    border: 1px solid var(--color-accent);
+  }
+
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-md);
+  }
+  .preview-table thead th {
+    text-align: left;
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .preview-table thead th.amt-col { text-align: right; }
+  .preview-table thead th .field-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-muted);
+  }
+  .preview-table thead th .field-tag .arrow-glyph {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+  }
+
+  .preview-table tbody td {
+    padding: 10px var(--space-5);
+    border-bottom: var(--border-width) solid var(--color-border);
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+  }
+  .preview-table tbody tr:last-of-type td { border-bottom: none; }
+  .preview-table tbody tr:hover td { background: var(--color-bg-subtle); }
+  .preview-table tbody td.date {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    width: 110px;
+  }
+  .preview-table tbody td.desc {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+  }
+  .preview-table tbody td.desc .raw {
+    color: var(--color-text);
+  }
+  .preview-table tbody td.desc .normalized {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+  .preview-table tbody td.amt {
+    font-family: var(--font-mono);
+    text-align: right;
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    width: 140px;
+  }
+  .preview-table tbody td.amt.positive { color: var(--color-accent); }
+  .preview-table tbody td.status {
+    width: 110px;
+  }
+  .preview-table tbody td.status .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+  }
+  .preview-table tbody td.status .badge.new {
+    background: var(--color-accent-bg);
+    color: var(--color-accent);
+  }
+  .preview-table tbody td.status .badge.dup {
+    background: #FEF8E1;
+    color: #92580B;
+  }
+  .preview-table tbody td.status .badge svg { width: 11px; height: 11px; }
+
+  /* Highlight columns coming directly from the mapping */
+  .preview-table td.mapped {
+    background: rgba(45, 106, 79, 0.025);
+  }
+
+  /* ─── Options row ─────────────────────────────────────── */
+  .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+  .opt {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    user-select: none;
+  }
+  .opt .cb {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    border: var(--border-width) solid var(--color-border-strong);
+    background: var(--color-bg);
+    display: grid; place-items: center;
+    flex: none;
+    transition: background var(--duration-fast) var(--easing), border-color var(--duration-fast) var(--easing);
+  }
+  .opt .cb svg { width: 11px; height: 11px; color: #fff; opacity: 0; }
+  .opt input { display: none; }
+  .opt input:checked + .cb {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+  .opt input:checked + .cb svg { opacity: 1; }
+  .opt:hover .cb { border-color: var(--color-accent); }
+  .opt .opt-label .opt-suffix {
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    margin-left: 4px;
+  }
+
+  /* ─── Bottom bar ──────────────────────────────────────── */
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-8);
+    border-top: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    flex: none;
+  }
+  .bb-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .bb-left .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-accent);
+  }
+  .bb-left .check svg { width: 13px; height: 13px; }
+  .bb-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* ─── Buttons ─────────────────────────────────────────── */
+  .btn {
+    font-family: var(--font-sans);
+    font-weight: var(--weight-medium);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .btn-sm { height: 28px; padding: 0 var(--space-3); font-size: var(--text-md); }
+  .btn-md { height: 32px; padding: 0 var(--space-4); font-size: var(--text-md); }
+  .btn-lg { height: 36px; padding: 0 var(--space-5); font-size: var(--text-md); }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+    border: var(--border-width) solid var(--color-accent);
+  }
+  .btn-primary:hover { background: #285F47; border-color: #285F47; }
+  .btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-bg-muted); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: var(--border-width) solid transparent;
+  }
+  .btn-ghost:hover { background: var(--color-bg-muted); color: var(--color-text); }
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    padding: 1px 5px;
+    border-radius: 3px;
+    line-height: 1;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+  }
+  .btn-secondary .kbd,
+  .btn-ghost .kbd {
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  /* ─── Status bar ──────────────────────────────────────── */
+  .statusbar {
+    display: flex; align-items: center;
+    height: var(--shell-status-bar-height);
+    background: var(--color-bg-muted);
+    border-top: var(--border-width) solid var(--color-border);
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .statusbar .spacer { flex: 1; }
+  .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .status-sep { color: var(--color-border-strong); }
+  .status-valid { color: var(--color-accent); }
+  .status-check { width: 12px; height: 12px; }
+
+  /* Scrollbar polish */
+  .content-scroll::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar { width: 10px; height: 10px; }
+  .content-scroll::-webkit-scrollbar-thumb,
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-bg);
+  }
+  .content-scroll::-webkit-scrollbar-thumb:hover,
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="05 CSV Import">
+
+  <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <button class="brand" type="button" aria-haspopup="menu" aria-label="Switch workspace">
+      <div class="brand-mark">L</div>
+      <div class="brand-text">
+        <div class="brand-name">Ledgerly</div>
+        <div class="brand-sub">Acme, Inc.</div>
+      </div>
+      <svg class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </button>
+
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">4</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="label">Accounts</span>
+      </button>
+      <button class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        <span class="label">Import</span>
+      </button>
+      <button class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="label">Search</span>
+      </button>
+    </div>
+
+    <div class="nav-caps">Recent imports</div>
+    <div class="nav-group">
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">chase-apr-26.csv</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">amex-apr-26.csv</span>
+      </button>
+      <button class="nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">ally-mar-26.csv</span>
+      </button>
+    </div>
+
+    <div class="footer">
+      <button class="user-btn" type="button" aria-haspopup="menu" aria-label="Open settings">
+        <div class="user-avatar">DR</div>
+        <span class="user-name">Dana Reyes</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="theme-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <section class="main">
+
+    <div class="workspace">
+
+      <!-- Page header -->
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1>Import CSV</h1>
+          <p class="page-subtitle">
+            <span class="file">chase-checking-may-26.csv</span>
+            <span class="dot-sep">·</span>
+            48 rows
+            <span class="dot-sep">·</span>
+            comma-separated
+            <span class="dot-sep">·</span>
+            UTF-8
+          </p>
+        </div>
+
+        <!-- Stepper -->
+        <nav class="stepper" aria-label="Import progress">
+          <button class="step done" type="button">
+            <span class="step-num">
+              <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            </span>
+            <span>Upload</span>
+          </button>
+          <span class="step-sep"></span>
+          <button class="step active" type="button" aria-current="step">
+            <span class="step-num">2</span>
+            <span>Map columns</span>
+          </button>
+          <span class="step-sep"></span>
+          <button class="step" type="button">
+            <span class="step-num">3</span>
+            <span>Review</span>
+          </button>
+        </nav>
+      </header>
+
+      <div class="content-scroll">
+        <div class="canvas">
+
+          <!-- ─── Source account selector ─────────────────── -->
+          <div class="source-row">
+            <div class="source-row-left">
+              <span class="src-label">Source account</span>
+              <button class="acct-select" type="button" aria-haspopup="listbox">
+                <span class="acct-mark">C</span>
+                <span class="acct-name">Chase Checking</span>
+                <span class="acct-last4">···4421</span>
+                <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="source-row-right">
+              <span class="src-stat"><span class="num">48</span> rows in file</span>
+              <span class="src-stat-sep">·</span>
+              <span class="src-stat"><span class="num">1</span> header skipped</span>
+              <span class="src-stat-sep">·</span>
+              <span class="src-stat"><span class="num">47</span> to import</span>
+            </div>
+          </div>
+
+          <!-- ─── Mapping card ────────────────────────────── -->
+          <div class="card">
+            <div class="card-head">
+              <div class="titles">
+                <h2 class="card-title">Column mapping</h2>
+                <p class="card-sub">Match each CSV column to a Ledgerly field. Saved mappings auto-apply to future imports for this account.</p>
+              </div>
+              <div class="card-head-right">
+                <button class="btn btn-sm btn-ghost" type="button">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.93 19.07 2.12-2.12"/><path d="m16.95 7.05 2.12-2.12"/></svg>
+                  Auto-detected
+                </button>
+                <button class="btn btn-sm btn-secondary" type="button">Reset</button>
+              </div>
+            </div>
+
+            <div class="mapping" role="table" aria-label="Column mapping">
+              <div class="map-col-head">CSV column</div>
+              <div class="map-col-head arrow"></div>
+              <div class="map-col-head">Ledgerly field</div>
+
+              <!-- Row 1 — Date -->
+              <div class="map-row" role="row">
+                <div class="map-cell">
+                  <div class="csv-header">
+                    <span class="col-idx">1</span>
+                    <span class="col-name">Date</span>
+                    <span class="col-sample">2026-05-08</span>
+                  </div>
+                </div>
+                <div class="map-cell arrow">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </div>
+                <div class="map-cell">
+                  <button class="field-select" type="button" aria-haspopup="listbox">
+                    <span class="fs-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                    </span>
+                    <span class="fs-name">Posted Date</span>
+                    <span class="fs-required">required</span>
+                    <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Row 2 — Description -->
+              <div class="map-row" role="row">
+                <div class="map-cell">
+                  <div class="csv-header">
+                    <span class="col-idx">2</span>
+                    <span class="col-name">Description</span>
+                    <span class="col-sample">OPENAI *CHATGPT</span>
+                  </div>
+                </div>
+                <div class="map-cell arrow">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </div>
+                <div class="map-cell">
+                  <button class="field-select" type="button" aria-haspopup="listbox">
+                    <span class="fs-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h12"/><path d="M4 18h8"/></svg>
+                    </span>
+                    <span class="fs-name">Description</span>
+                    <span class="fs-required">required</span>
+                    <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Row 3 — Amount -->
+              <div class="map-row" role="row">
+                <div class="map-cell">
+                  <div class="csv-header">
+                    <span class="col-idx">3</span>
+                    <span class="col-name">Amount</span>
+                    <span class="col-sample">−20.00</span>
+                  </div>
+                </div>
+                <div class="map-cell arrow">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </div>
+                <div class="map-cell">
+                  <button class="field-select" type="button" aria-haspopup="listbox">
+                    <span class="fs-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/></svg>
+                    </span>
+                    <span class="fs-name">Signed Amount</span>
+                    <span class="fs-required">required</span>
+                    <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Row 4 — Balance (ignored) -->
+              <div class="map-row" role="row">
+                <div class="map-cell">
+                  <div class="csv-header">
+                    <span class="col-idx">4</span>
+                    <span class="col-name">Balance</span>
+                    <span class="col-sample">12,840.18</span>
+                  </div>
+                </div>
+                <div class="map-cell arrow">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </div>
+                <div class="map-cell">
+                  <button class="field-select ignore" type="button" aria-haspopup="listbox">
+                    <span class="fs-icon">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5 5 14 14"/></svg>
+                    </span>
+                    <span class="fs-name">Ignore</span>
+                    <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── Preview card ────────────────────────────── -->
+          <div class="card preview">
+            <div class="card-head">
+              <div class="titles">
+                <h2 class="card-title">Preview · Statement Rows</h2>
+                <p class="card-sub">First 3 rows normalized with your current mapping. Duplicate detection checks the last 90 days.</p>
+              </div>
+              <div class="card-head-right">
+                <span style="font-family:var(--font-mono);font-size:var(--text-sm);color:var(--color-text-muted);">Showing 1–3 of 47</span>
+              </div>
+            </div>
+
+            <table class="preview-table" role="table">
+              <thead>
+                <tr>
+                  <th>
+                    <span class="field-tag"><span>Posted Date</span> <span class="arrow-glyph">←</span> <span>Date</span></span>
+                  </th>
+                  <th>
+                    <span class="field-tag"><span>Description</span> <span class="arrow-glyph">←</span> <span>Description</span></span>
+                  </th>
+                  <th class="amt-col">
+                    <span class="field-tag"><span>Signed Amount</span> <span class="arrow-glyph">←</span> <span>Amount</span></span>
+                  </th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="date mapped">2026-05-08</td>
+                  <td class="desc mapped">
+                    <div class="raw">OPENAI *CHATGPT</div>
+                    <div class="normalized">→ payee: OpenAI</div>
+                  </td>
+                  <td class="amt mapped">−$20.00</td>
+                  <td class="status">
+                    <span class="badge new">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      New
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="date mapped">2026-05-08</td>
+                  <td class="desc mapped">
+                    <div class="raw">LYFT *RIDE TUE 8PM</div>
+                    <div class="normalized">→ payee: Lyft</div>
+                  </td>
+                  <td class="amt mapped">−$18.42</td>
+                  <td class="status">
+                    <span class="badge new">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      New
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="date mapped">2026-05-07</td>
+                  <td class="desc mapped">
+                    <div class="raw">WHOLEFDS WLM #10234</div>
+                    <div class="normalized">→ payee: Whole Foods Market</div>
+                  </td>
+                  <td class="amt mapped">−$84.16</td>
+                  <td class="status">
+                    <span class="badge dup" title="Matches tx on May 7 in Chase Checking">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+                      Duplicate
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ─── Options row ─────────────────────────────── -->
+          <div class="options-row">
+            <label class="opt">
+              <input type="checkbox" checked />
+              <span class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              <span class="opt-label">Save mapping for <span class="opt-suffix">Chase Checking</span></span>
+            </label>
+
+            <label class="opt">
+              <input type="checkbox" checked />
+              <span class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              <span class="opt-label">Detect duplicates <span class="opt-suffix">last 90 days</span></span>
+            </label>
+
+            <label class="opt">
+              <input type="checkbox" checked />
+              <span class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              <span class="opt-label">Auto-file CSV in <span class="opt-suffix">documents/chase-checking/</span></span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="bottom-bar">
+        <div class="bb-left">
+          <span class="check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            Mapping valid
+          </span>
+          <span class="status-sep" style="color:var(--color-border-strong);font-family:var(--font-mono);">·</span>
+          <span>3 of 3 required fields mapped</span>
+          <span class="status-sep" style="color:var(--color-border-strong);font-family:var(--font-mono);">·</span>
+          <span>1 likely duplicate flagged</span>
+        </div>
+        <div class="bb-right">
+          <button class="btn btn-lg btn-ghost" type="button">
+            Cancel <span class="kbd">Esc</span>
+          </button>
+          <button class="btn btn-lg btn-secondary" type="button">
+            ← Back
+          </button>
+          <button class="btn btn-lg btn-primary" type="button">
+            Import 47 rows
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="statusbar-item">Import</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">chase-checking-may-26.csv</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Step 2 of 3 · Map columns</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item status-valid">
+        <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        Mapping valid
+      </span>
+      <span class="spacer"></span>
+      <span class="statusbar-item">⏎ Import</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">Esc Cancel</span>
+      <span class="status-sep">·</span>
+      <span class="statusbar-item">⌘K Command</span>
+    </div>
+
+  </section>
+</div>
+
+</body>
+</html>

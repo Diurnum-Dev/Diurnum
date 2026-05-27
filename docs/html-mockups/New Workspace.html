@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ledgerly — New Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base-lh);
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+  }
+
+  /* ─── Page shell ──────────────────────────────────────── */
+  .page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16) var(--space-8) var(--space-12);
+    position: relative;
+  }
+
+  /* Window-controls feel — purely decorative, sits in top-left */
+  .traffic {
+    position: fixed;
+    top: var(--space-4);
+    left: var(--space-4);
+    display: flex;
+    gap: 6px;
+  }
+  .traffic span {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+    opacity: 0.7;
+  }
+
+  /* ─── Back link ──────────────────────────────────────── */
+  .back {
+    position: absolute;
+    top: var(--space-12);
+    left: var(--space-12);
+    appearance: none;
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: var(--space-2) var(--space-3);
+    margin-left: calc(var(--space-3) * -1);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    transition: background var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+  }
+  .back:hover {
+    background: var(--color-bg-subtle);
+    color: var(--color-text);
+  }
+  .back:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .back svg { display: block; }
+
+  /* ─── Card ───────────────────────────────────────────── */
+  .card {
+    width: 520px;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-subtle);
+    padding: var(--space-10) var(--space-10) var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .card-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .card-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .card-sub {
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  /* ─── Form ───────────────────────────────────────────── */
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+  }
+  .hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+  }
+
+  .input {
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3) var(--space-3);
+    height: 36px;
+    width: 100%;
+    transition: border-color var(--duration-fast) var(--easing),
+                box-shadow var(--duration-fast) var(--easing);
+  }
+  .input:hover { border-color: var(--color-text-subtle); }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.12);
+  }
+  .input.mono { font-family: var(--font-mono); font-size: var(--text-base); }
+
+  /* Path field with Browse button */
+  .path-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-2);
+  }
+  .btn-secondary {
+    appearance: none;
+    font: inherit;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-4);
+    height: 36px;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing);
+  }
+  .btn-secondary:hover {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-subtle);
+  }
+  .btn-secondary:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* ─── Template cards ─────────────────────────────────── */
+  .templates {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+  }
+  .tpl {
+    appearance: none;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 108px;
+    position: relative;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing);
+  }
+  .tpl:hover {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border-strong);
+  }
+  .tpl:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .tpl[aria-pressed="true"] {
+    background: var(--color-accent-bg);
+    border-color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+  .tpl-check {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: #fff;
+    display: none;
+    place-items: center;
+  }
+  .tpl[aria-pressed="true"] .tpl-check { display: grid; }
+  .tpl-check svg { display: block; }
+
+  .tpl-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--color-text-muted);
+  }
+  .tpl[aria-pressed="true"] .tpl-icon { color: var(--color-accent); }
+  .tpl-icon svg { display: block; width: 100%; height: 100%; }
+
+  .tpl-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: auto;
+  }
+  .tpl-name {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    letter-spacing: -0.005em;
+  }
+  .tpl-desc {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+
+  /* ─── Currency select ────────────────────────────────── */
+  .select-wrap {
+    position: relative;
+    width: 160px;
+  }
+  .select {
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-8) 0 var(--space-3);
+    height: 36px;
+    width: 100%;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--easing);
+  }
+  .select:hover { border-color: var(--color-text-subtle); }
+  .select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.12);
+  }
+  .select-chevron {
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  /* ─── Primary action ─────────────────────────────────── */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .btn-primary {
+    appearance: none;
+    font: inherit;
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    color: #fff;
+    background: var(--color-accent);
+    border: var(--border-width) solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-4);
+    height: 40px;
+    width: 100%;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing),
+                border-color var(--duration-fast) var(--easing),
+                transform var(--duration-fast) var(--easing);
+  }
+  .btn-primary:hover {
+    background: #245A42;
+    border-color: #245A42;
+  }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .footnote {
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page" data-screen-label="09 New Workspace">
+
+  <div class="traffic" aria-hidden="true">
+    <span></span><span></span><span></span>
+  </div>
+
+  <a href="Welcome.html" class="back" aria-label="Back to Welcome">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"/>
+      <path d="M12 19l-7-7 7-7"/>
+    </svg>
+    <span>Back</span>
+  </a>
+
+  <div class="card">
+
+    <div class="card-head">
+      <h1 class="card-title">New workspace</h1>
+      <p class="card-sub">A workspace is a folder on your machine that holds your books, attachments, and settings.</p>
+    </div>
+
+    <form class="form" onsubmit="event.preventDefault();">
+
+      <!-- Workspace name -->
+      <div class="field">
+        <label class="label" for="ws-name">Workspace name</label>
+        <input id="ws-name" class="input" type="text" value="Acme Studio" autocomplete="off" />
+      </div>
+
+      <!-- Location -->
+      <div class="field">
+        <label class="label" for="ws-path">Location</label>
+        <div class="path-row">
+          <input id="ws-path" class="input mono" type="text" value="/Users/ryan/Finance/AcmeStudio" autocomplete="off" />
+          <button type="button" class="btn-secondary">Browse…</button>
+        </div>
+        <div class="hint">A new folder named <span style="font-family: var(--font-mono);">AcmeStudio</span> will be created here.</div>
+      </div>
+
+      <!-- Template -->
+      <div class="field">
+        <label class="label">Template</label>
+        <div class="templates" role="radiogroup" aria-label="Template">
+
+          <button type="button" class="tpl" role="radio" aria-pressed="true" aria-checked="true">
+            <div class="tpl-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18"/>
+                <path d="M5 21V8l7-5 7 5v13"/>
+                <path d="M9 21v-6h6v6"/>
+              </svg>
+            </div>
+            <div class="tpl-check" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12l5 5L20 7"/>
+              </svg>
+            </div>
+            <div class="tpl-body">
+              <div class="tpl-name">Company</div>
+              <div class="tpl-desc">Income, expenses, A/R, A/P.</div>
+            </div>
+          </button>
+
+          <button type="button" class="tpl" role="radio" aria-pressed="false" aria-checked="false">
+            <div class="tpl-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2"/>
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <path d="M3 12h18"/>
+              </svg>
+            </div>
+            <div class="tpl-check" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12l5 5L20 7"/>
+              </svg>
+            </div>
+            <div class="tpl-body">
+              <div class="tpl-name">Freelancer</div>
+              <div class="tpl-desc">Clients, invoices, 1099 prep.</div>
+            </div>
+          </button>
+
+          <button type="button" class="tpl" role="radio" aria-pressed="false" aria-checked="false">
+            <div class="tpl-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-1"/>
+                <path d="M16 12h6v6h-6a3 3 0 0 1 0-6z"/>
+                <path d="M18 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+              </svg>
+            </div>
+            <div class="tpl-check" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12l5 5L20 7"/>
+              </svg>
+            </div>
+            <div class="tpl-body">
+              <div class="tpl-name">Personal Finance</div>
+              <div class="tpl-desc">Budgets, accounts, net worth.</div>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Base currency -->
+      <div class="field">
+        <label class="label" for="ws-currency">Base currency</label>
+        <div class="select-wrap">
+          <select id="ws-currency" class="select">
+            <option value="USD">USD — US Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="CAD">CAD — Canadian Dollar</option>
+            <option value="AUD">AUD — Australian Dollar</option>
+            <option value="JPY">JPY — Japanese Yen</option>
+            <option value="CHF">CHF — Swiss Franc</option>
+          </select>
+          <div class="select-chevron" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button type="submit" class="btn-primary">Create Workspace</button>
+        <p class="footnote">Your books are stored locally. No account required.</p>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+<script>
+  // Template card radio behavior
+  document.querySelectorAll('.tpl').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tpl').forEach((b) => {
+        b.setAttribute('aria-pressed', 'false');
+        b.setAttribute('aria-checked', 'false');
+      });
+      btn.setAttribute('aria-pressed', 'true');
+      btn.setAttribute('aria-checked', 'true');
+    });
+  });
+</script>
+
+</body>
+</html>
