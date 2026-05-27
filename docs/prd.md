@@ -80,12 +80,13 @@ The MVP (internal proof-of-concept) proves the core accounting loop. V1 is the f
 2. **Welcome Screen** — first-launch and no-workspace state
 3. **Embedded Ledger Editor** — the home screen; IDE-like editing of `.bean` files
 4. **Predictive Entry Completion** — tab-to-complete transaction entries
-5. **Documents** — per-source-account file browser with auto-filing
-6. **Settings** — AI adapter, updates, workspace info, source accounts, rules, git identity, snapshot restore
-7. **Git Integration** — silent auto-commits, modal commit prompt on Approval, history panel
-8. **Command Palette** — keyboard-driven command search
-9. **macOS Packaging** — signed, notarized `.app` and `.dmg` for distribution
-10. **Data Integrity layer** — atomic file writes, backup snapshots, crash recovery
+5. **Smart CSV Import** — automatic column inference, in-preview duplicate detection, persisted Source Mapping
+6. **Documents** — per-source-account file browser with auto-filing
+7. **Settings** — AI adapter, updates, workspace info, source accounts, rules, git identity, snapshot restore
+8. **Git Integration** — silent auto-commits, modal commit prompt on Approval, history panel
+9. **Command Palette** — keyboard-driven command search
+10. **macOS Packaging** — signed, notarized `.app` and `.dmg` for distribution
+11. **Data Integrity layer** — atomic file writes, backup snapshots, crash recovery
 
 > **App shell is the hidden lift.** The current MVP UI is a flat collection of standalone React panels. V1 requires assembling those into a coherent shell. Agents implementing V1 should treat the app shell as a substantial restructuring of the existing UI layer, not a small addition.
 
@@ -319,10 +320,115 @@ The editor predicts complete Beancount transaction entries as the Founder-Operat
 - Inbox nav item shows a count badge of pending Statement Rows
 - Approving an entry navigates back to the Ledger Editor with the new entry visible at the cursor position (closes the loop between Inbox and Ledger)
 - Inbox layout uses the shared status bar and sidebar; no standalone navigation
+- Statement Rows that were marked Pending at import time (see Smart CSV Import) are visually distinguished in the list with a `Pending at import` badge
 
 ---
 
-### 6. Documents
+### 6. Smart CSV Import
+
+The current MVP CSV Import requires the Founder-Operator to manually map every column for every new Source Mapping. V1 replaces this with a smart inference engine that auto-detects column meaning, surfaces duplicates before import, and learns from each import.
+
+> **No bundled bank presets.** V1 deliberately ships with no per-bank importer presets. Bank-specific code is a maintenance treadmill (every CSV format change breaks a preset). Instead, V1 relies on generic header and content patterns that work across institutions, plus per-Source-Account Source Mappings that get auto-saved after a successful import.
+
+#### Inference engine
+
+When a CSV is uploaded, Ledgerly parses the header row and a sample of the first 5 data rows, then attempts to infer a column mapping by matching headers and content against these patterns:
+
+| Ledgerly field | Header patterns (case-insensitive, whitespace/punctuation tolerant) | Content signal |
+|---|---|---|
+| Posted Date (required) | `date`, `transaction date`, `post date`, `posted date`, `trans date` | Matches one of the supported date formats |
+| Description (required) | `description`, `payee`, `memo`, `merchant`, `details`, `narration`, `transaction description` | Longest free-text column |
+| Signed Amount (required, one of three) | `amount`, `transaction amount`, `value` | Signed numbers (at least one negative in sample) |
+| Debit + Credit (alt) | `debit`/`credit`, `withdrawal`/`deposit`, `out`/`in` | Unsigned numbers; only one column populated per row |
+| Type indicator (alt) | `type`, `transaction type` | String values like `Debit`/`Credit` |
+| Status (optional, filter) | `status` | Values like `Pending`, `Posted`, `Cleared` |
+| Check # (optional, metadata) | `check`, `check #`, `check number`, `check no` | Numeric or empty |
+| Category (optional, ignored in V1 mapping but available for AI) | `category` | Free text |
+| Account #, Balance, Card # (optional) | (header match) | Ignored — dropped silently |
+
+**Tiebreaker rules:**
+- If both `transaction date` and `post date` exist, prefer `post date`
+- Match is case-insensitive and tolerates whitespace, underscores, and punctuation variations (`"Post Date"` = `"post_date"` = `"PostDate"`)
+- If multiple columns match the same pattern equally, prefer the leftmost
+
+**Date format detection:** sample the first 5 non-empty data rows. Try formats in order: `YYYY-MM-DD`, `MM/DD/YYYY`, `M/D/YYYY`, `MM/DD/YY`, `M/D/YY`, `DD/MM/YYYY`. Pick the first format that parses all sampled rows successfully. Default to US conventions when ambiguous.
+
+#### Edge case handling
+
+| Case | Behavior |
+|---|---|
+| Pending rows (Status column present) | **Imported with a `pending` flag preserved on the Statement Row.** The Inbox shows pending rows distinctly. When approved into Beancount, the entry includes a `pending_at_import: TRUE` metadata. |
+| Empty rows (all fields blank or whitespace) | Silently skipped |
+| Summary rows (date column doesn't parse with inferred format) | Silently skipped |
+| Currency markers in amounts (`$1,234.56`) | `$` and thousands commas stripped; parsed as number |
+| Parenthesized negatives (`(100.00)`) | Recognized as `-100.00` |
+| Non-USD currency markers (`€`, `£`, `CAD`, `GBP`, etc.) | **Block import with explicit error:** "This CSV appears to contain non-USD amounts. Ledgerly V1 supports USD only." |
+| File extensions other than `.csv` (`.xlsx`, `.tsv`, `.pdf`) | Reject with clear message; V1 is CSV-only |
+| Delimiters (comma, tab, semicolon) | Auto-detected from the first line |
+| Quoted/escaped CSV (RFC 4180) | Use a standard CSV parser; handle quoted fields, escaped quotes, embedded newlines |
+| BOM | Accept UTF-8 with or without BOM. UTF-16 deferred to post-V1. |
+
+#### Import screen UX (the Map Columns step)
+
+The mockup at `docs/claude-design/CSV Import.html` is the V1 reference. Key elements:
+
+- **File metadata strip** under the page header: `<filename> · <N> rows · <delimiter-name>-separated · <encoding>`
+- **Source Account selector** with masked account number indicator (`····4421`)
+- **Row stats** alongside the Source Account: `<N> rows in file · <N> header skipped · <N> to import`
+- **Column mapping section** with:
+  - "Auto-detected" badge (with sparkle indicator) when inference succeeded
+  - "Reset" button to clear all auto-mappings and start manual
+  - One row per CSV column showing: `<CSV column name>` · `<sample value>` · `→` · `<Ledgerly field dropdown>` · `required`/`optional` chip
+  - Columns the engine cannot classify display **`Unknown column: Choose ledgerly field`** in `var(--color-destructive)` red until the Founder-Operator picks a field manually
+- **Preview · Statement Rows section** showing the first 3 normalized rows:
+  - Columns reflect the current mapping (Posted Date, Description, Signed Amount, Status)
+  - Each row labeled with `+ New` (accent badge) or `Duplicate` (warning badge)
+  - Duplicate detection uses Import Fingerprint against the last 90 days of Statement Rows for this Source Account
+- **Persistent footer status row**: `✓ Mapping valid · <X> of <Y> required fields mapped · <N> likely duplicates flagged` (or error states when invalid)
+- **Bottom action bar**: `Cancel` (ghost, `Esc`), `← Back` (ghost), `Import <N> rows →` (sage green primary)
+- **Keyboard hints** at the very bottom of the screen: `↩ Import · Esc Cancel · ⌘K Command`
+
+#### Source Mapping auto-save
+
+After a successful import:
+
+- If the import used the inferred mapping unchanged → save it as the Source Mapping for this Source Account silently
+- If the user adjusted the mapping → prompt: "Save this column mapping for future <Source Account> imports?" with `Save` (default) and `Don't save` actions
+- Saved Source Mappings auto-apply on subsequent imports for the same Source Account (matching the inferred mapping is bypassed when a saved mapping exists)
+- Source Mappings are editable from Settings → Source Accounts → (account) → Mapping
+
+#### Recent imports
+
+The Import screen sidebar (or a section below the main filters) shows the last 5 CSV imports across the workspace — clickable to re-open or view the import result. Each entry shows: filename, Source Account, row count, and import date.
+
+#### Acceptance criteria
+
+- [ ] Uploading a CSV file triggers automatic column inference
+- [ ] When inference succeeds for all required fields, the "Auto-detected" badge appears
+- [ ] When a column can't be classified, the corresponding row shows "Unknown column: Choose ledgerly field" in red and blocks the Import action until the Founder-Operator chooses a field
+- [ ] The file metadata strip displays filename, row count, delimiter, and encoding
+- [ ] Row stats update in real time as mappings change
+- [ ] Date format is auto-detected across the 6 supported formats; format detection works for all three example CSVs in `docs/example-statements/`
+- [ ] All three amount conventions (signed column, debit+credit split, amount + type indicator) are correctly inferred from the example CSVs
+- [ ] Currency markers (`$`, commas) and parenthesized negatives are correctly parsed
+- [ ] Non-USD currency markers cause the import to be blocked with a clear error
+- [ ] `.xlsx`, `.tsv`, `.pdf`, and other non-CSV extensions are rejected with a clear message
+- [ ] Pending rows are imported with a `pending` flag preserved on the Statement Row and visible in the Inbox
+- [ ] Empty rows and unparseable summary rows are silently skipped
+- [ ] Preview shows first 3 rows with `+ New` or `Duplicate` badges; duplicates are detected against the last 90 days of Statement Rows for the Source Account
+- [ ] The footer status row reflects mapping validity, mapped fields count, and duplicate count
+- [ ] After a successful import using the inferred mapping unchanged, the Source Mapping is saved silently
+- [ ] After a successful import where the user adjusted the mapping, the app prompts to save as the Source Mapping
+- [ ] Saved Source Mappings auto-apply on subsequent imports for the same Source Account
+- [ ] The Source Mapping can be viewed and edited from Settings → Source Accounts
+- [ ] Recent imports list shows the last 5 CSV imports
+- [ ] Keyboard shortcuts shown at the bottom of the screen are functional
+- [ ] The original CSV file is copied to `documents/<source-account-slug>/` on successful import (per Documents auto-filing)
+- [ ] All three example CSV files in `docs/example-statements/` (Capital One Checking, Capital One Credit Card, Southside Bank Checking) successfully import without any manual column mapping
+
+---
+
+### 7. Documents
 
 A file browser for the workspace's `documents/` folder. Hybrid passive browser + light attachment system.
 
@@ -364,7 +470,7 @@ A file browser for the workspace's `documents/` folder. Hybrid passive browser +
 
 ---
 
-### 7. Settings
+### 8. Settings
 
 Configuration surface for the workspace and the app. Several subsections, each independently navigable.
 
@@ -436,7 +542,7 @@ Configuration surface for the workspace and the app. Several subsections, each i
 
 ---
 
-### 8. Git Integration
+### 9. Git Integration
 
 Optional git behavior, activated when the workspace folder is inside a git repository.
 
@@ -492,7 +598,7 @@ All commits are silent with auto-generated default messages. No modal prompts du
 
 ---
 
-### 9. Command Palette
+### 10. Command Palette
 
 A keyboard-driven command palette for navigating and executing actions without the mouse.
 
@@ -538,7 +644,7 @@ A keyboard-driven command palette for navigating and executing actions without t
 
 ---
 
-### 10. macOS Packaging and Distribution
+### 11. macOS Packaging and Distribution
 
 V1 ships as a properly signed and notarized macOS application.
 
