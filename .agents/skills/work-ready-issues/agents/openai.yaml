@@ -1,4 +1,0 @@
-interface:
-  display_name: "Work Ready Issues"
-  short_description: "Sequential GitHub issue execution loop"
-  default_prompt: "Use $work-ready-issues to work through ready-for-agent GitHub issues sequentially."
