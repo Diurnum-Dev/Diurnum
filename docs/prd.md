@@ -817,20 +817,39 @@ The following are explicitly deferred. Do not let them creep into V1 scope.
 
 Captured here so contributors understand what V1 is building toward. Items are tiered by target release.
 
-### V1.1: Ask Ledgerly (plain-language Q&A)
+### V1.1: Ask Ledgerly + Bean Query Language
 
-Founder-Operator can ask the ledger questions in plain English: *"How much did I spend on software last month?"* *"What were my top three vendors in Q1?"* *"Show me all transactions over $500 in May."*
+**Two related features that ship together.** V1.1's signature is *querying the ledger in any form* — natural language for the everyday case, BQL for power users.
+
+#### Bean Query Language (BQL)
+
+Ledgerly implements a subset of [Bean Query Language](https://github.com/beancount/beanquery), the SQL-like query language standard in the Beancount ecosystem.
+
+- A BQL engine ships as part of V1.1: parser, executor against the workspace ledger, and result formatter
+- Direct BQL surface: a "Query" screen with a code editor (BQL syntax highlighting), execute button, and tabular results
+- Results cite entries — clicking a result row jumps to the entry in the Ledger Editor
+- BQL queries are deterministic; the same query against the same ledger always produces the same result
+- The initial implementation covers the most common BQL constructs (`SELECT`, `FROM`, `WHERE`, `GROUP BY`, `ORDER BY`, aggregate functions). Full BQL grammar coverage is incremental.
+
+#### Ask Ledgerly (natural-language Q&A)
+
+Built directly on top of the BQL engine. Founder-Operator can ask the ledger questions in plain English: *"How much did I spend on software last month?"* *"What were my top three vendors in Q1?"* *"Show me all transactions over $500 in May."*
 
 **Design requirements (per the Ledger-grounded AI principle):**
 - A new "Ask" surface — likely a dedicated screen or a command-palette-style overlay accepting natural language
 - The BYO AI Adapter contract is extended with a `query` task type alongside existing `categorize` and `complete` tasks
-- The adapter translates the question into a deterministic ledger query (account filter, date range, aggregation). It does **not** answer the question itself.
-- Ledgerly runs the translated query against the actual ledger and produces the answer
+- **The adapter translates the question into a BQL query.** It does not answer the question itself.
+- Ledgerly executes the BQL via the V1.1 engine and produces the answer with citations
 - Every answer cites the entries that produced it — clickable to jump to the entry in the Ledger Editor
-- Hallucinated numbers must be structurally impossible (the answer never contains a number that didn't come from the query result)
-- Works without a BYO AI Adapter: a manual query builder (account picker, date range, aggregator) provides the same capability for users without AI
+- Hallucinated numbers are structurally impossible: the answer can only contain values that came from BQL results
+- Works without a BYO AI Adapter: the Query screen with manual BQL writing provides the same capability for users without AI
+- The translated BQL is shown to the user so they can verify, edit, or save it as a named query
 
-### V1.2: Proactive Insights
+### V1.2: Proactive Insights and Multi-Currency Support
+
+Two independent V1.2 features.
+
+#### Proactive Insights
 
 Ledgerly notices patterns and surfaces them: *"Restaurant spending is 38% higher than the trailing six-month average."* *"This OpenAI charge looks like it might belong in Subscriptions, not Software."* *"You've paid AWS twice this month."*
 
@@ -841,6 +860,20 @@ Ledgerly notices patterns and surfaces them: *"Restaurant spending is 38% higher
 - Insights never auto-act on the ledger; they are suggestions only
 - Founder-Operator can disable categories of insights they find noisy (e.g., "Mute anomaly alerts under $50")
 - AI Adapter contract is extended with an `insight` task type that runs against curated workspace summaries
+
+#### Multi-Currency Support
+
+V1 is USD-only. V1.2 lifts this restriction, with the architecture and UX to support non-USD ledgers.
+
+**Design requirements:**
+- Source Accounts can be created in any [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency (EUR, GBP, JPY, CAD, AUD, etc.)
+- Statement Rows carry their original currency; CSV import recognizes non-USD currency markers (`€`, `£`, etc.) instead of blocking
+- The Starter Chart of Accounts adapts to the workspace's base currency
+- Reports support conversion to a single display currency using market prices
+- **Market prices fetched via [beanprice](https://github.com/beancount/beanprice) integration.** Ledgerly wraps the beanprice library (or implements its core sources) to populate Beancount `price` directives in the workspace. Price sources include forex feeds (e.g., ECB), stock tickers (Yahoo Finance, etc.), and configurable custom sources.
+- A new "Prices" screen in Settings: shows current price directives, last refresh timestamp, configurable price sources per commodity, and a manual "Refresh prices" action
+- Prices refresh on a schedule (daily by default, configurable in Settings)
+- Crypto and other non-currency commodities are explicitly **post-V1.2** (see Crypto Support below)
 
 ### Paid Sync Service
 Optional commercial service. Multi-device sync, encrypted backup, workspace sharing with clients or bookkeepers. Technical users can use git as a free alternative.
@@ -856,6 +889,16 @@ V1's Documents screen is folder-based. A future version will link specific docum
 
 ### Collaboration
 Invite a bookkeeper or accountant to a shared workspace. Review queues, comments on transactions, prepared/reviewed states, month-end close checklist, role-based access. Requires Sync Service as a prerequisite.
+
+### Crypto Support (post-V1.2)
+
+Extends V1.2 multi-currency to cryptocurrencies (BTC, ETH, stablecoins, others). Adds wrinkles beyond fiat currency:
+- Multiple competing price sources per asset (CoinGecko, CoinMarketCap, exchange APIs) with reconciliation
+- Volatility means intraday prices matter for some use cases (capital gains)
+- Cost-basis tracking for tax purposes (FIFO, LIFO, HIFO)
+- Wallet address tracking and on-chain reconciliation
+- Beancount's commodity model handles crypto adequately, but the price feed integration and cost-basis UX is substantial work
+- Deferred until multi-currency (V1.2) is proven and the demand surfaces
 
 ### Bank Feeds
 Direct bank connections via Plaid, Teller, or equivalent. Cloud-mediated; requires a Ledgerly backend service.
