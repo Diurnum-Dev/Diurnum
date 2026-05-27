@@ -1,6 +1,6 @@
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::types::WorkspaceManifest;
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -27,6 +27,14 @@ pub struct CsvSourceMappingInput {
     pub amount_column: Option<String>,
     pub debit_column: Option<String>,
     pub credit_column: Option<String>,
+    /// When set together with `debit_type_value`, the value of this column in
+    /// each row determines the sign of `amount_column`.  Rows whose type value
+    /// matches `debit_type_value` (case-insensitive) are negated; all other
+    /// rows keep their sign.  Ignored when `amount_column` is not set.
+    pub transaction_type_column: Option<String>,
+    /// The value in `transaction_type_column` that marks a row as a debit
+    /// (money leaving the account).  Defaults to `"Debit"` when not specified.
+    pub debit_type_value: Option<String>,
     pub memo_column: Option<String>,
     pub reference_id_column: Option<String>,
     pub payee_column: Option<String>,
@@ -71,7 +79,8 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
     let now = Utc::now().to_rfc3339();
 
     for row in rows {
-        let posted_date = required_value(&row, &mapping.posted_date_column)?;
+        let posted_date_raw = required_value(&row, &mapping.posted_date_column)?;
+        let posted_date = normalize_posted_date(&posted_date_raw)?;
         let description = required_value(&row, &mapping.description_column)?;
         let source_amount = required_source_amount(&row, &mapping)?;
         let import_fingerprint = import_fingerprint(
@@ -294,7 +303,35 @@ fn required_source_amount(
     mapping: &CsvSourceMappingInput,
 ) -> Result<String, WorkspaceError> {
     if let Some(amount_column) = mapping.amount_column.as_deref() {
-        return required_amount(row, amount_column);
+        let raw = required_value(row, amount_column)?;
+        let amount: f64 = raw.parse().map_err(|_| {
+            WorkspaceError::new(
+                WorkspaceErrorCode::InvalidLedger,
+                format!("CSV Import amount column {amount_column} must contain numeric values."),
+            )
+        })?;
+
+        // If a transaction type column is configured, use it to determine the
+        // sign.  "Debit" rows (money leaving the account) become negative.
+        let signed = match (
+            mapping.transaction_type_column.as_deref(),
+            mapping
+                .debit_type_value
+                .as_deref()
+                .or(Some("Debit")),
+        ) {
+            (Some(type_col), Some(debit_val)) => {
+                let row_type = optional_value(row, Some(type_col)).unwrap_or_default();
+                if row_type.trim().eq_ignore_ascii_case(debit_val.trim()) {
+                    -amount
+                } else {
+                    amount
+                }
+            }
+            _ => amount,
+        };
+
+        return Ok(format_source_amount(signed));
     }
 
     let debit_column = mapping.debit_column.as_deref().ok_or_else(|| {
@@ -326,17 +363,6 @@ fn required_source_amount(
     }
 }
 
-fn required_amount(row: &HashMap<String, String>, column: &str) -> Result<String, WorkspaceError> {
-    let amount = required_value(row, column)?;
-    amount.parse::<f64>().map_err(|_| {
-        WorkspaceError::new(
-            WorkspaceErrorCode::InvalidLedger,
-            format!("CSV Import amount column {column} must contain numeric values."),
-        )
-    })?;
-    Ok(amount)
-}
-
 fn optional_amount(
     row: &HashMap<String, String>,
     column: &str,
@@ -361,6 +387,52 @@ fn format_source_amount(amount: f64) -> String {
 
 fn optional_value(row: &HashMap<String, String>, column: Option<&str>) -> Option<String> {
     column.and_then(|column| row.get(column).map(|value| value.trim().to_string()))
+}
+
+/// Normalise a bank-statement date string to ISO 8601 (`YYYY-MM-DD`).
+///
+/// Supported input formats:
+/// - `MM/DD/YY`   — two-digit year (e.g. Capital One)   → century assumed 2000
+/// - `MM/DD/YYYY` — four-digit year (e.g. Chase, BofA)
+/// - `YYYY-MM-DD` — ISO 8601 (pass-through)
+///
+/// We use structural detection (component count + length) rather than a
+/// trial-and-error format list because `chrono`'s `%Y` directive greedily
+/// parses any number of digits — `05/05/26` with `%m/%d/%Y` would be
+/// interpreted as May 5th of year 26 CE, not 2026.
+fn normalize_posted_date(raw: &str) -> Result<String, WorkspaceError> {
+    let s = raw.trim();
+    let unsupported = || {
+        WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            format!("CSV Import date '{s}' is not in a recognised format (expected MM/DD/YY, MM/DD/YYYY, or YYYY-MM-DD)."),
+        )
+    };
+
+    let parsed: NaiveDate = if s.contains('/') {
+        let parts: Vec<&str> = s.splitn(3, '/').collect();
+        match parts.as_slice() {
+            [_m, _d, y] if y.len() == 4 => {
+                NaiveDate::parse_from_str(s, "%m/%d/%Y").map_err(|_| unsupported())?
+            }
+            [_m, _d, y] if y.len() == 2 => {
+                NaiveDate::parse_from_str(s, "%m/%d/%y").map_err(|_| unsupported())?
+            }
+            _ => return Err(unsupported()),
+        }
+    } else if s.contains('-') {
+        let parts: Vec<&str> = s.splitn(3, '-').collect();
+        match parts.as_slice() {
+            [y, _m, _d] if y.len() == 4 => {
+                NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| unsupported())?
+            }
+            _ => return Err(unsupported()),
+        }
+    } else {
+        return Err(unsupported());
+    };
+
+    Ok(parsed.format("%Y-%m-%d").to_string())
 }
 
 fn import_fingerprint(
@@ -425,6 +497,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -503,6 +577,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         };
 
@@ -579,6 +655,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -608,5 +686,144 @@ mod tests {
             )
             .unwrap();
         assert_eq!(software_amount, "-29.99");
+    }
+
+    #[test]
+    fn imports_transaction_type_column_rows_with_correct_sign() {
+        // Simulates a Capital One-style statement where amounts are always
+        // positive and a "Transaction Type" column indicates Debit/Credit.
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        add_source_account(AddSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            kind: SourceAccountKind::Bank,
+            name: "Operating Checking".to_string(),
+            opening_balance: None,
+        })
+        .unwrap();
+
+        let result = import_statement_rows(CsvImportInput {
+            workspace_root_path: created.root_path.clone(),
+            source_account: "Assets:Bank:Operating-Checking".to_string(),
+            source_file_name: "capital-one.csv".to_string(),
+            csv_contents: "Transaction Date,Transaction Description,Transaction Type,Transaction Amount\n\
+2026-01-03,Client payment,Credit,1500.00\n\
+2026-01-04,Software subscription,Debit,29.99\n"
+                .to_string(),
+            mapping: Some(CsvSourceMappingInput {
+                posted_date_column: "Transaction Date".to_string(),
+                description_column: "Transaction Description".to_string(),
+                amount_column: Some("Transaction Amount".to_string()),
+                transaction_type_column: Some("Transaction Type".to_string()),
+                debit_type_value: Some("Debit".to_string()),
+                debit_column: None,
+                credit_column: None,
+                memo_column: None,
+                reference_id_column: None,
+                payee_column: None,
+                category_column: None,
+            }),
+        })
+        .unwrap();
+
+        assert_eq!(result.imported_count, 2);
+
+        let connection = Connection::open(
+            std::path::Path::new(&created.root_path)
+                .join(".ledgerly")
+                .join("ledgerly.sqlite"),
+        )
+        .unwrap();
+
+        let payment_amount: String = connection
+            .query_row(
+                "select source_amount from statement_rows where description = 'Client payment'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(payment_amount, "1500.00");
+
+        let software_amount: String = connection
+            .query_row(
+                "select source_amount from statement_rows where description = 'Software subscription'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(software_amount, "-29.99");
+    }
+
+    #[test]
+    fn normalizes_various_date_formats_to_iso_on_import() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        add_source_account(AddSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            kind: SourceAccountKind::Bank,
+            name: "Operating Checking".to_string(),
+            opening_balance: None,
+        })
+        .unwrap();
+
+        // Mix of MM/DD/YY (Capital One), MM/DD/YYYY (Chase/BofA), and
+        // YYYY-MM-DD (ISO — should pass through unchanged).
+        import_statement_rows(CsvImportInput {
+            workspace_root_path: created.root_path.clone(),
+            source_account: "Assets:Bank:Operating-Checking".to_string(),
+            source_file_name: "mixed-dates.csv".to_string(),
+            csv_contents: "Date,Description,Amount\n\
+05/05/26,Capital One row,100.00\n\
+05/06/2026,US four-digit row,200.00\n\
+2026-05-07,ISO row,300.00\n"
+                .to_string(),
+            mapping: Some(CsvSourceMappingInput {
+                posted_date_column: "Date".to_string(),
+                description_column: "Description".to_string(),
+                amount_column: Some("Amount".to_string()),
+                debit_column: None,
+                credit_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
+                memo_column: None,
+                reference_id_column: None,
+                payee_column: None,
+                category_column: None,
+            }),
+        })
+        .unwrap();
+
+        let connection = Connection::open(
+            std::path::Path::new(&created.root_path)
+                .join(".ledgerly")
+                .join("ledgerly.sqlite"),
+        )
+        .unwrap();
+
+        let q = |desc: &str| -> String {
+            connection
+                .query_row(
+                    "select posted_date from statement_rows where description = ?1",
+                    [desc],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+
+        assert_eq!(q("Capital One row"),    "2026-05-05");
+        assert_eq!(q("US four-digit row"),  "2026-05-06");
+        assert_eq!(q("ISO row"),            "2026-05-07");
     }
 }

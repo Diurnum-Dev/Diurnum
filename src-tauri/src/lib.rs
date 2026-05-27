@@ -3,6 +3,30 @@ pub mod workspace;
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // macOS WKWebView does not process keyboard shortcuts (⌘V, ⌘C, ⌘Z, …)
+            // unless the application has an NSApp menu that contains the corresponding
+            // Edit actions.  Without this, pasting and other text-editing shortcuts
+            // are silently swallowed across the entire app.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{MenuBuilder, SubmenuBuilder};
+                let edit = SubmenuBuilder::new(app, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+                let menu = MenuBuilder::new(app).item(&edit).build()?;
+                app.set_menu(menu)?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::workspace::create_workspace,
             commands::workspace::open_workspace,

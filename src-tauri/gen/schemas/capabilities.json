@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Default capabilities for the Ledgerly desktop app.","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-open","opener:allow-open-path"]}}

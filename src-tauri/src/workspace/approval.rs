@@ -696,6 +696,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -795,6 +797,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -814,6 +818,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -896,6 +902,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -946,6 +954,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -1013,6 +1023,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -1083,6 +1095,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();
@@ -1148,6 +1162,8 @@ mod tests {
                 reference_id_column: None,
                 payee_column: None,
                 category_column: None,
+                transaction_type_column: None,
+                debit_type_value: None,
             }),
         })
         .unwrap();

@@ -20,6 +20,10 @@ export type CsvSourceMappingInput = {
   amountColumn?: string | null;
   debitColumn?: string | null;
   creditColumn?: string | null;
+  /** Column whose value indicates transaction direction (e.g. "Transaction Type"). */
+  transactionTypeColumn?: string | null;
+  /** Value in `transactionTypeColumn` that marks a debit row (default: "Debit"). */
+  debitTypeValue?: string | null;
   memoColumn?: string | null;
   referenceIdColumn?: string | null;
   payeeColumn?: string | null;

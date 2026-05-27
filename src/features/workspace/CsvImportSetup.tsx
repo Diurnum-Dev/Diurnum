@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useState, useRef } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import type { CsvSourceMappingInput } from "../../lib/workspace/types";
 
 type CsvImportSetupProps = {
@@ -20,11 +20,84 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
   const [amountColumn, setAmountColumn] = useState("Amount");
   const [debitColumn, setDebitColumn] = useState("");
   const [creditColumn, setCreditColumn] = useState("");
+  const [transactionTypeColumn, setTransactionTypeColumn] = useState("");
+  const [debitTypeValue, setDebitTypeValue] = useState("Debit");
   const [memoColumn, setMemoColumn] = useState("");
   const [referenceIdColumn, setReferenceIdColumn] = useState("");
   const [payeeColumn, setPayeeColumn] = useState("");
   const [categoryColumn, setCategoryColumn] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSourceFileName(file.name);
+    const text = await readFileAsText(file);
+    setCsvContents(text);
+    applyAutoDetectedColumns(text);
+    // Reset so the same file can be re-selected if needed
+    event.target.value = "";
+  }
+
+  function applyAutoDetectedColumns(csvText: string) {
+    const headers = parseCsvHeaders(csvText);
+    if (headers.length === 0) return;
+
+    const find = (...candidates: string[]): string => {
+      for (const c of candidates) {
+        const match = headers.find((h) => h.toLowerCase() === c.toLowerCase());
+        if (match) return match;
+      }
+      // Partial match fallback
+      for (const c of candidates) {
+        const match = headers.find((h) => h.toLowerCase().includes(c.toLowerCase()));
+        if (match) return match;
+      }
+      return "";
+    };
+
+    const detectedDate = find("Date", "Transaction Date", "Posted Date", "Posting Date", "Post Date");
+    const detectedDesc = find("Description", "Transaction Description", "Memo", "Narrative", "Details");
+    const detectedAmount = find("Amount", "Transaction Amount");
+    const detectedDebit = find("Debit Amount", "Debit");
+    const detectedCredit = find("Credit Amount", "Credit");
+    const detectedType = find("Transaction Type", "Type");
+    const detectedMemo = find("Memo", "Note", "Notes");
+    const detectedRef = find("Reference", "Reference ID", "Reference Number", "Check Number");
+    const detectedPayee = find("Payee", "Merchant", "Vendor");
+    const detectedCategory = find("Category", "Spending Category");
+
+    if (detectedDate) setPostedDateColumn(detectedDate);
+    if (detectedDesc) setDescriptionColumn(detectedDesc);
+
+    // Prefer separate debit/credit columns if both found; otherwise use amount.
+    // Clear whichever pair isn't being used to avoid confusing the backend.
+    if (detectedDebit && detectedCredit) {
+      setDebitColumn(detectedDebit);
+      setCreditColumn(detectedCredit);
+      setAmountColumn("");
+      setTransactionTypeColumn("");
+      setDebitTypeValue("Debit");
+    } else if (detectedAmount) {
+      setAmountColumn(detectedAmount);
+      setDebitColumn("");
+      setCreditColumn("");
+      // Wire up the type column when found alongside a single amount column
+      if (detectedType) {
+        setTransactionTypeColumn(detectedType);
+        setDebitTypeValue("Debit");
+      } else {
+        setTransactionTypeColumn("");
+      }
+    }
+
+    if (detectedMemo) setMemoColumn(detectedMemo);
+    if (detectedRef) setReferenceIdColumn(detectedRef);
+    if (detectedPayee) setPayeeColumn(detectedPayee);
+    if (detectedCategory) setCategoryColumn(detectedCategory);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,6 +113,8 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
           amountColumn: optionalColumn(amountColumn),
           debitColumn: optionalColumn(debitColumn),
           creditColumn: optionalColumn(creditColumn),
+          transactionTypeColumn: optionalColumn(transactionTypeColumn),
+          debitTypeValue: optionalColumn(debitTypeValue),
           memoColumn: optionalColumn(memoColumn),
           referenceIdColumn: optionalColumn(referenceIdColumn),
           payeeColumn: optionalColumn(payeeColumn),
@@ -47,6 +122,7 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
         },
       });
       setCsvContents("");
+      setSourceFileName("");
     } finally {
       setIsSubmitting(false);
     }
@@ -69,14 +145,34 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
           />
         </label>
 
-        <label>
-          Source file name
-          <input
-            value={sourceFileName}
-            onChange={(event) => setSourceFileName(event.target.value)}
-            placeholder="checking.csv"
-          />
-        </label>
+        <div className="directory-field">
+          <label>
+            Source file name
+            <input
+              value={sourceFileName}
+              onChange={(event) => setSourceFileName(event.target.value)}
+              placeholder="checking.csv"
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Choose CSV
+          </button>
+        </div>
+        {/* Hidden file input — triggered by the Choose CSV button above.
+            Selecting a file auto-populates the filename, CSV contents, and
+            column mapping fields. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.tsv,text/csv,text/plain"
+          style={{ display: "none" }}
+          aria-hidden="true"
+          onChange={handleFileChange}
+        />
 
         <label>
           CSV contents
@@ -84,6 +180,7 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
             value={csvContents}
             onChange={(event) => setCsvContents(event.target.value)}
             rows={6}
+            placeholder="Paste CSV here, or use Choose CSV above to load a file."
           />
         </label>
 
@@ -107,6 +204,14 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
           <label>
             Credit column
             <input value={creditColumn} onChange={(event) => setCreditColumn(event.target.value)} />
+          </label>
+          <label>
+            Transaction type column
+            <input value={transactionTypeColumn} onChange={(event) => setTransactionTypeColumn(event.target.value)} />
+          </label>
+          <label>
+            Debit type value
+            <input value={debitTypeValue} onChange={(event) => setDebitTypeValue(event.target.value)} />
           </label>
           <label>
             Memo column
@@ -148,4 +253,20 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
 
 function optionalColumn(value: string): string | null {
   return value.trim() || null;
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+/** Extract header names from the first non-empty CSV line. */
+function parseCsvHeaders(csvText: string): string[] {
+  const firstLine = csvText.split(/\r?\n/).find((line) => line.trim().length > 0);
+  if (!firstLine) return [];
+  return firstLine.split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
 }
