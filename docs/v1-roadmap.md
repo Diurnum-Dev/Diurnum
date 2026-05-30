@@ -15,12 +15,12 @@ For feature specs and acceptance criteria, see [`prd.md`](prd.md). This document
 
 These tasks happen once before milestone work begins.
 
-| Task                        | Notes                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------- |
-| Tag MVP baseline            | `git tag v0.1.0-mvp && git push --tags` — preserves the "this is what the MVP looked like" marker |
-| Update README               | Reflects MVP → V1 transition, points to PRD and this roadmap (done in this PR)                    |
-| Add `src/styles/tokens.css` | Already created; import in `main.tsx` so V1 components can reference tokens                       |
-| Optionally rename repo      | `Diurnum-MVP` → `Diurnum` (local `mv` + GitHub rename). Cosmetic; doesn't block work.             |
+| Task                                | Notes                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Tag MVP baseline                    | `git tag v0.1.0-mvp && git push --tags` — preserves the "this is what the MVP looked like" marker |
+| Update README                       | Reflects MVP → V1 transition, points to PRD and this roadmap (done in this PR)                    |
+| Add `src/styles/tokens-diurnum.css` | Already created; import in `main.tsx` so V1 components can reference tokens                       |
+| Optionally rename repo              | `Diurnum-MVP` → `Diurnum` (local `mv` + GitHub rename). Cosmetic; doesn't block work.             |
 
 ---
 
@@ -55,7 +55,7 @@ M9 macOS Packaging (last; gates V1 release)
 
 **Order:**
 
-- M1.1 App Shell skeleton — sidebar (200px) + main pane + status bar; uses `tokens.css`
+- M1.1 App Shell skeleton — sidebar (200px) + main pane + status bar; uses `tokens-diurnum.css`
 - M1.2 Sidebar navigation items (Ledger, Inbox, Reports, Documents, Import, Settings; Git conditional)
 - M1.3 Workspace switcher dropdown (recents from app config, "Open existing…")
 - M1.4 Welcome Screen (3 cards: new blank, example, open existing; recents list)

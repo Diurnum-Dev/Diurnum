@@ -42,6 +42,7 @@
      (delete, validation errors, diff deletions, duplicate/warning)
      ───────────────────────────────────────────────────────── */
   --color-destructive:        #A03228;  /* oxblood — tilted redder for legibility */
+  --color-destructive-strong: #C94034;  /* brighter red for small indicator dots  */
   --color-destructive-bg:     #F2E0DB;  /* oxblood wash                    */
   --color-destructive-hover:  #ECCFC8;  /* destructive button hover bg     */
 

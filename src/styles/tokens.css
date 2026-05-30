@@ -4,56 +4,85 @@
  * Source of truth for all design values. Components must reference these
  * tokens via `var(--token-name)` — never hardcoded hex or pixel values.
  *
- * Companion spec: docs/design-system.md
+ * Canonical spec: DESIGN.md
  */
 
 :root {
   /* ============================================================
-     COLOR — Surface
+     COLOR — Surface  (warm parchment, never clinical white)
      ============================================================ */
-  --color-bg: #FFFFFF;
-  --color-bg-muted: #F4F4F5;
-  --color-bg-subtle: #FAFAFA;
+  --color-bg:                 #FEFCF8;  /* ground / page parchment         */
+  --color-bg-muted:           #FBF6EC;  /* sidebar, chrome, row hover       */
+  --color-bg-subtle:          #FCF9F2;  /* active block, tab hover          */
 
   /* ============================================================
-     COLOR — Text
+     COLOR — Text  (iron-gall ink + warm grey-browns)
      ============================================================ */
-  --color-text: #18181B;
-  --color-text-muted: #71717A;
-  --color-text-subtle: #A1A1AA;
+  --color-text:               #1C1A17;  /* iron-gall brown-black            */
+  --color-text-muted:         #6B6051;  /* secondary, captions, metadata    */
+  --color-text-subtle:        #938775;  /* tertiary, line numbers, disabled */
 
   /* ============================================================
      COLOR — Border
      ============================================================ */
-  --color-border: #E4E4E7;
-  --color-border-strong: #D4D4D8;
+  --color-border:             #EDEAE4;  /* default hairline (1px)           */
+  --color-border-strong:      #E0DBD3;  /* stronger rules, emphasis         */
 
   /* ============================================================
-     COLOR — Accent (sage green, used sparingly)
+     COLOR — Accent  (lapis / ink-blue)
+     Primary buttons, active nav, focus rings, diff additions.
      ============================================================ */
-  --color-accent: #2D6A4F;
-  --color-accent-bg: #E6F4EA;
-  --color-accent-strong: #4ADE80;
+  --color-accent:             #243B6B;
+  --color-accent-bg:          #E4E8F1;
+  --color-accent-strong:      #2F4E8C;  /* indicator dots, valid emphasis   */
+  --color-accent-hover:       #1C2F56;  /* primary button hover             */
 
   /* ============================================================
-     COLOR — Destructive
+     COLOR — Destructive  (oxblood)
+     Delete, validation errors, diff deletions.
      ============================================================ */
-  --color-destructive: #DC2626;
-  --color-destructive-bg: #FEE2E2;
+  --color-destructive:        #A03228;
+  --color-destructive-strong: #C94034;  /* brighter red for small indicator dots */
+  --color-destructive-bg:     #F2E0DB;
+  --color-destructive-hover:  #ECCFC8;
 
   /* ============================================================
-     COLOR — Editor (internal use only)
+     COLOR — Highlight  (ochre / gold)
+     Decorative only — gilt highlights, wordmark accent.
+     NOT for interactive or state-indicating contexts.
      ============================================================ */
-  --color-editor-string-bg: #FEF8E1;
-  --color-editor-active-block: #FAFAFA;
-  --color-editor-ghost-text: #A1A1AA;
+  --color-highlight:          #B68A3E;
+  --color-highlight-bg:       #F2E7CD;
+  --color-highlight-ink:      #7A5A20;  /* darkened ochre, safe for text    */
+
+  /* ============================================================
+     COLOR — Editor  (Ledger Editor only)
+     ============================================================ */
+  --color-editor-string-bg:   #F1E6C7;  /* warm gilt tint on strings        */
+  --color-editor-active-block:#FFFFFF;  /* tx block under cursor            */
+  --color-editor-ghost-text:  #A89C88;  /* predictive completion ghost      */
+
+  /* ============================================================
+     COLOR — Diff & validation
+     Additions = lapis, deletions = oxblood.
+     ============================================================ */
+  --diff-add-bg:    #E7EBF3;
+  --diff-add-gut:   #D6DCEB;
+  --diff-add-text:  #243B6B;
+  --diff-del-bg:    #F3E2DD;
+  --diff-del-gut:   #EAD0C9;
+  --diff-del-text:  #A03228;
+  --diff-hunk-bg:   #F3EAD7;
+  --diff-hunk-text: #6B6051;
 
   /* ============================================================
      TYPOGRAPHY — Font families
      ============================================================ */
+  --font-serif:
+    "Spectral", Georgia, "Iowan Old Style", "Times New Roman", serif;
   --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    "Source Sans 3", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:
     "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas,
     monospace;
@@ -61,41 +90,45 @@
   /* ============================================================
      TYPOGRAPHY — Sizes
      ============================================================ */
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 32px;
+  --text-xs:    11px;
+  --text-sm:    12px;
+  --text-base:  13px;
+  --text-md:    14px;
+  --text-lg:    16px;
+  --text-xl:    20px;
+  --text-2xl:   24px;
+  --text-3xl:   32px;
 
   /* ============================================================
      TYPOGRAPHY — Line heights
      ============================================================ */
-  --leading-tight: 1.25;
-  --leading-snug: 1.3;
-  --leading-normal: 1.4;
-  --leading-relaxed: 1.5;
+  --leading-tight:   1.25;
+  --leading-snug:    1.35;
+  --leading-normal:  1.45;
+  --leading-relaxed: 1.55;
 
   /* ============================================================
      TYPOGRAPHY — Weights
      ============================================================ */
-  --weight-normal: 400;
-  --weight-medium: 500;
+  --weight-normal:   400;
+  --weight-medium:   500;
   --weight-semibold: 600;
+  --weight-bold:     700;  /* serif display only */
+
+  /* Tracking for inscriptional caps labels */
+  --tracking-caps: 0.08em;
 
   /* ============================================================
      SPACING — 4px base
      ============================================================ */
-  --space-0: 0;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
@@ -106,60 +139,60 @@
   --border-width: 1px;
 
   /* ============================================================
-     RADIUS
+     RADIUS  (modest — the printed page, not the pill)
      ============================================================ */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-pill: 9999px;
+  --radius-sm:   2px;     /* buttons, chips, inputs  */
+  --radius-md:   3px;     /* cards                   */
+  --radius-lg:   4px;     /* modals, panels          */
+  --radius-pill: 9999px;  /* count badges only       */
 
   /* ============================================================
-     SHADOW
+     SHADOW  (warm-toned, reserved for floating elements only)
      ============================================================ */
-  --shadow-none: none;
-  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.06);
-  --shadow-modal: 0 4px 12px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-none:   none;
+  --shadow-subtle: 0 1px 2px rgba(28,26,23,0.05), 0 2px 8px rgba(28,26,23,0.05);
+  --shadow-modal:  0 2px 6px rgba(28,26,23,0.06), 0 16px 40px rgba(28,26,23,0.14);
 
   /* ============================================================
      LAYOUT
      ============================================================ */
-  --shell-sidebar-width: 200px;
+  --shell-sidebar-width:     200px;
   --shell-status-bar-height: 28px;
-  --shell-tab-bar-height: 36px;
-  --shell-header-height: 48px;
+  --shell-tab-bar-height:    36px;
+  --shell-header-height:     48px;
 
   --modal-width-sm: 420px;
   --modal-width-md: 520px;
   --modal-width-lg: 640px;
 
   --welcome-card-width: 280px;
-  --inspector-width: 380px;
+  --inspector-width:    380px;
 
   /* ============================================================
-     MOTION
+     MOTION  (calm and unhurried — nothing bouncy or springy)
      ============================================================ */
-  --duration-fast: 100ms;
-  --duration-medium: 200ms;
-  --duration-slow: 300ms;
-  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   140ms;
+  --duration-medium: 260ms;
+  --duration-slow:   420ms;
+  --easing: cubic-bezier(0.32, 0.08, 0.24, 1);
 
   /* ============================================================
      Z-INDEX
      ============================================================ */
-  --z-base: 0;
-  --z-dropdown: 100;
+  --z-base:           0;
+  --z-dropdown:     100;
   --z-modal-backdrop: 200;
-  --z-modal: 300;
-  --z-tooltip: 400;
+  --z-modal:          300;
+  --z-tooltip:        400;
 }
 
 /* ============================================================
-   Reduced motion — disable transitions for users who prefer it
+   Reduced motion
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-fast: 0ms;
+    --duration-fast:   0ms;
     --duration-medium: 0ms;
-    --duration-slow: 0ms;
+    --duration-slow:   0ms;
   }
 }
