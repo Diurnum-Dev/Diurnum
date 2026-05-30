@@ -10,7 +10,47 @@ _Avoid_: Sync, collaboration, payroll, invoicing, tax, external-ledger import
 
 **V1**:
 The first public Diurnum release: the inherited MVP accounting loop assembled into an App Shell with a Ledger Editor home screen, Smart CSV Import, Documents, Settings, optional Git Integration, Data Integrity guarantees, and macOS packaging.
-_Avoid_: Hosted SaaS app, sync service, arbitrary Beancount import, accountant portal, feature grab bag
+_Avoid_: Hosted SaaS app, sync service, arbitrary Beancount import, accountant portal, feature grab bag, dark mode, universal binary
+
+**GPL V3 License**:
+The V1 software license: Diurnum is free forever as FOSS under GPL v3, with any commercial sync service kept separate and post-V1.
+_Avoid_: Proprietary desktop app, hosted-account gate, paid local bookkeeping features
+
+**Commercial Sync Service**:
+A future paid service for multi-device sync, encrypted backup, and collaboration, separate from the local-first V1 app.
+_Avoid_: V1 dependency, hidden cloud backup, required Diurnum account
+
+**Ledger Is The Product**:
+The principle that every V1 surface exists to help the Founder-Operator maintain a clean, trustworthy Beancount ledger.
+_Avoid_: Dashboard-first product, opaque accounting database, feature surface detached from ledger quality
+
+**Reviewable Diff**:
+A visible, inspectable change proposal or ledger/file delta that the Founder-Operator can understand before it becomes trusted state.
+_Avoid_: Silent automation, category-only approval, hidden file mutation
+
+**Keyboard-First Workflow**:
+The V1 interaction rule that common navigation and accounting actions should be fast without a mouse, through editor shortcuts, status-bar hints, and the Command Palette.
+_Avoid_: Mouse-only workflow, modal-heavy setup, hidden shortcuts as the only path
+
+**Diurnum Name**:
+The product name, pronounced `dy-UR-num`, from the Latin word for account-book or day-book and the ancestor of "journal" in the bookkeeping sense.
+_Avoid_: Arbitrary coined name, generic finance pun, name explanation as apology
+
+**Day-Book**:
+The brand and product frame for Diurnum: the daily book of account where entries are written down, traceable to their source and day, and kept in a record the Founder-Operator owns.
+_Avoid_: Metaphor-only story, spending diary, marketing flourish detached from the ledger
+
+**Record That Endures**:
+The trust posture that Diurnum's value comes from a durable, readable, portable accounting record designed to outlast the app or vendor.
+_Avoid_: Vendor lock-in, dashboard ephemera, short-lived SaaS data export promise
+
+**Books Not Budgets**:
+The category boundary that Diurnum keeps double-entry business books and produces real financial statements, rather than consumer spending categories or budgeting bars.
+_Avoid_: Personal budgeting app, expense tracker, category-only finance dashboard
+
+**Brand Voice**:
+The Diurnum writing style: precise, literate, calm, plainspoken, and honest about tradeoffs.
+_Avoid_: Hype, breezy fintech copy, AI-first superlatives, classical pastiche
 
 **Founder-Operator**:
 A technically literate solo business owner who runs their own books and wants transparent, local accounting records they can inspect, version, and understand.
@@ -25,8 +65,12 @@ A local folder that contains a business's Beancount ledger plus Diurnum metadata
 _Avoid_: Project, company, file, cloud account
 
 **App-Created Workspace**:
-A Workspace created by Diurnum using Diurnum's expected file layout and chart-of-accounts assumptions.
+A Workspace created by Diurnum using Diurnum's expected file layout, `.ledgerly/workspace.json` manifest, and chart-of-accounts assumptions.
 _Avoid_: Imported ledger, arbitrary Beancount project, external workspace
+
+**Workspace Manifest**:
+The `.ledgerly/workspace.json` file that records Workspace metadata and restorable UI state such as display name, editor tabs, active tab, cursor positions, and Source Account setup references.
+_Avoid_: Canonical ledger, app-level recents, hidden cloud profile
 
 **Statement Row**:
 A raw transaction-like row imported from a bank-downloaded CSV statement before Diurnum turns it into accounting data.
@@ -81,8 +125,12 @@ A state where a valid ledger entry can no longer be reliably linked to its Stagi
 _Avoid_: Invalid ledger, automatic repair
 
 **Beancount V3 Compatibility**:
-The requirement that Diurnum-written Workspaces remain valid Beancount V3 projects that can be inspected and validated with standard ecosystem tools.
+The requirement that Diurnum-written Workspaces remain valid Beancount V3 projects that can be opened in Fava and validated with `bean-check`.
 _Avoid_: Diurnum-only syntax, bundled Beancount fork, proprietary accounting database
+
+**Diurnum Beancount Parser**:
+Diurnum's own Beancount-compatible parser, validator, and writer targeting Beancount V3 syntax and semantics.
+_Avoid_: Bundled Beancount library, Beancount fork, permissive parser that writes invalid V3 syntax
 
 **Transfer Entry**:
 A Suggested Entry or approved ledger entry that moves value between two Ledger Accounts without income or expense.
@@ -104,6 +152,10 @@ _Avoid_: Cash flow statement, tax report, runway analysis, variance analysis, AI
 An AI-assisted proposal for categorization, payee or narration cleanup, explanation, or entry completion that the Founder-Operator can review before it affects the ledger.
 _Avoid_: AI ledger write, AI reconciliation, AI report, autonomous bookkeeping
 
+**AI As Assistance**:
+The product stance that AI is a capability for grounded suggestions, completion, and future query translation, not the core brand or source of accounting truth.
+_Avoid_: AI-first positioning, autonomous bookkeeping, generated financial facts
+
 **Ledger-Grounded AI**:
 The rule that AI-produced numbers, categories, completions, insights, and future query answers must be derived from actual ledger or Workspace data, with cited source entries when numbers or claims are surfaced.
 _Avoid_: Prompt-only arithmetic, hallucinated accounts, uncited financial claims
@@ -119,6 +171,10 @@ _Avoid_: Raw workspace access, direct file access, full ledger dump by default
 **AI Context Disclosure**:
 The user-visible explanation of what Curated Ledger Context Diurnum sends to the configured BYO AI Adapter.
 _Avoid_: Hidden AI data sharing, unclear adapter permissions
+
+**AI Adapter Detection**:
+The Settings behavior that discovers supported local agent harnesses, including Claude Code CLI, OpenAI Codex CLI, and optionally OpenCode when available on `PATH`.
+_Avoid_: Hosted model account, automatic adapter installation, undisclosed adapter command
 
 **Categorization Rule**:
 A user-confirmed rule that proposes a Ledger Account for future Statement Rows matching known patterns, scoped to a Source Account by default.
@@ -188,6 +244,18 @@ _Avoid_: Global CSV schema, bundled bank preset, per-row Source Account inferenc
 The V1 CSV Import flow that infers column mappings from generic header and content patterns, previews normalized Statement Rows, flags likely duplicates before import, and saves per-Source-Account Source Mappings.
 _Avoid_: Bank-specific importer preset, hidden import mutation, arbitrary spreadsheet ingestion
 
+**Column Inference**:
+The Smart CSV Import step that samples CSV headers and the first data rows to infer posted date, description, amount convention, status, check number, and ignored support columns.
+_Avoid_: Bank preset, global schema detector, per-row Source Account inference
+
+**Import Preview**:
+The Smart CSV Import table showing the first normalized Statement Rows, current mapping effects, `New` or `Duplicate` status, and pending-row indicators before import writes to the Staging Area.
+_Avoid_: Blind import, Beancount write preview, all-row editing grid
+
+**Recent Import**:
+A saved record of a completed CSV Import shown in the Import screen's recent-imports list with filename, Source Account, row count, and import date.
+_Avoid_: Canonical ledger entry, git commit, Source Mapping
+
 **Pending At Import**:
 A Statement Row flag preserved from a CSV status column when the bank marks the row pending, later surfaced in the Inbox and written as valid metadata if approved.
 _Avoid_: Skipped pending row, approved pending status, ledger validity error
@@ -203,6 +271,22 @@ _Avoid_: General Beancount import, onboarding maze, hosted signup
 **Ledger Editor**:
 The V1 embedded editor for Workspace `.bean` files and the default landing screen after opening a Workspace.
 _Avoid_: Separate canonical store, opaque form-only ledger, autonomous file rewrite
+
+**Editor Session State**:
+The per-Workspace Ledger Editor state persisted in the Workspace Manifest, including open tabs, active tab, cursor positions, scroll positions, and recently closed tabs.
+_Avoid_: App-level recents, ledger metadata, external editor session
+
+**Hybrid Autosave**:
+The Ledger Editor save model where inline validation runs quickly after edits while atomic save and alignment happen on a slower debounce or immediately on `Cmd+S`.
+_Avoid_: Per-keystroke file writes, manual-save-only editor, validation-only persistence
+
+**Auto-Alignment**:
+The Ledger Editor formatting behavior that aligns amount columns inside a transaction block on save without reformatting the line the Founder-Operator is actively editing.
+_Avoid_: Whole-file pretty-printer, mid-typing reflow, semantic ledger mutation
+
+**Inline Validation**:
+Fast Ledger Validation feedback rendered in the editor gutter, token underline, tooltip, and status bar while the Founder-Operator edits `.bean` files.
+_Avoid_: Approval-only validation, hidden parser error, warning that leaves reports enabled
 
 **Predictive Entry Completion**:
 The Ledger Editor feature that proposes a full Beancount entry as ghost text from Categorization Rules, approved entry history, or the BYO AI Adapter.
@@ -220,8 +304,12 @@ _Avoid_: Hosted account settings, hidden config file requirement, unrelated busi
 The Workspace `documents/` tree for source-account statements and general business files, including original CSVs copied during import.
 _Avoid_: Canonical accounting ledger, per-transaction attachment system, hidden cloud storage
 
+**Imported Document**:
+A file copied into the Documents Folder by a Diurnum workflow, such as an original CSV copied during Smart CSV Import.
+_Avoid_: Moved source file, canonical Statement Row, required per-entry attachment
+
 **Snapshot**:
-A timestamped backup of Workspace `.bean` files, created before Approvals and on a daily schedule, stored under `.Diurnum/snapshots/` for restore and crash recovery.
+A timestamped backup of Workspace `.bean` files, created before Approvals and on a daily schedule, stored under `.ledgerly/snapshots/` for restore and crash recovery.
 _Avoid_: Canonical ledger, git commit, long-term archive
 
 **Data Integrity Layer**:
@@ -232,6 +320,10 @@ _Avoid_: Best-effort save, partial write tolerance, silent corruption
 Optional V1 behavior activated only when a Workspace is inside a git repository, with status display, silent auto-commits, history, and manual custom commits.
 _Avoid_: Required git setup, automatic repo initialization, push/pull/merge management
 
+**Git Panel**:
+The V1 screen for current branch, working tree status, recent commit history, in-app diffs, non-blocking commit failures, and the one-off custom commit form.
+_Avoid_: Remote management UI, merge-conflict resolver, required Approval modal
+
 **Git Identity**:
 The git `user.name` and `user.email` Diurnum uses for local auto-commits and manual custom commits in a git-backed Workspace.
 _Avoid_: Diurnum cloud identity, Workspace owner, tax identity
@@ -239,6 +331,34 @@ _Avoid_: Diurnum cloud identity, Workspace owner, tax identity
 **Command Palette**:
 The V1 `Cmd+K` fuzzy command surface for navigating screens and triggering Workspace actions without the mouse.
 _Avoid_: Chat command box, natural-language accounting query, hidden-only navigation
+
+**Status Bar**:
+The bottom-of-main-pane App Shell strip that shows current file or screen context, ledger validity, git/change indicators when relevant, and keyboard affordances.
+_Avoid_: Full-window footer, decorative chrome, replacement for validation details
+
+**macOS Distribution**:
+The V1 delivery target: an Apple Silicon `.app` inside a `.dmg`, distributed through GitHub Releases for macOS 13 or later, with ad-hoc signing and documented Gatekeeper bypass acceptable for the first packaging slice.
+_Avoid_: Mac App Store release, Intel universal binary requirement, treating notarization as required for issue #44
+
+**Gatekeeper Bypass**:
+The documented first-launch flow for ad-hoc-signed macOS builds, such as right-click Open or approval in System Settings -> Privacy & Security.
+_Avoid_: Hidden install failure, unsupported user workaround, claiming no-warning launch before notarization
+
+**Notarized macOS Release**:
+The follow-up distribution path using Apple Developer ID signing and Apple notarization so macOS can launch Diurnum without Gatekeeper warnings.
+_Avoid_: Requirement for issue #44, blocker for ad-hoc V1 packaging, Mac App Store distribution
+
+**Update Check**:
+The configurable V1 network request to GitHub Releases that checks for newer Diurnum versions without transmitting Workspace data.
+_Avoid_: Forced update, hidden analytics, server-side license check
+
+**Crash Report**:
+An opt-in, off-by-default diagnostic report that may include stack traces and app version but never Workspace data or file contents.
+_Avoid_: Anonymous usage statistics, always-on telemetry, accounting data upload
+
+**Diurnum Design System**:
+The V1 visual system captured in the HTML mockups and token files, using light-only parchment surfaces, iron-gall text, lapis accents, oxblood destructive states, rare ochre highlights, serif headings, sans UI text, and monospace ledger content.
+_Avoid_: Ledgerly branding, dark mode for V1, hardcoded hex colors outside semantic tokens
 
 **Performance Budget**:
 A product-level response-time target for common app interactions, used to keep the local desktop workflow fast and predictable.
@@ -252,6 +372,9 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 
 - The **MVP** proves the local accounting loop before adding cloud or collaboration workflows.
 - **V1** is the first public release and inherits the MVP loop while adding the App Shell, Ledger Editor, Smart CSV Import, Documents, Settings, Git Integration, Data Integrity Layer, and macOS packaging.
+- The **Diurnum Name** supports the **Day-Book** frame: the journal entry is the product's smallest durable unit, not just a brand metaphor.
+- **Record That Endures** explains why local-first storage, Beancount compatibility, git, Snapshots, and Reviewable Diffs matter to the Founder-Operator.
+- **Books Not Budgets** separates Diurnum from privacy budgeting apps and consumer expense trackers.
 - The **Founder-Operator** is the primary user of both the **MVP** and **V1**.
 - Diurnum is designed around an **MVP Business** for both the MVP and V1.
 - A **Founder-Operator** creates or opens one **Workspace** for an **MVP Business**.
@@ -275,6 +398,7 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 - **MVP Reports** are unavailable during **Invalid Ledger State**.
 - **AI Suggestions** can help create **Suggested Entries**, but **Approval** remains required.
 - **AI Suggestions** come from a **BYO AI Adapter** in the MVP and V1 when an adapter is configured.
+- **AI As Assistance** means AI helps maintain the **Day-Book** but never becomes the source of truth or the main product promise.
 - A **BYO AI Adapter** receives **Curated Ledger Context**, not required direct Workspace file access.
 - **Curated Ledger Context** may include full details for relevant prior entries, and Diurnum provides **AI Context Disclosure**.
 - The core accounting loop works without a configured **BYO AI Adapter**.
@@ -318,13 +442,16 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 - Diurnum writes **Diurnum Entry Metadata** on approved entries so the ledger can be linked back to the **Staging Area**.
 - **Broken Provenance** does not make the ledger invalid when Beancount validation still passes.
 - The **Documents Folder** stores copied CSVs, statement PDFs, receipts, contracts, and other user files as local Workspace files.
-- Documents are committable Workspace files; `.Diurnum/snapshots/` is excluded from git.
+- Documents are committable Workspace files; `.ledgerly/snapshots/` is excluded from git.
 - V1 Documents are folder-based; per-transaction document attachment is post-V1.
 - **Git Integration** activates only when a Workspace is inside an existing git repository.
 - **Git Identity** comes from git config, can be overridden locally, and exists only to support local commits.
 - Git Integration may auto-commit local file changes but must not initialize a repository, push, pull, create branches, or resolve merge conflicts.
 - Git commit failures are non-blocking notices and never block accounting operations.
 - The **Command Palette** is a keyboard navigation and command surface, not a natural-language ledger query surface.
+- **Brand Voice** should shape product copy, status messages, empty states, and error text without adding ornate language to operational UI.
+- The **Diurnum Design System** expresses **Record That Endures** visually through restrained parchment, ink, lapis, oxblood, serif chrome, and monospace ledger surfaces.
+- **macOS Distribution** can initially use ad-hoc signing with **Gatekeeper Bypass** documentation; a **Notarized macOS Release** is a separate follow-up path.
 - **Performance Budgets** are product constraints for app responsiveness; expensive validation, import, AI, snapshot, and git work should not block the primary UI.
 - The **Privacy Boundary** forbids hidden telemetry and server-side bookkeeping.
 - V1 outbound network behavior is limited to configurable update checks, opt-in crash reports without Workspace data, and user-controlled BYO AI Adapter calls.
@@ -369,6 +496,9 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 >
 > **Dev:** "Should MVP reporting include cash flow and tax reports?"
 > **Domain expert:** "No. MVP Reports are income statement, expense breakdown, source account balances, and balance sheet."
+>
+> **Dev:** "Is Diurnum basically a budgeting app with better privacy?"
+> **Domain expert:** "No. Diurnum is Books Not Budgets: double-entry business books in a Day-Book the Founder-Operator owns."
 >
 > **Dev:** "Can AI write directly to the ledger?"
 > **Domain expert:** "No. AI can help produce a Suggested Entry, but Approval writes to the ledger."
@@ -483,13 +613,24 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 >
 > **Dev:** "Can V1 include anonymous usage analytics because no account data is sent?"
 > **Domain expert:** "No. V1 has no anonymous usage statistics. Network behavior is limited to update checks, opt-in crash reports without Workspace data, and user-controlled BYO AI Adapter calls."
+>
+> **Dev:** "Does the first macOS packaging issue require Apple Developer ID notarization?"
+> **Domain expert:** "No. Ad-hoc signing with documented Gatekeeper Bypass is acceptable for issue #44; the no-warning Notarized macOS Release is tracked separately."
+>
+> **Dev:** "Should product copy lead with Diurnum as an AI accounting app?"
+> **Domain expert:** "No. AI As Assistance supports the durable ledger promise; the main promise is a record the Founder-Operator owns, can read, and can prove."
+>
+> **Dev:** "Should the classical Diurnum identity add decorative old-world flourishes everywhere?"
+> **Domain expert:** "No. Brand Voice is precise and restrained. The classical register lives in proportion, typography, and durable language, not costume."
 
 ## Flagged ambiguities
 
 - "MVP" was used near broader product ideas such as sync, collaboration, payroll, invoicing, tax, and external-ledger import; resolved: those are outside the MVP.
 - "V1" could be mistaken for every roadmap idea after the MVP; resolved: V1 is the first public local desktop release and excludes sync, arbitrary Beancount import, collaboration, bank feeds, multi-currency, natural-language reports, and per-transaction document attachment.
+- "Diurnum" could be treated as an arbitrary product name; resolved: **Diurnum Name** carries the literal **Day-Book** frame and should be explained where it rewards the reader.
 - "User" could mean a founder, bookkeeper, accountant, or firm member; resolved: the MVP user is a **Founder-Operator**.
 - "Business" could imply many accounting shapes; resolved: the MVP assumes an **MVP Business**.
+- "Finance app" could imply budgeting or spending bars; resolved: Diurnum is **Books Not Budgets**, focused on double-entry business books and financial statements.
 - "Project", "company", and "file" could all describe what the app opens; resolved: the canonical term is **Workspace**.
 - "Open existing" could mean importing any Beancount ledger; resolved: V1 opens existing **App-Created Workspaces** only.
 - "Transaction" could mean a raw bank CSV row or a Beancount transaction; resolved: imported raw data is a **Statement Row**.
@@ -499,6 +640,7 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 - Account balances need a starting point; resolved: Workspace setup supports **Opening Balances**.
 - Reporting scope could expand into cash flow, tax, variance, runway, or AI narratives; resolved: **MVP Reports** are limited to income statement, expense breakdown, source account balances, and balance sheet.
 - AI could be framed as autonomous accounting; resolved: **AI Suggestions** are bounded suggestion assistance behind Approval.
+- AI could dominate the brand; resolved: **AI As Assistance** supports the owned-ledger promise but is not the core identity or source of truth.
 - AI integration could mean hosted AI, embedded harness, or generic agent support; resolved: the MVP uses a **BYO AI Adapter**.
 - AI could be required for the accounting loop; resolved: the **BYO AI Adapter** is optional for the MVP.
 - AI context could mean direct ledger access or a full ledger dump; resolved: the MVP sends **Curated Ledger Context**.
@@ -533,4 +675,6 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 - Git could become mandatory or remote-aware; resolved: **Git Integration** is optional, local-only, and does not initialize repos, push, pull, branch, or resolve conflicts.
 - Auto-commit UX could interrupt Approval; resolved: Git auto-commits are silent, and failures are non-blocking notices.
 - Privacy could be weakened by harmless-seeming analytics; resolved: V1 has a strict **Privacy Boundary** and no anonymous usage statistics.
+- macOS packaging could be blocked on Apple Developer Program credentials; resolved: issue #44 accepts ad-hoc signing and documented **Gatekeeper Bypass**, while **Notarized macOS Release** is follow-up work.
 - Performance could be treated as an implementation afterthought; resolved: **Performance Budgets** are product constraints.
+- Classical brand direction could drift into decorative pastiche; resolved: **Brand Voice** and the **Diurnum Design System** use restraint, legibility, and permanence rather than costume.
