@@ -249,7 +249,7 @@ fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
 
 fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
     serde_json::from_str(&fs::read_to_string(
-        root.join(".ledgerly").join("workspace.json"),
+        root.join(".diurnum").join("workspace.json"),
     )?)
     .map_err(|error| WorkspaceError::io(error.to_string()))
 }
@@ -328,7 +328,7 @@ fn load_adapter_command(connection: &Connection) -> Result<Option<String>, Works
 
 fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
     Ok(Connection::open(
-        root.join(".ledgerly").join("ledgerly.sqlite"),
+        root.join(".diurnum").join("diurnum.sqlite"),
     )?)
 }
 
@@ -384,8 +384,8 @@ mod tests {
         .unwrap();
         let connection = Connection::open(
             Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
 
@@ -456,8 +456,8 @@ mod tests {
         .unwrap();
         let connection = Connection::open(
             Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
 

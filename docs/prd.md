@@ -1,16 +1,28 @@
-# Ledgerly PRD
+---
+title: Diurnum PRD
+type: PRD
+status: Draft
+belongs_to: "[[Diurnum]]"
+date: 2026-05-26
+tags:
+  - diurnum
+  - product
+---
 
-This document is the authoritative product specification for Ledgerly V1. It is written for contributors and agents implementing features. Each V1 feature includes acceptance criteria precise enough to implement and verify without follow-up questions.
+# Diurnum PRD
+
+> [!info] Purpose
+> This document is the authoritative product specification for Diurnum V1. It is written for contributors and agents implementing features. Each V1 feature includes acceptance criteria precise enough to implement and verify without follow-up questions.
 
 ---
 
 ## Product Definition
 
-Ledgerly is a local-first, FOSS desktop accounting workspace for technical operators who want transparent, portable books. It stores all accounting data in plain Beancount-compatible text files that the user owns. AI and automation assist but never write to the ledger without explicit human approval.
+Diurnum is a local-first, FOSS desktop accounting workspace for technical operators who want transparent, portable books. It stores all accounting data in plain Beancount-compatible text files that the user owns. AI and automation assist but never write to the ledger without explicit human approval.
 
 **License:** GPL v3. The app is free forever. A separate commercial sync service will be offered post-V1.
 
-**Tagline:** *Own your books. Let AI help.*
+**Tagline:** _Own your books. Let AI help._
 
 ---
 
@@ -18,7 +30,8 @@ Ledgerly is a local-first, FOSS desktop accounting workspace for technical opera
 
 **The Founder-Operator**: a technically literate solo business owner who runs their own books. They are comfortable with text files, terminal tools, and version control. They are frustrated by accounting software opacity — they want to see exactly what changed and why. They may already use Beancount, Fava, or plain-text accounting tools.
 
-**Concrete profile:** A freelance developer or indie SaaS founder doing their own bookkeeping. Runs macOS. Uses git for everything. Has a Chase checking account and a Stripe account. Wants a P&L they can trust without clicking through 14 QuickBooks screens.
+> [!example] Concrete profile
+> A freelance developer or indie SaaS founder doing their own bookkeeping. Runs macOS. Uses git for everything. Has a Chase checking account and a Stripe account. Wants a P&L they can trust without clicking through 14 QuickBooks screens.
 
 **Who V1 is not for:** bookkeepers managing multiple clients, firms, payroll-heavy businesses, ecommerce, multi-entity, or non-technical users.
 
@@ -29,25 +42,26 @@ Ledgerly is a local-first, FOSS desktop accounting workspace for technical opera
 1. **The ledger is the product.** Every other feature exists to help the Founder-Operator maintain a clean, trustworthy Beancount ledger. The ledger screen is the home screen.
 2. **AI proposes. Humans approve.** No AI action writes to the ledger. Every change is a reviewable diff that the Founder-Operator explicitly approves.
 3. **Ledger-grounded AI.** Every AI feature that produces a number, a category, or an insight must do so by querying the actual ledger or workspace data — not by reasoning about it from prompt context alone. AI outputs cite the entries that produced them. Numbers are never generated; they are computed and surfaced. This applies to V1 categorization and predictive completion, and to every future AI feature.
-4. **You own your files.** All accounting data lives in the local workspace folder as readable Beancount-compatible text files. No Ledgerly cloud account is required to use the app.
+4. **You own your files.** All accounting data lives in the local workspace folder as readable Beancount-compatible text files. No Diurnum cloud account is required to use the app.
 5. **Transparent and reversible.** Every approved entry is traceable to its source. Every change is visible and undoable.
-6. **Built for keyboards.** The ICP lives in their editor. Ledgerly should feel fast and navigable without touching the mouse.
-7. **Calm and private.** Ledgerly does not phone home with accounting data. Performance budgets are part of the product, not implementation details.
+6. **Built for keyboards.** The ICP lives in their editor. Diurnum should feel fast and navigable without touching the mouse.
+7. **Calm and private.** Diurnum does not phone home with accounting data. Performance budgets are part of the product, not implementation details.
 
 ---
 
 ## Beancount Compatibility
 
-Ledgerly implements its own Beancount-compatible parser. It does **not** bundle or fork the Beancount library. The portability promise is about **exit**: a Ledgerly workspace is always a valid Beancount project. Importing arbitrary external Beancount projects is a post-V1 feature.
+Diurnum implements its own Beancount-compatible parser. It does **not** bundle or fork the Beancount library. The portability promise is about **exit**: a Diurnum workspace is always a valid Beancount project. Importing arbitrary external Beancount projects is a post-V1 feature.
 
-**Beancount version target:** V3. Ledgerly's parser, validator, and writer all target Beancount V3 syntax and semantics. Directives Ledgerly writes (`open`, `close`, `balance`, `pad`, `txn`, metadata) are V3-compatible.
+**Beancount version target:** V3. Diurnum's parser, validator, and writer all target Beancount V3 syntax and semantics. Directives Diurnum writes (`open`, `close`, `balance`, `pad`, `txn`, metadata) are V3-compatible.
 
 **Acceptance criteria — interoperability:**
-- [ ] A Ledgerly workspace can be opened in [Fava](https://github.com/beancount/fava) without errors
-- [ ] A Ledgerly workspace can be validated with the `bean-check` CLI (V3) without errors
-- [ ] A valid Beancount file manually placed in the workspace and included from `main.bean` does not cause Ledgerly to crash or corrupt the workspace
-- [ ] Ledgerly writes only valid Beancount V3 directives
-- [ ] Ledgerly does not write any directives or syntax that are not valid Beancount V3
+
+- [ ] A Diurnum workspace can be opened in [Fava](https://github.com/beancount/fava) without errors
+- [ ] A Diurnum workspace can be validated with the `bean-check` CLI (V3) without errors
+- [ ] A valid Beancount file manually placed in the workspace and included from `main.bean` does not cause Diurnum to crash or corrupt the workspace
+- [ ] Diurnum writes only valid Beancount V3 directives
+- [ ] Diurnum does not write any directives or syntax that are not valid Beancount V3
 
 ---
 
@@ -57,22 +71,22 @@ The MVP (internal proof-of-concept) proves the core accounting loop. V1 is the f
 
 ### What the MVP already delivers (inherited in V1)
 
-| Feature | Notes |
-|---|---|
-| App-Created Workspace lifecycle | Create, open, close a local workspace folder |
-| Starter Chart of Accounts | Small editable set of Beancount accounts for a cash-basis US service business |
-| Source Account setup | Add bank/credit-card accounts with optional Opening Balances |
-| CSV Import | Drag-drop CSV, map columns, import Statement Rows into Staging Area |
-| Source Mapping | Saved column mapping per Source Account, reused on future imports |
-| Import Fingerprint deduplication | Prevents re-importing the same rows |
-| Suggested Entry review | Entry Preview + Journal Detail for each pending Statement Row |
-| Approval | Writes Suggested Entry to Monthly Transaction File with Ledgerly Entry Metadata |
-| Categorization Rules | User-confirmed, source-scoped rules that prefill future suggestions |
-| Transfer Match | Detect and approve inter-account transfers as one balanced entry |
-| BYO AI Adapter | Optional local adapter (stdin/stdout) for AI-assisted suggestions |
-| Broken Provenance detection | Surface entries whose metadata link to Staging Area was broken |
-| Ledger Validation | Structural validation; blocks Approval and Reports during Invalid Ledger State |
-| MVP Reports | Income Statement, Expense Breakdown, Source Account Balances, Balance Sheet |
+| Feature                          | Notes                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| App-Created Workspace lifecycle  | Create, open, close a local workspace folder                                   |
+| Starter Chart of Accounts        | Small editable set of Beancount accounts for a cash-basis US service business  |
+| Source Account setup             | Add bank/credit-card accounts with optional Opening Balances                   |
+| CSV Import                       | Drag-drop CSV, map columns, import Statement Rows into Staging Area            |
+| Source Mapping                   | Saved column mapping per Source Account, reused on future imports              |
+| Import Fingerprint deduplication | Prevents re-importing the same rows                                            |
+| Suggested Entry review           | Entry Preview + Journal Detail for each pending Statement Row                  |
+| Approval                         | Writes Suggested Entry to Monthly Transaction File with Diurnum Entry Metadata |
+| Categorization Rules             | User-confirmed, source-scoped rules that prefill future suggestions            |
+| Transfer Match                   | Detect and approve inter-account transfers as one balanced entry               |
+| BYO AI Adapter                   | Optional local adapter (stdin/stdout) for AI-assisted suggestions              |
+| Broken Provenance detection      | Surface entries whose metadata link to Staging Area was broken                 |
+| Ledger Validation                | Structural validation; blocks Approval and Reports during Invalid Ledger State |
+| MVP Reports                      | Income Statement, Expense Breakdown, Source Account Balances, Balance Sheet    |
 
 ### What V1 adds
 
@@ -145,7 +159,7 @@ The structural container that holds all other screens. Built once; every other V
 
 ### 2. Welcome Screen
 
-The first thing the Founder-Operator sees when launching Ledgerly with no workspace open.
+The first thing the Founder-Operator sees when launching Diurnum with no workspace open.
 
 #### When it shows
 
@@ -156,19 +170,19 @@ The first thing the Founder-Operator sees when launching Ledgerly with no worksp
 #### Layout
 
 - No sidebar, no main shell — full-window centered layout
-- Ledgerly wordmark/logo at the top
+- Diurnum wordmark/logo at the top
 - Three large card-style options below:
 
-| Option | Action |
-|---|---|
-| **New blank workspace** | Goes to the New Workspace form with no template selected |
-| **Example workspace** | Goes to the New Workspace form with the example template (starter accounts, sample entries) preselected |
-| **Open existing workspace** | Opens a folder picker to open a previously App-Created Ledgerly workspace |
+| Option                      | Action                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **New blank workspace**     | Goes to the New Workspace form with no template selected                                                |
+| **Example workspace**       | Goes to the New Workspace form with the example template (starter accounts, sample entries) preselected |
+| **Open existing workspace** | Opens a folder picker to open a previously App-Created Diurnum workspace                                |
 
 - Below the cards: a small recents list (if any), with up to 5 most recent workspaces as clickable entries
 - Footnote at the bottom: "Your books are stored locally. No account required."
 
-> **Open existing vs. import:** "Open existing workspace" opens a previously App-Created Ledgerly workspace (one with a `.ledgerly/workspace.json` manifest). It is **not** a general Beancount import — importing arbitrary external Beancount projects is post-V1.
+> **Open existing vs. import:** "Open existing workspace" opens a previously App-Created Diurnum workspace (one with a `.ledgerly/workspace.json` manifest). It is **not** a general Beancount import — importing arbitrary external Beancount projects is post-V1.
 
 #### Acceptance criteria
 
@@ -176,7 +190,7 @@ The first thing the Founder-Operator sees when launching Ledgerly with no worksp
 - [ ] Welcome screen displays when no workspace is open
 - [ ] All three options are functional and lead to the correct flow
 - [ ] Recents list shows up to 5 most recent workspaces if any exist
-- [ ] Selecting "Open existing workspace" with a folder that lacks `.ledgerly/workspace.json` shows a clear error: "This folder is not a Ledgerly workspace."
+- [ ] Selecting "Open existing workspace" with a folder that lacks `.ledgerly/workspace.json` shows a clear error: "This folder is not a Diurnum workspace."
 
 ---
 
@@ -223,14 +237,14 @@ The Ledger Editor is the default landing screen when a workspace is opened. It r
 
 Most tokens render in default text color (`#18181B`, near-black on white). Color and weight are used sparingly, only for tokens that carry semantic meaning.
 
-| Element | Treatment | Rationale |
-|---|---|---|
-| Comments (`; ...`) | Default color, normal weight — **prominent, not muted** | Comments explain *why*; they should be readable |
-| Amounts (`1,842.17`) | Default color, **medium weight** | Money is the most important data; emphasis via weight, not color |
-| Strings (payee, narration) | Default color, subtle warm background tint (`#FEF8E1`) | Distinguishes data from structure without shouting |
-| Account names | Default color, normal weight | Hierarchy is already structurally obvious from `:` separators |
-| Validation errors | **Red gutter dot + red underline** on offending token | The one place where alarm color is justified |
-| All other tokens (dates, directive keywords, currency, operators, tags, links, metadata keys) | Default color, normal weight | Structurally obvious; don't need color |
+| Element                                                                                       | Treatment                                               | Rationale                                                        |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
+| Comments (`; ...`)                                                                            | Default color, normal weight — **prominent, not muted** | Comments explain _why_; they should be readable                  |
+| Amounts (`1,842.17`)                                                                          | Default color, **medium weight**                        | Money is the most important data; emphasis via weight, not color |
+| Strings (payee, narration)                                                                    | Default color, subtle warm background tint (`#FEF8E1`)  | Distinguishes data from structure without shouting               |
+| Account names                                                                                 | Default color, normal weight                            | Hierarchy is already structurally obvious from `:` separators    |
+| Validation errors                                                                             | **Red gutter dot + red underline** on offending token   | The one place where alarm color is justified                     |
+| All other tokens (dates, directive keywords, currency, operators, tags, links, metadata keys) | Default color, normal weight                            | Structurally obvious; don't need color                           |
 
 #### Functional editor features (no color impact)
 
@@ -247,7 +261,7 @@ Most tokens render in default text color (`#18181B`, near-black on white). Color
 
 #### External file change detection
 
-- If a `.bean` file is modified outside Ledgerly (External Ledger Edit), the editor detects the change and prompts the Founder-Operator to reload
+- If a `.bean` file is modified outside Diurnum (External Ledger Edit), the editor detects the change and prompts the Founder-Operator to reload
 - On reload, Ledger Validation runs automatically
 - The editor does not silently overwrite external changes
 
@@ -332,21 +346,22 @@ The current MVP CSV Import requires the Founder-Operator to manually map every c
 
 #### Inference engine
 
-When a CSV is uploaded, Ledgerly parses the header row and a sample of the first 5 data rows, then attempts to infer a column mapping by matching headers and content against these patterns:
+When a CSV is uploaded, Diurnum parses the header row and a sample of the first 5 data rows, then attempts to infer a column mapping by matching headers and content against these patterns:
 
-| Ledgerly field | Header patterns (case-insensitive, whitespace/punctuation tolerant) | Content signal |
-|---|---|---|
-| Posted Date (required) | `date`, `transaction date`, `post date`, `posted date`, `trans date` | Matches one of the supported date formats |
-| Description (required) | `description`, `payee`, `memo`, `merchant`, `details`, `narration`, `transaction description` | Longest free-text column |
-| Signed Amount (required, one of three) | `amount`, `transaction amount`, `value` | Signed numbers (at least one negative in sample) |
-| Debit + Credit (alt) | `debit`/`credit`, `withdrawal`/`deposit`, `out`/`in` | Unsigned numbers; only one column populated per row |
-| Type indicator (alt) | `type`, `transaction type` | String values like `Debit`/`Credit` |
-| Status (optional, filter) | `status` | Values like `Pending`, `Posted`, `Cleared` |
-| Check # (optional, metadata) | `check`, `check #`, `check number`, `check no` | Numeric or empty |
-| Category (optional, ignored in V1 mapping but available for AI) | `category` | Free text |
-| Account #, Balance, Card # (optional) | (header match) | Ignored — dropped silently |
+| Diurnum field                                                   | Header patterns (case-insensitive, whitespace/punctuation tolerant)                           | Content signal                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Posted Date (required)                                          | `date`, `transaction date`, `post date`, `posted date`, `trans date`                          | Matches one of the supported date formats           |
+| Description (required)                                          | `description`, `payee`, `memo`, `merchant`, `details`, `narration`, `transaction description` | Longest free-text column                            |
+| Signed Amount (required, one of three)                          | `amount`, `transaction amount`, `value`                                                       | Signed numbers (at least one negative in sample)    |
+| Debit + Credit (alt)                                            | `debit`/`credit`, `withdrawal`/`deposit`, `out`/`in`                                          | Unsigned numbers; only one column populated per row |
+| Type indicator (alt)                                            | `type`, `transaction type`                                                                    | String values like `Debit`/`Credit`                 |
+| Status (optional, filter)                                       | `status`                                                                                      | Values like `Pending`, `Posted`, `Cleared`          |
+| Check # (optional, metadata)                                    | `check`, `check #`, `check number`, `check no`                                                | Numeric or empty                                    |
+| Category (optional, ignored in V1 mapping but available for AI) | `category`                                                                                    | Free text                                           |
+| Account #, Balance, Card # (optional)                           | (header match)                                                                                | Ignored — dropped silently                          |
 
 **Tiebreaker rules:**
+
 - If both `transaction date` and `post date` exist, prefer `post date`
 - Match is case-insensitive and tolerates whitespace, underscores, and punctuation variations (`"Post Date"` = `"post_date"` = `"PostDate"`)
 - If multiple columns match the same pattern equally, prefer the leftmost
@@ -355,18 +370,18 @@ When a CSV is uploaded, Ledgerly parses the header row and a sample of the first
 
 #### Edge case handling
 
-| Case | Behavior |
-|---|---|
-| Pending rows (Status column present) | **Imported with a `pending` flag preserved on the Statement Row.** The Inbox shows pending rows distinctly. When approved into Beancount, the entry includes a `pending_at_import: TRUE` metadata. |
-| Empty rows (all fields blank or whitespace) | Silently skipped |
-| Summary rows (date column doesn't parse with inferred format) | Silently skipped |
-| Currency markers in amounts (`$1,234.56`) | `$` and thousands commas stripped; parsed as number |
-| Parenthesized negatives (`(100.00)`) | Recognized as `-100.00` |
-| Non-USD currency markers (`€`, `£`, `CAD`, `GBP`, etc.) | **Block import with explicit error:** "This CSV appears to contain non-USD amounts. Ledgerly V1 supports USD only." |
-| File extensions other than `.csv` (`.xlsx`, `.tsv`, `.pdf`) | Reject with clear message; V1 is CSV-only |
-| Delimiters (comma, tab, semicolon) | Auto-detected from the first line |
-| Quoted/escaped CSV (RFC 4180) | Use a standard CSV parser; handle quoted fields, escaped quotes, embedded newlines |
-| BOM | Accept UTF-8 with or without BOM. UTF-16 deferred to post-V1. |
+| Case                                                          | Behavior                                                                                                                                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pending rows (Status column present)                          | **Imported with a `pending` flag preserved on the Statement Row.** The Inbox shows pending rows distinctly. When approved into Beancount, the entry includes a `pending_at_import: TRUE` metadata. |
+| Empty rows (all fields blank or whitespace)                   | Silently skipped                                                                                                                                                                                   |
+| Summary rows (date column doesn't parse with inferred format) | Silently skipped                                                                                                                                                                                   |
+| Currency markers in amounts (`$1,234.56`)                     | `$` and thousands commas stripped; parsed as number                                                                                                                                                |
+| Parenthesized negatives (`(100.00)`)                          | Recognized as `-100.00`                                                                                                                                                                            |
+| Non-USD currency markers (`€`, `£`, `CAD`, `GBP`, etc.)       | **Block import with explicit error:** "This CSV appears to contain non-USD amounts. Diurnum V1 supports USD only."                                                                                 |
+| File extensions other than `.csv` (`.xlsx`, `.tsv`, `.pdf`)   | Reject with clear message; V1 is CSV-only                                                                                                                                                          |
+| Delimiters (comma, tab, semicolon)                            | Auto-detected from the first line                                                                                                                                                                  |
+| Quoted/escaped CSV (RFC 4180)                                 | Use a standard CSV parser; handle quoted fields, escaped quotes, embedded newlines                                                                                                                 |
+| BOM                                                           | Accept UTF-8 with or without BOM. UTF-16 deferred to post-V1.                                                                                                                                      |
 
 #### Import screen UX (the Map Columns step)
 
@@ -378,7 +393,7 @@ The mockup at `docs/claude-design/CSV Import.html` is the V1 reference. Key elem
 - **Column mapping section** with:
   - "Auto-detected" badge (with sparkle indicator) when inference succeeded
   - "Reset" button to clear all auto-mappings and start manual
-  - One row per CSV column showing: `<CSV column name>` · `<sample value>` · `→` · `<Ledgerly field dropdown>` · `required`/`optional` chip
+  - One row per CSV column showing: `<CSV column name>` · `<sample value>` · `→` · `<Diurnum field dropdown>` · `required`/`optional` chip
   - Columns the engine cannot classify display **`Unknown column: Choose ledgerly field`** in `var(--color-destructive)` red until the Founder-Operator picks a field manually
 - **Preview · Statement Rows section** showing the first 3 normalized rows:
   - Columns reflect the current mapping (Posted Date, Description, Signed Amount, Status)
@@ -480,7 +495,7 @@ Configuration surface for the workspace and the app. Several subsections, each i
 - Shows a list of detected adapters with: name, command path, status (`Available` / `Not found`), and a "Set as default" radio button
 - Manual override: the Founder-Operator can enter a custom adapter command
 - "Test adapter" button sends a small Curated Ledger Context payload and shows the structured response (or error)
-- AI Context Disclosure: an always-visible expandable section showing exactly what data Ledgerly sends to the adapter
+- AI Context Disclosure: an always-visible expandable section showing exactly what data Diurnum sends to the adapter
 
 #### b. Updates
 
@@ -510,7 +525,7 @@ Configuration surface for the workspace and the app. Several subsections, each i
 #### f. Git Identity
 
 - Shown only when a git repo is detected
-- Displays the git `user.name` and `user.email` that Ledgerly will use for its commits (read from `git config`)
+- Displays the git `user.name` and `user.email` that Diurnum will use for its commits (read from `git config`)
 - Editable: override locally for this workspace
 - Warning if neither global nor local git config is set: "Set a git identity to enable commits"
 
@@ -548,22 +563,22 @@ Optional git behavior, activated when the workspace folder is inside a git repos
 
 #### Detection
 
-- On workspace open, Ledgerly checks whether the workspace folder is inside a git repository
+- On workspace open, Diurnum checks whether the workspace folder is inside a git repository
 - If detected: Git nav item appears in sidebar, auto-commit behavior activates, and `.gitignore` is verified
 - If not: no git UI is shown anywhere
-- Ledgerly does not initialize a git repo automatically
+- Diurnum does not initialize a git repo automatically
 
 #### Auto-commit behavior
 
 All commits are silent with auto-generated default messages. No modal prompts during the routine flow.
 
-| Trigger | Commit message | Files staged |
-|---|---|---|
-| Approval | `ledgerly: approve N entries (YYYY-MM)` | Affected Monthly Transaction File(s), updated `main.bean` includes |
-| Manual edits (autosave debounce, 60s after last edit, or on workspace close) | `workspace backup <ISO 8601 timestamp>` | Any modified files outside `.ledgerly/` |
+| Trigger                                                                      | Commit message                          | Files staged                                                       |
+| ---------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------ |
+| Approval                                                                     | `ledgerly: approve N entries (YYYY-MM)` | Affected Monthly Transaction File(s), updated `main.bean` includes |
+| Manual edits (autosave debounce, 60s after last edit, or on workspace close) | `workspace backup <ISO 8601 timestamp>` | Any modified files outside `.ledgerly/`                            |
 
 - Auto-commits do not require Founder-Operator action
-- Failed commits surface as a non-blocking notice in the Git panel (and a warning in the status bar) but never block Ledgerly operations
+- Failed commits surface as a non-blocking notice in the Git panel (and a warning in the status bar) but never block Diurnum operations
 - The Git panel allows the Founder-Operator to make a one-off commit with a custom message — this is the only manual commit path in V1
 
 #### Git panel
@@ -575,15 +590,15 @@ All commits are silent with auto-generated default messages. No modal prompts du
 
 #### `.gitignore` management
 
-- On workspace creation or first detection of a git repo, Ledgerly ensures `.ledgerly/` and `.ledgerly/snapshots/` are excluded
+- On workspace creation or first detection of a git repo, Diurnum ensures `.ledgerly/` and `.ledgerly/snapshots/` are excluded
 - Beancount files, `workspace.json`, and `documents/` contents are committable
 
 #### Constraints
 
-- Ledgerly does not manage `git push`, `git pull`, or remote operations
-- Ledgerly does not create branches
-- Ledgerly does not resolve merge conflicts
-- If a commit fails due to a pre-commit hook, Ledgerly shows the hook output in the Git panel
+- Diurnum does not manage `git push`, `git pull`, or remote operations
+- Diurnum does not create branches
+- Diurnum does not resolve merge conflicts
+- If a commit fails due to a pre-commit hook, Diurnum shows the hook output in the Git panel
 
 #### Acceptance criteria
 
@@ -592,7 +607,7 @@ All commits are silent with auto-generated default messages. No modal prompts du
 - [ ] Manual edits trigger an auto-commit on 60s debounce and on workspace close
 - [ ] The Git panel shows the current branch, modified files, and last 20 commits with diff views
 - [ ] `.ledgerly/` is present in `.gitignore` after workspace creation or first git detection
-- [ ] All Ledgerly features work identically in a workspace with no git repo
+- [ ] All Diurnum features work identically in a workspace with no git repo
 - [ ] Git Identity section in Settings is shown only when a git repo is detected
 - [ ] Failed commits surface as non-blocking warnings, never block app operation
 
@@ -616,22 +631,22 @@ A keyboard-driven command palette for navigating and executing actions without t
 
 #### Required commands for V1
 
-| Command | Action |
-|---|---|
-| Go to Ledger | Navigate to Ledger Editor |
-| Go to Inbox | Navigate to Inbox |
-| Go to Reports | Navigate to Reports |
-| Go to Documents | Navigate to Documents |
-| Go to Import | Navigate to CSV Import |
-| Go to Settings | Navigate to Settings |
-| Open file… | Open a `.bean` file from the workspace by name |
-| Import CSV… | Open the CSV import flow |
-| Run Ledger Validation | Trigger manual ledger validation |
-| Open Git panel | Navigate to Git panel (when git is detected) |
-| Commit with message… | Open the manual commit form (when git is detected) |
-| New entry | Position cursor at end of current month's transaction file |
-| Switch workspace… | Open the workspace switcher |
-| Close workspace | Return to Welcome screen |
+| Command               | Action                                                     |
+| --------------------- | ---------------------------------------------------------- |
+| Go to Ledger          | Navigate to Ledger Editor                                  |
+| Go to Inbox           | Navigate to Inbox                                          |
+| Go to Reports         | Navigate to Reports                                        |
+| Go to Documents       | Navigate to Documents                                      |
+| Go to Import          | Navigate to CSV Import                                     |
+| Go to Settings        | Navigate to Settings                                       |
+| Open file…            | Open a `.bean` file from the workspace by name             |
+| Import CSV…           | Open the CSV import flow                                   |
+| Run Ledger Validation | Trigger manual ledger validation                           |
+| Open Git panel        | Navigate to Git panel (when git is detected)               |
+| Commit with message…  | Open the manual commit form (when git is detected)         |
+| New entry             | Position cursor at end of current month's transaction file |
+| Switch workspace…     | Open the workspace switcher                                |
+| Close workspace       | Return to Welcome screen                                   |
 
 #### Acceptance criteria
 
@@ -668,9 +683,9 @@ V1 ships as a properly signed and notarized macOS application.
 #### Acceptance criteria
 
 - [ ] The `.dmg` mounts and installs the app to `/Applications` without error
-- [ ] Double-clicking the app on a clean macOS 13+ Apple Silicon system opens Ledgerly without a Gatekeeper warning
-- [ ] `codesign --verify --deep --strict Ledgerly.app` passes
-- [ ] `spctl --assess --type execute Ledgerly.app` passes
+- [ ] Double-clicking the app on a clean macOS 13+ Apple Silicon system opens Diurnum without a Gatekeeper warning
+- [ ] `codesign --verify --deep --strict Diurnum.app` passes
+- [ ] `spctl --assess --type execute Diurnum.app` passes
 - [ ] A GitHub Release contains the signed `.dmg` as an attached asset
 - [ ] Launching the app when a newer version is available shows an update notification
 - [ ] The app functions fully with update checks disabled
@@ -679,7 +694,7 @@ V1 ships as a properly signed and notarized macOS application.
 
 ## Data Integrity
 
-Ledgerly is accounting software. Data loss is catastrophic. V1 ships with explicit guarantees.
+Diurnum is accounting software. Data loss is catastrophic. V1 ships with explicit guarantees.
 
 ### Atomic file writes
 
@@ -689,7 +704,7 @@ Ledgerly is accounting software. Data loss is catastrophic. V1 ships with explic
 
 ### Backup snapshots
 
-- Before every Approval, Ledgerly takes a snapshot of all `.bean` files in the workspace to `.ledgerly/snapshots/<ISO-8601-timestamp>/`
+- Before every Approval, Diurnum takes a snapshot of all `.bean` files in the workspace to `.ledgerly/snapshots/<ISO-8601-timestamp>/`
 - A daily snapshot is taken automatically on first workspace open of the day
 - Last 10 snapshots retained; older ones pruned automatically
 - Snapshots are excluded from git (via `.gitignore`)
@@ -704,7 +719,7 @@ Ledgerly is accounting software. Data loss is catastrophic. V1 ships with explic
 ### Crash recovery
 
 - On workspace open, Ledger Validation runs
-- If validation fails (suggesting partial-write or corruption), Ledgerly surfaces an explicit recovery dialog with the option to restore from the most recent snapshot
+- If validation fails (suggesting partial-write or corruption), Diurnum surfaces an explicit recovery dialog with the option to restore from the most recent snapshot
 
 ### Acceptance criteria
 
@@ -720,7 +735,7 @@ Ledgerly is accounting software. Data loss is catastrophic. V1 ships with explic
 
 ## Performance Budgets
 
-Performance is a product feature, not an implementation detail. Ledgerly should never make the Founder-Operator wait. Expensive work happens in the background; the UI responds first.
+Performance is a product feature, not an implementation detail. Diurnum should never make the Founder-Operator wait. Expensive work happens in the background; the UI responds first.
 
 ### Inherited from MVP
 
@@ -756,13 +771,13 @@ These are budgets, not benchmarks. They define the bar; specific performance tes
 
 ## Privacy
 
-Ledgerly does not transmit accounting data to any server.
+Diurnum does not transmit accounting data to any server.
 
 ### Allowed network requests in V1
 
-- **Update checks** to GitHub Releases (configurable; can be disabled in Settings). Transmits only IP and a `Ledgerly version X` user agent.
+- **Update checks** to GitHub Releases (configurable; can be disabled in Settings). Transmits only IP and a `Diurnum version X` user agent.
 - **Crash reports** (opt-in, **off by default**). When enabled, sends stack traces and app version — no workspace data, no file contents.
-- **BYO AI Adapter calls**, fully controlled by the user's adapter command. Curated Ledger Context is built by Ledgerly and disclosed in Settings → AI Adapter.
+- **BYO AI Adapter calls**, fully controlled by the user's adapter command. Curated Ledger Context is built by Diurnum and disclosed in Settings → AI Adapter.
 
 ### Not transmitted, ever
 
@@ -806,10 +821,10 @@ The following are explicitly deferred. Do not let them creep into V1 scope.
 
 ## Open Technical Decisions
 
-| Decision | Context | Options | Status |
-|---|---|---|---|
-| Ledger editor library | Affects bundle size, extensibility, syntax highlighting API, completion API | CodeMirror 6 (preferred), Monaco Editor, others | Open — evaluate before implementing |
-| Auto-update mechanism | Tauri has a built-in updater; needs configuration for GitHub Releases | Tauri updater plugin, custom GitHub Releases poller | Open — evaluate during packaging work |
+| Decision              | Context                                                                     | Options                                             | Status                                |
+| --------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------- |
+| Ledger editor library | Affects bundle size, extensibility, syntax highlighting API, completion API | CodeMirror 6 (preferred), Monaco Editor, others     | Open — evaluate before implementing   |
+| Auto-update mechanism | Tauri has a built-in updater; needs configuration for GitHub Releases       | Tauri updater plugin, custom GitHub Releases poller | Open — evaluate during packaging work |
 
 ---
 
@@ -817,13 +832,13 @@ The following are explicitly deferred. Do not let them creep into V1 scope.
 
 Captured here so contributors understand what V1 is building toward. Items are tiered by target release.
 
-### V1.1: Ask Ledgerly + Bean Query Language
+### V1.1: Ask Diurnum + Bean Query Language
 
-**Two related features that ship together.** V1.1's signature is *querying the ledger in any form* — natural language for the everyday case, BQL for power users.
+**Two related features that ship together.** V1.1's signature is _querying the ledger in any form_ — natural language for the everyday case, BQL for power users.
 
 #### Bean Query Language (BQL)
 
-Ledgerly implements a subset of [Bean Query Language](https://github.com/beancount/beanquery), the SQL-like query language standard in the Beancount ecosystem.
+Diurnum implements a subset of [Bean Query Language](https://github.com/beancount/beanquery), the SQL-like query language standard in the Beancount ecosystem.
 
 - A BQL engine ships as part of V1.1: parser, executor against the workspace ledger, and result formatter
 - Direct BQL surface: a "Query" screen with a code editor (BQL syntax highlighting), execute button, and tabular results
@@ -831,15 +846,16 @@ Ledgerly implements a subset of [Bean Query Language](https://github.com/beancou
 - BQL queries are deterministic; the same query against the same ledger always produces the same result
 - The initial implementation covers the most common BQL constructs (`SELECT`, `FROM`, `WHERE`, `GROUP BY`, `ORDER BY`, aggregate functions). Full BQL grammar coverage is incremental.
 
-#### Ask Ledgerly (natural-language Q&A)
+#### Ask Diurnum (natural-language Q&A)
 
-Built directly on top of the BQL engine. Founder-Operator can ask the ledger questions in plain English: *"How much did I spend on software last month?"* *"What were my top three vendors in Q1?"* *"Show me all transactions over $500 in May."*
+Built directly on top of the BQL engine. Founder-Operator can ask the ledger questions in plain English: _"How much did I spend on software last month?"_ _"What were my top three vendors in Q1?"_ _"Show me all transactions over $500 in May."_
 
 **Design requirements (per the Ledger-grounded AI principle):**
+
 - A new "Ask" surface — likely a dedicated screen or a command-palette-style overlay accepting natural language
 - The BYO AI Adapter contract is extended with a `query` task type alongside existing `categorize` and `complete` tasks
 - **The adapter translates the question into a BQL query.** It does not answer the question itself.
-- Ledgerly executes the BQL via the V1.1 engine and produces the answer with citations
+- Diurnum executes the BQL via the V1.1 engine and produces the answer with citations
 - Every answer cites the entries that produced it — clickable to jump to the entry in the Ledger Editor
 - Hallucinated numbers are structurally impossible: the answer can only contain values that came from BQL results
 - Works without a BYO AI Adapter: the Query screen with manual BQL writing provides the same capability for users without AI
@@ -851,9 +867,10 @@ Two independent V1.2 features.
 
 #### Proactive Insights
 
-Ledgerly notices patterns and surfaces them: *"Restaurant spending is 38% higher than the trailing six-month average."* *"This OpenAI charge looks like it might belong in Subscriptions, not Software."* *"You've paid AWS twice this month."*
+Diurnum notices patterns and surfaces them: _"Restaurant spending is 38% higher than the trailing six-month average."_ _"This OpenAI charge looks like it might belong in Subscriptions, not Software."_ _"You've paid AWS twice this month."_
 
 **Design requirements:**
+
 - Insights surface as a dedicated screen ("Insights" nav item) plus subtle inline indicators on related ledger entries
 - Insights are generated only after a workspace has at least 90 days of approved entries (baseline data required)
 - Each insight cites the specific entries that triggered it and is dismissible
@@ -866,33 +883,40 @@ Ledgerly notices patterns and surfaces them: *"Restaurant spending is 38% higher
 V1 is USD-only. V1.2 lifts this restriction, with the architecture and UX to support non-USD ledgers.
 
 **Design requirements:**
+
 - Source Accounts can be created in any [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency (EUR, GBP, JPY, CAD, AUD, etc.)
 - Statement Rows carry their original currency; CSV import recognizes non-USD currency markers (`€`, `£`, etc.) instead of blocking
 - The Starter Chart of Accounts adapts to the workspace's base currency
 - Reports support conversion to a single display currency using market prices
-- **Market prices fetched via [beanprice](https://github.com/beancount/beanprice) integration.** Ledgerly wraps the beanprice library (or implements its core sources) to populate Beancount `price` directives in the workspace. Price sources include forex feeds (e.g., ECB), stock tickers (Yahoo Finance, etc.), and configurable custom sources.
+- **Market prices fetched via [beanprice](https://github.com/beancount/beanprice) integration.** Diurnum wraps the beanprice library (or implements its core sources) to populate Beancount `price` directives in the workspace. Price sources include forex feeds (e.g., ECB), stock tickers (Yahoo Finance, etc.), and configurable custom sources.
 - A new "Prices" screen in Settings: shows current price directives, last refresh timestamp, configurable price sources per commodity, and a manual "Refresh prices" action
 - Prices refresh on a schedule (daily by default, configurable in Settings)
 - Crypto and other non-currency commodities are explicitly **post-V1.2** (see Crypto Support below)
 
 ### Paid Sync Service
+
 Optional commercial service. Multi-device sync, encrypted backup, workspace sharing with clients or bookkeepers. Technical users can use git as a free alternative.
 
 ### Beancount Import / Migration Wizard
-A dedicated flow to import an existing arbitrary Beancount project into a Ledgerly workspace. Handles non-standard include structures, custom account layouts, and missing Ledgerly metadata.
+
+A dedicated flow to import an existing arbitrary Beancount project into a Diurnum workspace. Handles non-standard include structures, custom account layouts, and missing Diurnum metadata.
 
 ### Invoicing and Customers
+
 Long-term vision. Everything must remain text-file based — no proprietary database records. Open design questions: how to represent receivables in a Beancount-compatible structure, how to link invoice files to journal entries, and how to manage customer metadata as plain text.
 
 ### Per-Transaction Document Attachment
+
 V1's Documents screen is folder-based. A future version will link specific documents to specific ledger entries via metadata (`document: "documents/receipts/2026-05-08-aws.pdf"`), with the entry detail view showing inline previews.
 
 ### Collaboration
+
 Invite a bookkeeper or accountant to a shared workspace. Review queues, comments on transactions, prepared/reviewed states, month-end close checklist, role-based access. Requires Sync Service as a prerequisite.
 
 ### Crypto Support (post-V1.2)
 
 Extends V1.2 multi-currency to cryptocurrencies (BTC, ETH, stablecoins, others). Adds wrinkles beyond fiat currency:
+
 - Multiple competing price sources per asset (CoinGecko, CoinMarketCap, exchange APIs) with reconciliation
 - Volatility means intraday prices matter for some use cases (capital gains)
 - Cost-basis tracking for tax purposes (FIFO, LIFO, HIFO)
@@ -901,15 +925,19 @@ Extends V1.2 multi-currency to cryptocurrencies (BTC, ETH, stablecoins, others).
 - Deferred until multi-currency (V1.2) is proven and the demand surfaces
 
 ### Bank Feeds
-Direct bank connections via Plaid, Teller, or equivalent. Cloud-mediated; requires a Ledgerly backend service.
+
+Direct bank connections via Plaid, Teller, or equivalent. Cloud-mediated; requires a Diurnum backend service.
 
 ### Linux and Windows
+
 Cross-platform support. Tauri architecture preserves this path. Ship after macOS V1 is validated.
 
 ### Universal Binary
+
 Add Intel `x86_64` to the macOS build if real demand surfaces from Intel-Mac users.
 
 ### Dark Mode
+
 Light mode only in V1. Dark mode is a clear future addition; the Alabaster-inspired highlighting palette translates cleanly to a dark variant.
 
 ---
@@ -932,6 +960,6 @@ Additional terms introduced in V1:
 
 **Snapshot**: A timestamped backup of all `.bean` files in the workspace, created automatically before Approvals and on a daily schedule, stored in `.ledgerly/snapshots/`.
 
-**Git Integration**: Optional Ledgerly behavior that detects a git repository in the workspace folder and silently auto-commits changes.
+**Git Integration**: Optional Diurnum behavior that detects a git repository in the workspace folder and silently auto-commits changes.
 
 **Command Palette**: A keyboard-activated (`Cmd+K`) fuzzy-search interface for navigating and executing app commands.

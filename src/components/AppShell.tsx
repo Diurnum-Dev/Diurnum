@@ -9,7 +9,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="app-shell">
       <aside className="sidebar" aria-label="Workspace navigation">
         <div>
-          <div className="brand">Ledgerly</div>
+          <div className="brand">Diurnum</div>
           <div className="sidebar-note">Local-First MVP</div>
         </div>
       </aside>

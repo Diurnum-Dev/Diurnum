@@ -44,7 +44,7 @@ function userFacingError(error: unknown): string {
   if (typeof error === "object" && error !== null && "message" in error) {
     return String((error as { message: unknown }).message);
   }
-  return "Ledgerly could not complete that Workspace action.";
+  return "Diurnum could not complete that Workspace action.";
 }
 
 export default function App() {

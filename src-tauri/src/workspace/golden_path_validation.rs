@@ -136,11 +136,11 @@ fn proves_the_golden_path_from_csv_setup_through_reports() {
             .count(),
         1
     );
-    assert!(monthly_bean.contains("ledgerly_entry_id"));
+    assert!(monthly_bean.contains("diurnum_entry_id"));
     assert!(monthly_bean.contains("source_account"));
     assert!(monthly_bean.contains("linked_source_account"));
 
-    let connection = Connection::open(root.join(".ledgerly/ledgerly.sqlite")).unwrap();
+    let connection = Connection::open(root.join(".diurnum/diurnum.sqlite")).unwrap();
     assert_eq!(statement_row_count(&connection, "accounted"), 4);
     assert_eq!(statement_row_count(&connection, "pending"), 0);
     assert_eq!(accounted_rows_with_provenance(&connection), 4);
@@ -236,7 +236,7 @@ fn accounted_rows_with_provenance(connection: &Connection) -> i64 {
             select count(*)
             from statement_rows
             where status = 'accounted'
-              and ledgerly_entry_id is not null
+              and diurnum_entry_id is not null
               and ledger_entry_file = 'transactions/2026-01.bean'
             ",
             [],
@@ -249,7 +249,7 @@ fn distinct_transfer_entry_ids(connection: &Connection) -> i64 {
     connection
         .query_row(
             "
-            select count(distinct ledgerly_entry_id)
+            select count(distinct diurnum_entry_id)
             from statement_rows
             where description in ('Credit card payment', 'Payment received')
             ",

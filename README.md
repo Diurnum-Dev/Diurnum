@@ -1,4 +1,4 @@
-# Ledgerly
+# Diurnum
 
 A local-first, FOSS desktop accounting app for technical operators. Your books are plain Beancount-compatible text files that you own. AI assists; you approve every change.
 
@@ -6,16 +6,16 @@ A local-first, FOSS desktop accounting app for technical operators. Your books a
 
 ## Canonical Specs
 
-| Document | Purpose |
-|---|---|
-| [`docs/prd.md`](docs/prd.md) | Product Requirements Document — V1 feature specs with acceptance criteria |
-| [`docs/design-system.md`](docs/design-system.md) | Visual language, tokens, component patterns |
-| [`docs/design-prompt.md`](docs/design-prompt.md) | Claude Design prompt for generating screen mockups |
-| [`docs/v1-roadmap.md`](docs/v1-roadmap.md) | Milestone-by-milestone transition plan from MVP to V1 |
-| [`CONTEXT.md`](CONTEXT.md) | Domain glossary — canonical terminology for the project |
-| [`docs/architecture.md`](docs/architecture.md) | Current codebase architecture |
-| [`docs/workspace-layout.md`](docs/workspace-layout.md) | App-Created Workspace file structure |
-| [`docs/adr/`](docs/adr/) | Architectural decision records |
+| Document                                               | Purpose                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [`docs/prd.md`](docs/prd.md)                           | Product Requirements Document — V1 feature specs with acceptance criteria |
+| [`docs/design-system.md`](docs/design-system.md)       | Visual language, tokens, component patterns                               |
+| [`docs/design-prompt.md`](docs/design-prompt.md)       | Claude Design prompt for generating screen mockups                        |
+| [`docs/v1-roadmap.md`](docs/v1-roadmap.md)             | Milestone-by-milestone transition plan from MVP to V1                     |
+| [`CONTEXT.md`](CONTEXT.md)                             | Domain glossary — canonical terminology for the project                   |
+| [`docs/architecture.md`](docs/architecture.md)         | Current codebase architecture                                             |
+| [`docs/workspace-layout.md`](docs/workspace-layout.md) | App-Created Workspace file structure                                      |
+| [`docs/adr/`](docs/adr/)                               | Architectural decision records                                            |
 
 When working on this codebase: read the PRD section for the feature you're implementing, then check `CONTEXT.md` for any terminology in capitalized form (Founder-Operator, Suggested Entry, Approval, etc. all have precise meanings). The PRD includes acceptance criteria as checklists — every box should be checked before a feature is considered done.
 
@@ -45,7 +45,7 @@ npm run test:e2e
 
 ## Workspace Lifecycle
 
-Ledgerly opens a **Workspace** — a local folder containing readable Beancount files plus Ledgerly-managed local data under `.ledgerly/`. No Ledgerly cloud account is required.
+Diurnum opens a **Workspace** — a local folder containing readable Beancount files plus Diurnum-managed local data under `.Diurnum/`. No Diurnum cloud account is required.
 
 Workspace layout: see [`docs/workspace-layout.md`](docs/workspace-layout.md).
 

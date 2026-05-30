@@ -1,4 +1,4 @@
-# Ledgerly Value Proposition
+# Diurnum Value Proposition
 
 Collaboration and cross-device access might be a value proposition - think Obsidian Sync - the app might be free or very inexpensive (like Obsidian), with a paid sync service that would allow users to access their data from multiple devices and users. Technical users could do it with Git, everyone else could pay to push the easy button.
 
@@ -77,6 +77,7 @@ The free tier could include:
 - Limited local AI or user-supplied API key
 
 Then paid plans unlock:
+
 - Hosted AI usage
 - Sync
 - Encrypted backup
@@ -145,6 +146,7 @@ $50–$150/month base
 ```
 
 Includes:
+
 - Client workspaces
 - Shared review queues
 - Comments
@@ -173,7 +175,7 @@ For technical users:
 The app can:
 
 - Detect Git repo
-- Show commit history    
+- Show commit history
 - Commit approved changes
 - Show diff
 - Create branches for imports
@@ -413,12 +415,14 @@ This is where the product becomes valuable to professionals.
 AI can be part of the local app, but hosted AI can be a paid service.
 
 Free/local options:
+
 - Bring your own API key
 - Local-only rules
 - Maybe lightweight local model later
 - Limited trial credits
 
 Paid options:
+
 - Hosted AI categorization
 - AI report explanations
 - AI anomaly detection
@@ -459,6 +463,7 @@ Other authorized devices decrypt locally
 ```
 
 Your server handles:
+
 - Identity
 - Billing
 - Device registration
@@ -493,6 +498,7 @@ I would not hide this distinction. Make it a product choice.
 For the first paid sync version, I would not overbuild full CRDT-style collaboration.
 
 Start with:
+
 - One active editor at a time per workspace, or optimistic locking.
 - Append-only version history.
 - Whole-file or patch-based sync.
@@ -563,24 +569,24 @@ This keeps the app useful without the service, while making the service valuable
 
 Here’s how I’d draw the line.
 
-|Feature|Free local app|Paid sync|
-|---|--:|--:|
-|Local Beancount files|Yes|Yes|
-|CSV import|Yes|Yes|
-|Ledger editor|Yes|Yes|
-|Local reports|Yes|Yes|
-|Rules|Yes|Yes|
-|Git integration|Yes|Yes|
-|Manual export|Yes|Yes|
-|Multi-device sync|No|Yes|
-|Encrypted backup|No|Yes|
-|Shared workspaces|No|Yes|
-|Client review queues|No|Yes|
-|Device management|No|Yes|
-|Hosted AI credits|Limited / BYO|Included|
-|Bank feed connector|Add-on|Add-on|
-|Web read-only access|No|Possibly|
-|Accountant collaboration|No|Yes|
+| Feature                  | Free local app | Paid sync |
+| ------------------------ | -------------: | --------: |
+| Local Beancount files    |            Yes |       Yes |
+| CSV import               |            Yes |       Yes |
+| Ledger editor            |            Yes |       Yes |
+| Local reports            |            Yes |       Yes |
+| Rules                    |            Yes |       Yes |
+| Git integration          |            Yes |       Yes |
+| Manual export            |            Yes |       Yes |
+| Multi-device sync        |             No |       Yes |
+| Encrypted backup         |             No |       Yes |
+| Shared workspaces        |             No |       Yes |
+| Client review queues     |             No |       Yes |
+| Device management        |             No |       Yes |
+| Hosted AI credits        |  Limited / BYO |  Included |
+| Bank feed connector      |         Add-on |    Add-on |
+| Web read-only access     |             No |  Possibly |
+| Accountant collaboration |             No |       Yes |
 
 This is a clean model.
 

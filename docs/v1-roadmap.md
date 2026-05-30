@@ -15,12 +15,12 @@ For feature specs and acceptance criteria, see [`prd.md`](prd.md). This document
 
 These tasks happen once before milestone work begins.
 
-| Task | Notes |
-|---|---|
-| Tag MVP baseline | `git tag v0.1.0-mvp && git push --tags` — preserves the "this is what the MVP looked like" marker |
-| Update README | Reflects MVP → V1 transition, points to PRD and this roadmap (done in this PR) |
-| Add `src/styles/tokens.css` | Already created; import in `main.tsx` so V1 components can reference tokens |
-| Optionally rename repo | `Ledgerly-MVP` → `Ledgerly` (local `mv` + GitHub rename). Cosmetic; doesn't block work. |
+| Task                        | Notes                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------- |
+| Tag MVP baseline            | `git tag v0.1.0-mvp && git push --tags` — preserves the "this is what the MVP looked like" marker |
+| Update README               | Reflects MVP → V1 transition, points to PRD and this roadmap (done in this PR)                    |
+| Add `src/styles/tokens.css` | Already created; import in `main.tsx` so V1 components can reference tokens                       |
+| Optionally rename repo      | `Diurnum-MVP` → `Diurnum` (local `mv` + GitHub rename). Cosmetic; doesn't block work.             |
 
 ---
 
@@ -54,6 +54,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why first:** Everything else needs a place to render. The PRD calls this "the hidden lift" — most V1 features integrate into the shell, so the shell must exist before they can land.
 
 **Order:**
+
 - M1.1 App Shell skeleton — sidebar (200px) + main pane + status bar; uses `tokens.css`
 - M1.2 Sidebar navigation items (Ledger, Inbox, Reports, Documents, Import, Settings; Git conditional)
 - M1.3 Workspace switcher dropdown (recents from app config, "Open existing…")
@@ -72,6 +73,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why parallel with M1:** Pure Rust work in `src-tauri/src/workspace/`. No UI dependency beyond the restore dialog. Lands quietly under everything else.
 
 **Order:**
+
 - M2.1 Atomic file write helper (`write_temp_then_rename` with fsync) — used by all Beancount writes
 - M2.2 Snapshot creation (before every Approval, plus daily on first workspace open)
 - M2.3 Snapshot retention (last 10 per workspace, automatic pruning)
@@ -91,6 +93,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why before M6:** Predictive completion is built on top of the editor.
 
 **Order:**
+
 - M3.1 **ADR: Editor library choice** (CodeMirror 6 preferred per PRD; confirm and lock in). Set up dependency and basic editor rendering.
 - M3.2 Tab bar + session restore (tabs persist in `.ledgerly/workspace.json`; `Cmd+W`, `Cmd+Shift+T`)
 - M3.3 Beancount syntax mode + Alabaster highlighting (default text near-black; comments prominent; amounts medium weight; strings warm background tint; validation errors red)
@@ -112,6 +115,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why parallel with M3:** Independent code paths. M4 touches Rust import logic and a new React Import screen; M3 touches the editor.
 
 **Order:**
+
 - M4.1 Inference engine — header pattern matching + content signal detection (Rust)
 - M4.2 Date format detection across 6 formats
 - M4.3 Amount convention detection (signed / debit+credit / amount+type)
@@ -134,6 +138,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why parallel with M3/M4:** Independent surface. Touches different Rust commands and React components.
 
 **Order:**
+
 - M5.1 Documents folder structure on workspace creation; auto-filing CSV on import (depends on M4 for the auto-file hook)
 - M5.2 Documents browser UI (folder tree + file list + inline preview)
 - M5.3 Settings shell + sub-nav
@@ -155,6 +160,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Goal:** Tab-to-complete transaction entries in the editor. Ghost text shows full predicted transaction.
 
 **Order:**
+
 - M6.1 Completion source layer (Rust) — rules first, history second, AI adapter third
 - M6.2 Editor integration — ghost text rendering, `Tab` accept, `Escape` dismiss, real-time update
 - M6.3 AI Adapter `complete` task type extension
@@ -169,6 +175,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Goal:** Detect git repo, silently auto-commit Approvals and manual edits, expose Git panel for history and custom commits.
 
 **Order:**
+
 - M7.1 Git repo detection on workspace open + `.gitignore` management
 - M7.2 Silent auto-commit on Approval (default message: `ledgerly: approve N entries (YYYY-MM)`)
 - M7.3 Silent auto-commit on manual edits (60s debounce + on workspace close; default message: `workspace backup <ISO 8601>`)
@@ -185,8 +192,9 @@ M9 macOS Packaging (last; gates V1 release)
 **Goal:** `Cmd+K` global overlay for keyboard-driven navigation and actions.
 
 **Order:**
+
 - M8.1 Modal + fuzzy search + keyboard navigation
-- M8.2 Required commands implementation (Go to *, Open file, Import CSV, Run Validation, Open Git panel, Commit with message, New entry, Switch workspace, Close workspace)
+- M8.2 Required commands implementation (Go to \*, Open file, Import CSV, Run Validation, Open Git panel, Commit with message, New entry, Switch workspace, Close workspace)
 - M8.3 Recently used commands at top
 
 **Dependencies:** M1 (App Shell). M7 commands are conditional on git detection.
@@ -200,6 +208,7 @@ M9 macOS Packaging (last; gates V1 release)
 **Why last:** Packaging the still-changing app produces churn. Ship packaging once V1 features are functionally complete.
 
 **Order:**
+
 - M9.1 Apple Developer cert + signing pipeline in CI
 - M9.2 Notarization workflow (staple ticket, verify Gatekeeper passes)
 - M9.3 Auto-update mechanism (Tauri updater plugin or equivalent — see PRD Open Technical Decisions)
@@ -214,7 +223,7 @@ M9 macOS Packaging (last; gates V1 release)
 
 Once V1 ships, the V1.1 and V1.2 roadmap items begin (see [`prd.md`](prd.md) → Roadmap Beyond V1):
 
-- **V1.1:** Bean Query Language (BQL) engine + Ask Ledgerly natural-language Q&A
+- **V1.1:** Bean Query Language (BQL) engine + Ask Diurnum natural-language Q&A
 - **V1.2:** Proactive Insights + Multi-currency support (with beanprice integration)
 - **Post-V1.2:** Crypto support, Paid Sync Service, Linux + Windows, Bank Feeds, Migration Wizard, Collaboration, etc.
 

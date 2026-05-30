@@ -33,8 +33,8 @@ describe("WorkspaceOverview", () => {
     expect(screen.getByText("main.bean")).toBeInTheDocument();
     expect(screen.getByText("accounts.bean")).toBeInTheDocument();
     expect(screen.getByText("opening-balances.bean")).toBeInTheDocument();
-    expect(screen.getByText(".ledgerly/workspace.json")).toBeInTheDocument();
-    expect(screen.getByText(".ledgerly/ledgerly.sqlite")).toBeInTheDocument();
+    expect(screen.getByText(".diurnum/workspace.json")).toBeInTheDocument();
+    expect(screen.getByText(".diurnum/diurnum.sqlite")).toBeInTheDocument();
   });
 
   it("runs reveal and open another callbacks", async () => {
@@ -117,8 +117,8 @@ describe("WorkspaceOverview", () => {
         brokenProvenance={[
           {
             statementRowId: "row-1",
-            ledgerlyEntryId: "entry-1",
-            reason: "Ledgerly Entry Metadata is missing or changed.",
+            diurnumEntryId: "entry-1",
+            reason: "Diurnum Entry Metadata is missing or changed.",
           },
         ]}
         onReveal={vi.fn()}
@@ -128,7 +128,7 @@ describe("WorkspaceOverview", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Broken Provenance");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Ledgerly Entry Metadata is missing or changed.",
+      "Diurnum Entry Metadata is missing or changed.",
     );
     expect(screen.getByText("Ledger valid")).toBeInTheDocument();
   });

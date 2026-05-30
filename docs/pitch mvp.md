@@ -1,9 +1,10 @@
 ---
-belongs_to: "[[Ledgerly]]"
+belongs_to: "[[Diurnum]]"
 type: Pitch
 _organized: true
 ---
-# Pitch: Ledgerly Local-First Accounting Workspace
+
+# Pitch: Diurnum Local-First Accounting Workspace
 
 ## 1. Problem
 
@@ -13,7 +14,7 @@ They can use mainstream accounting software like QuickBooks, which is powerful b
 
 Or they can use plain-text accounting tools like Beancount, which are transparent and durable but intimidating, manual, and unfriendly for everyday workflows.
 
-Ledgerly should bridge that gap:
+Diurnum should bridge that gap:
 
 > A beautiful local-first accounting app that uses Beancount as the source of truth, with AI and rules layered on top to help import, categorize, review, and report on financial data.
 
@@ -60,13 +61,13 @@ Not included:
 
 The first cycle should prove:
 
-> Can Ledgerly feel like a premium local-first accounting app while reliably producing valid Beancount?
+> Can Diurnum feel like a premium local-first accounting app while reliably producing valid Beancount?
 
 ---
 
 ## 3. Core idea
 
-Ledgerly is a document-style macOS app.
+Diurnum is a document-style macOS app.
 
 The user owns a local project folder:
 
@@ -103,7 +104,7 @@ Every change is validated, versioned, and reversible.
 
 ```text
 ┌─────────────────────────────────────────────┐
-│                  Ledgerly                   │
+│                  Diurnum                   │
 │                                             │
 │  Beautiful local accounting workspace       │
 │                                             │
@@ -153,7 +154,7 @@ Local files + reviewable automation + beautiful reports
 
 Important rule:
 
-> SQLite helps Ledgerly feel fast. It does not replace the ledger.
+> SQLite helps Diurnum feel fast. It does not replace the ledger.
 
 ---
 
@@ -185,7 +186,7 @@ AI does not mutate the books directly.
 
 AI proposes.
 
-Ledgerly validates.
+Diurnum validates.
 
 The user approves.
 
@@ -526,14 +527,17 @@ First cycle reports can be basic, but they must be beautiful and fast.
 - Basic ledger health status.
 
 ### User value
-User can create a local Ledgerly workspace that contains real Beancount files.
+
+User can create a local Diurnum workspace that contains real Beancount files.
 
 ### Risks
+
 - Sidecar startup could feel slow.
 - File watching may be tricky.
 - Bundling Python/Beancount cleanly in a macOS app may take work.
 
 ### Circuit breaker
+
 If Python sidecar bundling is too costly, start with a development-only sidecar and defer packaging polish.
 
 ---
@@ -550,14 +554,17 @@ If Python sidecar bundling is too costly, start with a development-only sidecar 
 - Background validation.
 
 ### User value
-User can trust that Ledgerly is reading and validating Beancount correctly.
+
+User can trust that Diurnum is reading and validating Beancount correctly.
 
 ### Risks
+
 - Formatting preservation.
 - Large ledger performance.
 - Incremental parsing complexity.
 
 ### Circuit breaker
+
 Do not attempt perfect formatting preservation in cycle one.
 
 Support app-generated ledgers best.
@@ -577,14 +584,17 @@ Support app-generated ledgers best.
 - Transaction detail panel.
 
 ### User value
-User can bring real bank data into Ledgerly without editing Beancount manually.
+
+User can bring real bank data into Diurnum without editing Beancount manually.
 
 ### Risks
+
 - CSV formats vary wildly.
 - Import mapping UX can balloon.
 - Duplicate detection is subtle.
 
 ### Circuit breaker
+
 Support a simple, explicit mapping flow first. Avoid trying to automatically understand every CSV format.
 
 ---
@@ -592,6 +602,7 @@ Support a simple, explicit mapping flow first. Avoid trying to automatically und
 ## Scope D: Suggestions and review
 
 ### Build
+
 - Rule-based categorization.
 - Similar transaction matching.
 - AI fallback for ambiguous transactions.
@@ -602,15 +613,18 @@ Support a simple, explicit mapping flow first. Avoid trying to automatically und
 - Undo approval.
 
 ### User value
+
 This is the magic moment:
 
-> “Ledgerly turned my CSV into clean, reviewable Beancount entries.”
+> “Diurnum turned my CSV into clean, reviewable Beancount entries.”
 
 ### Risks
+
 - AI hallucination.
 - Incorrect categories.
 - Ledger commit errors.
 - Review UI complexity.
+
 ### Circuit breaker
 
 AI is optional in the first build. Rules and manual review can carry the core loop.
@@ -620,6 +634,7 @@ AI is optional in the first build. Rules and manual review can carry the core lo
 ## Scope E: Reports
 
 ### Build
+
 - Income statement.
 - Balance sheet.
 - Expense breakdown.
@@ -628,18 +643,23 @@ AI is optional in the first build. Rules and manual review can carry the core lo
 - Cached reports.
 
 ### User value
+
 User gets immediate payoff after import/review: useful financial visibility.
+
 ### Risks
+
 - Accurate reports depend on correct ledger modeling.
 - Beancount report APIs may require adapter work.
 - Report UI can expand endlessly.
 
 ### Circuit breaker
+
 Start with income statement and expense breakdown only if balance sheet integration takes too long.
 
 ---
 
 # 7. No-Gos
+
 Do not build in the first cycle:
 
 ```text
@@ -739,7 +759,8 @@ The first customer is someone who wants clean books, not a full ERP.
 ## Risk: AI suggestions are wrong
 
 ### Mitigation
-- Human approval required.    
+
+- Human approval required.
 - Show confidence and reasoning.
 - Validate all suggestions.
 - Keep deterministic rules primary.
@@ -750,6 +771,7 @@ The first customer is someone who wants clean books, not a full ERP.
 ## Risk: Beancount integration is harder than expected
 
 ### Mitigation
+
 - Spike first.
 - Use sample ledgers of increasing size.
 - Restrict MVP ledger structure.
@@ -760,6 +782,7 @@ The first customer is someone who wants clean books, not a full ERP.
 ## Risk: CSV import is messy
 
 ### Mitigation
+
 - Explicit mapping UI.
 - Save mappings.
 - Support common date/amount formats.
@@ -771,6 +794,7 @@ The first customer is someone who wants clean books, not a full ERP.
 ## Risk: Product is too technical
 
 ### Mitigation
+
 - Hide raw Beancount unless needed.
 - Use friendly terminology in the UI.
 - Show Beancount as preview/diff, not as mandatory workflow.
@@ -795,6 +819,7 @@ Polish/performance                           ●
 ```
 
 At the start, the biggest unknowns are:
+
 1. App architecture.
 2. Beancount parsing/caching.
 3. Ledger commit correctness.
@@ -854,7 +879,7 @@ Operation log = audit trail and future sync primitive
 
 # 12. Performance requirements
 
-Ledgerly must feel snappy.
+Diurnum must feel snappy.
 
 ## Initial budgets
 
@@ -900,7 +925,7 @@ rendering thousands of DOM rows
 
 At the end of the first cycle, a user should be able to:
 
-1. Create a Ledgerly workspace.
+1. Create a Diurnum workspace.
 2. See generated Beancount files.
 3. Import a CSV.
 4. Map columns.
@@ -1024,4 +1049,4 @@ Must avoid:
 
 ## Success
 
-Ledgerly feels like a premium productivity app for accounting, not a slow accounting system with AI bolted on.
+Diurnum feels like a premium productivity app for accounting, not a slow accounting system with AI bolted on.

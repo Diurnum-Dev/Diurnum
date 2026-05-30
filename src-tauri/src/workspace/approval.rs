@@ -68,7 +68,7 @@ pub struct ApproveTransferEntryInput {
 #[serde(rename_all = "camelCase")]
 pub struct BrokenProvenance {
     pub statement_row_id: String,
-    pub ledgerly_entry_id: Option<String>,
+    pub diurnum_entry_id: Option<String>,
     pub reason: String,
 }
 
@@ -76,7 +76,7 @@ pub fn get_suggested_entries(
     workspace_root_path: impl AsRef<Path>,
 ) -> Result<Vec<SuggestedEntry>, WorkspaceError> {
     let root = workspace_root_path.as_ref();
-    let connection = Connection::open(root.join(".ledgerly").join("ledgerly.sqlite"))?;
+    let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     let pending_rows = load_pending_statement_rows(&connection)?;
@@ -87,25 +87,25 @@ pub fn get_broken_provenance(
     workspace_root_path: impl AsRef<Path>,
 ) -> Result<Vec<BrokenProvenance>, WorkspaceError> {
     let root = workspace_root_path.as_ref();
-    let connection = Connection::open(root.join(".ledgerly").join("ledgerly.sqlite"))?;
+    let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     let rows = load_accounted_rows(&connection)?;
     let mut broken = Vec::new();
 
     for row in rows {
-        let Some(ledgerly_entry_id) = row.ledgerly_entry_id.clone() else {
+        let Some(diurnum_entry_id) = row.diurnum_entry_id.clone() else {
             broken.push(BrokenProvenance {
                 statement_row_id: row.statement_row_id,
-                ledgerly_entry_id: None,
-                reason: "Accounted Statement Row has no Ledgerly entry id.".to_string(),
+                diurnum_entry_id: None,
+                reason: "Accounted Statement Row has no Diurnum entry id.".to_string(),
             });
             continue;
         };
         let Some(ledger_entry_file) = row.ledger_entry_file.clone() else {
             broken.push(BrokenProvenance {
                 statement_row_id: row.statement_row_id,
-                ledgerly_entry_id: Some(ledgerly_entry_id),
+                diurnum_entry_id: Some(diurnum_entry_id),
                 reason: "Accounted Statement Row has no ledger entry file.".to_string(),
             });
             continue;
@@ -116,17 +116,17 @@ pub fn get_broken_provenance(
             Err(_) => {
                 broken.push(BrokenProvenance {
                     statement_row_id: row.statement_row_id,
-                    ledgerly_entry_id: Some(ledgerly_entry_id),
+                    diurnum_entry_id: Some(diurnum_entry_id),
                     reason: "Ledger entry file is missing.".to_string(),
                 });
                 continue;
             }
         };
-        if !entry_has_matching_metadata(&contents, &ledgerly_entry_id, &row) {
+        if !entry_has_matching_metadata(&contents, &diurnum_entry_id, &row) {
             broken.push(BrokenProvenance {
                 statement_row_id: row.statement_row_id,
-                ledgerly_entry_id: Some(ledgerly_entry_id),
-                reason: "Ledgerly Entry Metadata is missing or changed.".to_string(),
+                diurnum_entry_id: Some(diurnum_entry_id),
+                reason: "Diurnum Entry Metadata is missing or changed.".to_string(),
             });
         }
     }
@@ -147,13 +147,13 @@ pub fn approve_suggested_entry(
     }
     ensure_ledger_account_exists(root, &input.ledger_account)?;
 
-    let connection = Connection::open(root.join(".ledgerly").join("ledgerly.sqlite"))?;
+    let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     let suggested_entry = load_pending_suggested_entry(&connection, &input.statement_row_id)?;
     let source_amount = parse_amount(&suggested_entry.source_amount)?;
     let balancing_amount = -source_amount;
-    let ledgerly_entry_id = Uuid::new_v4().to_string();
+    let diurnum_entry_id = Uuid::new_v4().to_string();
 
     let monthly_relative_path = monthly_transaction_file(&suggested_entry.posted_date)?;
     let monthly_path = root.join(&monthly_relative_path);
@@ -166,20 +166,20 @@ pub fn approve_suggested_entry(
         &suggested_entry,
         &input.ledger_account,
         balancing_amount,
-        &ledgerly_entry_id,
+        &diurnum_entry_id,
     )?;
 
     connection.execute(
         "
         update statement_rows
         set status = 'accounted',
-            ledgerly_entry_id = ?2,
+            diurnum_entry_id = ?2,
             ledger_entry_file = ?3
         where id = ?1
         ",
         (
             input.statement_row_id,
-            ledgerly_entry_id,
+            diurnum_entry_id,
             monthly_relative_path,
         ),
     )?;
@@ -199,13 +199,13 @@ pub fn approve_transfer_entry(
         ));
     }
 
-    let connection = Connection::open(root.join(".ledgerly").join("ledgerly.sqlite"))?;
+    let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     let first = load_pending_suggested_entry(&connection, &input.statement_row_id)?;
     let second = load_pending_suggested_entry(&connection, &input.linked_statement_row_id)?;
     ensure_transfer_match(&first, &second)?;
-    let ledgerly_entry_id = Uuid::new_v4().to_string();
+    let diurnum_entry_id = Uuid::new_v4().to_string();
 
     let monthly_relative_path = monthly_transaction_file(&first.posted_date)?;
     let monthly_path = root.join(&monthly_relative_path);
@@ -213,20 +213,20 @@ pub fn approve_transfer_entry(
         fs::create_dir_all(parent)?;
     }
     ensure_main_includes(root, &monthly_relative_path)?;
-    append_transfer_entry(&monthly_path, &first, &second, &ledgerly_entry_id)?;
+    append_transfer_entry(&monthly_path, &first, &second, &diurnum_entry_id)?;
 
     connection.execute(
         "
         update statement_rows
         set status = 'accounted',
-            ledgerly_entry_id = ?3,
+            diurnum_entry_id = ?3,
             ledger_entry_file = ?4
         where id in (?1, ?2)
         ",
         (
             input.statement_row_id,
             input.linked_statement_row_id,
-            ledgerly_entry_id,
+            diurnum_entry_id,
             monthly_relative_path,
         ),
     )?;
@@ -491,7 +491,7 @@ fn append_approved_entry(
     suggested_entry: &SuggestedEntry,
     ledger_account: &str,
     balancing_amount: f64,
-    ledgerly_entry_id: &str,
+    diurnum_entry_id: &str,
 ) -> Result<(), WorkspaceError> {
     let mut file = OpenOptions::new()
         .create(true)
@@ -499,10 +499,10 @@ fn append_approved_entry(
         .open(monthly_path)?;
     writeln!(
         file,
-        "\n{} * \"{}\"\n  ledgerly_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  {}  {} USD\n  {}  {:.2} USD",
+        "\n{} * \"{}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  {}  {} USD\n  {}  {:.2} USD",
         suggested_entry.posted_date,
         suggested_entry.description,
-        ledgerly_entry_id,
+        diurnum_entry_id,
         suggested_entry.import_fingerprint,
         suggested_entry.source_account,
         suggested_entry.source_file_name,
@@ -518,7 +518,7 @@ fn append_transfer_entry(
     monthly_path: &Path,
     first: &SuggestedEntry,
     second: &SuggestedEntry,
-    ledgerly_entry_id: &str,
+    diurnum_entry_id: &str,
 ) -> Result<(), WorkspaceError> {
     let mut file = OpenOptions::new()
         .create(true)
@@ -526,11 +526,11 @@ fn append_transfer_entry(
         .open(monthly_path)?;
     writeln!(
         file,
-        "\n{} * \"Transfer: {} / {}\"\n  ledgerly_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n  {}  {} USD\n  {}  {} USD",
+        "\n{} * \"Transfer: {} / {}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n  {}  {} USD\n  {}  {} USD",
         first.posted_date,
         first.description,
         second.description,
-        ledgerly_entry_id,
+        diurnum_entry_id,
         first.import_fingerprint,
         first.source_account,
         first.source_file_name,
@@ -550,9 +550,9 @@ fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceErr
         .prepare("pragma table_info(statement_rows)")?
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<Result<Vec<_>, _>>()?;
-    if !columns.iter().any(|column| column == "ledgerly_entry_id") {
+    if !columns.iter().any(|column| column == "diurnum_entry_id") {
         connection.execute(
-            "alter table statement_rows add column ledgerly_entry_id text",
+            "alter table statement_rows add column diurnum_entry_id text",
             [],
         )?;
     }
@@ -571,7 +571,7 @@ struct AccountedStatementRow {
     source_account: String,
     source_file_name: String,
     import_fingerprint: String,
-    ledgerly_entry_id: Option<String>,
+    diurnum_entry_id: Option<String>,
     ledger_entry_file: Option<String>,
 }
 
@@ -580,7 +580,7 @@ fn load_accounted_rows(
 ) -> Result<Vec<AccountedStatementRow>, WorkspaceError> {
     let mut statement = connection.prepare(
         "
-        select id, source_account, source_file_name, import_fingerprint, ledgerly_entry_id, ledger_entry_file
+        select id, source_account, source_file_name, import_fingerprint, diurnum_entry_id, ledger_entry_file
         from statement_rows
         where status = 'accounted'
         order by posted_date, description
@@ -593,7 +593,7 @@ fn load_accounted_rows(
                 source_account: row.get(1)?,
                 source_file_name: row.get(2)?,
                 import_fingerprint: row.get(3)?,
-                ledgerly_entry_id: row.get(4)?,
+                diurnum_entry_id: row.get(4)?,
                 ledger_entry_file: row.get(5)?,
             })
         })?
@@ -603,14 +603,14 @@ fn load_accounted_rows(
 
 fn entry_has_matching_metadata(
     contents: &str,
-    ledgerly_entry_id: &str,
+    diurnum_entry_id: &str,
     row: &AccountedStatementRow,
 ) -> bool {
-    let Some(entry) = ledger_entry_block(contents, ledgerly_entry_id) else {
+    let Some(entry) = ledger_entry_block(contents, diurnum_entry_id) else {
         return false;
     };
 
-    entry.contains(&format!("  ledgerly_entry_id: \"{ledgerly_entry_id}\""))
+    entry.contains(&format!("  diurnum_entry_id: \"{diurnum_entry_id}\""))
         && (entry.contains(&format!(
             "  import_fingerprint: \"{}\"",
             row.import_fingerprint
@@ -630,8 +630,8 @@ fn entry_has_matching_metadata(
             )))
 }
 
-fn ledger_entry_block<'a>(contents: &'a str, ledgerly_entry_id: &str) -> Option<&'a str> {
-    let needle = format!("ledgerly_entry_id: \"{ledgerly_entry_id}\"");
+fn ledger_entry_block<'a>(contents: &'a str, diurnum_entry_id: &str) -> Option<&'a str> {
+    let needle = format!("diurnum_entry_id: \"{diurnum_entry_id}\"");
     let match_index = contents.find(&needle)?;
     let before = &contents[..match_index];
     let start = before.rfind("\n\n").map(|index| index + 2).unwrap_or(0);
@@ -723,7 +723,7 @@ mod tests {
         let monthly_file = Path::new(&created.root_path).join("transactions/2026-01.bean");
         let contents = fs::read_to_string(monthly_file).unwrap();
         assert!(contents.contains("2026-01-04 * \"Software\""));
-        assert!(contents.contains("  ledgerly_entry_id: \""));
+        assert!(contents.contains("  diurnum_entry_id: \""));
         assert!(contents.contains("  import_fingerprint: \""));
         assert!(contents.contains("  source_account: \"Assets:Bank:Operating-Checking\""));
         assert!(contents.contains("  source_file_name: \"checking.csv\""));
@@ -732,20 +732,20 @@ mod tests {
 
         let connection = Connection::open(
             Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         let status: String = connection
             .query_row("select status from statement_rows", [], |row| row.get(0))
             .unwrap();
         assert_eq!(status, "accounted");
-        let ledgerly_entry_id: String = connection
-            .query_row("select ledgerly_entry_id from statement_rows", [], |row| {
+        let diurnum_entry_id: String = connection
+            .query_row("select diurnum_entry_id from statement_rows", [], |row| {
                 row.get(0)
             })
             .unwrap();
-        assert!(!ledgerly_entry_id.is_empty());
+        assert!(!diurnum_entry_id.is_empty());
         let ledger_entry_file: String = connection
             .query_row("select ledger_entry_file from statement_rows", [], |row| {
                 row.get(0)
@@ -852,8 +852,8 @@ mod tests {
 
         let connection = Connection::open(
             Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         let accounted_count: i64 = connection

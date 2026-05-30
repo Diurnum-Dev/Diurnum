@@ -1,6 +1,6 @@
 # App-Created Workspace Layout
 
-Issue 1 creates the first local Workspace lifecycle for Ledgerly. A Founder-Operator can create an App-Created Workspace for an MVP Business, close the app, and reopen that Workspace from disk.
+Issue 1 creates the first local Workspace lifecycle for Diurnum. A Founder-Operator can create an App-Created Workspace for an MVP Business, close the app, and reopen that Workspace from disk.
 
 ```text
 Acme Studio/
@@ -31,11 +31,11 @@ Source Accounts are added as normal Beancount accounts under the Starter Chart:
 - bank Source Accounts are appended under `Assets:Bank`
 - credit-card Source Accounts are appended under `Liabilities:CreditCards`
 
-When the Founder-Operator records a known Opening Balance, Ledgerly appends a Beancount `balance` directive to `opening-balances.bean` using the Workspace books start date.
+When the Founder-Operator records a known Opening Balance, Diurnum appends a Beancount `balance` directive to `opening-balances.bean` using the Workspace books start date.
 
-## Ledgerly-Managed Local Data
+## Diurnum-Managed Local Data
 
-`.ledgerly/` stores Ledgerly-managed local data:
+`.ledgerly/` stores Diurnum-managed local data:
 
 - `workspace.json` identifies the folder as an App-Created Workspace.
 - `ledgerly.sqlite` stores local workflow and cache state.
@@ -46,50 +46,50 @@ SQLite does not replace the ledger. It exists so later slices can add staging, s
 The CSV Import slice creates durable local Staging Area tables:
 
 - `source_mappings` stores the CSV column mapping per Source Account and can reuse it on later imports for that Source Account. A mapping may use either one signed amount column or statement debit/credit columns.
-- `statement_rows` stores normalized Statement Rows tied to one Source Account, including posted date, description, Source Amount, Import Fingerprint, optional supporting fields, raw row JSON, source file name, pending/accounted status, and the approved Ledgerly entry id/file when accounted.
+- `statement_rows` stores normalized Statement Rows tied to one Source Account, including posted date, description, Source Amount, Import Fingerprint, optional supporting fields, raw row JSON, source file name, pending/accounted status, and the approved Diurnum entry id/file when accounted.
 - `categorization_rules` stores Founder-Operator confirmed description match text, Source Account scope, and target Ledger Account for deterministic future Suggested Entries.
 - `ai_adapter_config` stores the optional local BYO AI Adapter command. When no command is configured, the core import-review-approval loop works without AI.
 
 Each imported Statement Row gets an Import Fingerprint derived from normalized row identity within the Source Account. Re-importing the same CSV or an overlapping CSV skips rows where `(source_account, import_fingerprint)` already exists. Accounted Statement Rows remain in the Staging Area so future imports can still deduplicate against them.
 
-For MVP CSV Imports, statement debit/credit columns are treated as bank-statement direction labels: debit means money out of the statement account and credit means money in. Ledgerly normalizes those labels into one Source Amount before creating Suggested Entries.
+For MVP CSV Imports, statement debit/credit columns are treated as bank-statement direction labels: debit means money out of the statement account and credit means money in. Diurnum normalizes those labels into one Source Amount before creating Suggested Entries.
 
 Imported Statement Rows are not Beancount ledger entries. Approval remains the later step that writes accounting data to the readable ledger files.
 
-Confirmed Categorization Rules do not write to Beancount directly. They prefill future Standard Suggested Entries when a pending Statement Row belongs to the same Source Account and its description contains the rule match text. Ledgerly can offer to create a rule after Approval, but the Founder-Operator must confirm creation.
+Confirmed Categorization Rules do not write to Beancount directly. They prefill future Standard Suggested Entries when a pending Statement Row belongs to the same Source Account and its description contains the rule match text. Diurnum can offer to create a rule after Approval, but the Founder-Operator must confirm creation.
 
-When a BYO AI Adapter is configured, Ledgerly sends Curated Ledger Context to the local adapter over stdin and reads one structured AI Suggestion from stdout. Context includes the Statement Row, Source Account, chart of accounts, Categorization Rules, similar approved entries, and business profile. The adapter does not need direct Workspace file access. AI Suggestions can prefill review fields and show confidence or explanations, but Approval remains required before any Beancount write.
+When a BYO AI Adapter is configured, Diurnum sends Curated Ledger Context to the local adapter over stdin and reads one structured AI Suggestion from stdout. Context includes the Statement Row, Source Account, chart of accounts, Categorization Rules, similar approved entries, and business profile. The adapter does not need direct Workspace file access. AI Suggestions can prefill review fields and show confidence or explanations, but Approval remains required before any Beancount write.
 
 ## Monthly Transaction Files
 
 Approval writes non-transfer Suggested Entries to `transactions/YYYY-MM.bean` based on the Statement Row posted date and ensures `main.bean` includes that Monthly Transaction File. Each approved entry includes the Source Account posting from the Statement Row and a balancing posting to the Founder-Operator selected Ledger Account.
 
-Transfer Match approval writes one balanced Transfer Entry between two Source Accounts when Ledgerly finds opposite-signed same-date Statement Rows across different Source Accounts and the Founder-Operator explicitly approves the match. Both linked Statement Rows are marked `accounted` with the same Ledgerly entry id and monthly ledger file path.
+Transfer Match approval writes one balanced Transfer Entry between two Source Accounts when Diurnum finds opposite-signed same-date Statement Rows across different Source Accounts and the Founder-Operator explicitly approves the match. Both linked Statement Rows are marked `accounted` with the same Diurnum entry id and monthly ledger file path.
 
 One-sided transfer hints can appear when an unmatched Statement Row looks like a transfer or payment, but those hints do not claim another row and cannot write a Transfer Entry until a linked Statement Row exists.
 
-After Approval, the source Statement Row status changes from `pending` to `accounted` in the Staging Area. Ledgerly also stores the approved `ledgerly_entry_id` and monthly ledger file path with the Statement Row so the Staging Area can link back to the readable Beancount entry.
+After Approval, the source Statement Row status changes from `pending` to `accounted` in the Staging Area. Diurnum also stores the approved `ledgerly_entry_id` and monthly ledger file path with the Statement Row so the Staging Area can link back to the readable Beancount entry.
 
-Ledgerly-written entries include minimal Beancount metadata:
+Diurnum-written entries include minimal Beancount metadata:
 
 - `ledgerly_entry_id`
 - `import_fingerprint`
 - `source_account`
 - `source_file_name`
 
-Raw CSV row JSON, AI explanations, and confidence scores stay in Ledgerly-managed local data or transient review state rather than being copied into the ledger.
+Raw CSV row JSON, AI explanations, and confidence scores stay in Diurnum-managed local data or transient review state rather than being copied into the ledger.
 
-Approval is blocked while Ledger Validation reports Invalid Ledger State. Broken Provenance is separate: if a Manual Ledger Edit removes or changes Ledgerly Entry Metadata while the Beancount files still validate, Ledgerly surfaces Broken Provenance without marking the ledger invalid.
+Approval is blocked while Ledger Validation reports Invalid Ledger State. Broken Provenance is separate: if a Manual Ledger Edit removes or changes Diurnum Entry Metadata while the Beancount files still validate, Diurnum surfaces Broken Provenance without marking the ledger invalid.
 
 ## MVP Reports
 
-MVP Reports read from the validated Beancount ledger files, not from unapproved Statement Rows in the SQLite Staging Area. The current report reader covers Ledgerly-written Opening Balance directives and included Monthly Transaction Files.
+MVP Reports read from the validated Beancount ledger files, not from unapproved Statement Rows in the SQLite Staging Area. The current report reader covers Diurnum-written Opening Balance directives and included Monthly Transaction Files.
 
-For a selected period, Ledgerly renders an Income Statement, Expense Breakdown by Ledger Account, Source Account Balances, and a basic Balance Sheet. Reports are blocked while Ledger Validation reports Invalid Ledger State so a Founder-Operator does not review figures from a known-broken ledger.
+For a selected period, Diurnum renders an Income Statement, Expense Breakdown by Ledger Account, Source Account Balances, and a basic Balance Sheet. Reports are blocked while Ledger Validation reports Invalid Ledger State so a Founder-Operator does not review figures from a known-broken ledger.
 
 ## Validation Scope
 
-Ledgerly uses structural Ledger Validation for the current MVP slices:
+Diurnum uses structural Ledger Validation for the current MVP slices:
 
 - required files exist
 - `main.bean` includes the expected files
@@ -98,7 +98,7 @@ Ledgerly uses structural Ledger Validation for the current MVP slices:
 
 Validation returns file-aware errors when available, for example `accounts.bean:1 Invalid currency EUR.` The app runs validation after creating a Workspace, when opening a Workspace, and when a Founder-Operator returns to the app or chooses **Recheck Ledger** after External Ledger Edits.
 
-Full balance validation grows with the Approval and reporting slices once Ledgerly writes Monthly Transaction Files.
+Full balance validation grows with the Approval and reporting slices once Diurnum writes Monthly Transaction Files.
 
 ## Folder Selection
 

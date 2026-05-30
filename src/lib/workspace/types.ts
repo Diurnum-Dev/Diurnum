@@ -92,7 +92,7 @@ export type ApproveTransferEntryInput = {
 
 export type BrokenProvenance = {
   statementRowId: string;
-  ledgerlyEntryId?: string | null;
+  diurnumEntryId?: string | null;
   reason: string;
 };
 
@@ -183,8 +183,8 @@ export type WorkspaceManifest = {
     transactionsDirectory: "transactions";
     documentsDirectory: "documents";
     importsDirectory: "imports";
-    appDirectory: ".ledgerly";
-    sqliteFile: ".ledgerly/ledgerly.sqlite";
+    appDirectory: ".diurnum";
+    sqliteFile: ".diurnum/diurnum.sqlite";
   };
   createdAt: string;
   updatedAt: string;

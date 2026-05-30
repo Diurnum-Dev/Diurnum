@@ -30,7 +30,7 @@ pub fn render_accounts_bean(books_start_date: &str, currency: &str) -> String {
     ];
 
     let mut output =
-        "; Ledgerly Starter Chart of Accounts\n; Editable by the Founder-Operator.\n\n"
+        "; Diurnum Starter Chart of Accounts\n; Editable by the Founder-Operator.\n\n"
             .to_string();
 
     for (index, account) in accounts.iter().enumerate() {
@@ -45,7 +45,7 @@ pub fn render_accounts_bean(books_start_date: &str, currency: &str) -> String {
 
 pub fn render_opening_balances_bean(business_name: &str) -> String {
     format!(
-        "; Opening balances for {}.\n; Ledgerly starts balances at zero. Edit this file when real opening balances are known.\n",
+        "; Opening balances for {}.\n; Diurnum starts balances at zero. Edit this file when real opening balances are known.\n",
         business_name
     )
 }
@@ -66,7 +66,7 @@ mod tests {
     fn renders_accounts_bean_with_starter_chart() {
         let accounts = render_accounts_bean("2026-01-01", "USD");
 
-        assert!(accounts.contains("; Ledgerly Starter Chart of Accounts"));
+        assert!(accounts.contains("; Diurnum Starter Chart of Accounts"));
         assert!(accounts.contains("2026-01-01 open Assets:Bank:Checking USD"));
         assert!(accounts.contains("2026-01-01 open Liabilities:CreditCards:Business USD"));
         assert!(accounts.contains("2026-01-01 open Equity:Opening-Balances USD"));
@@ -78,7 +78,7 @@ mod tests {
     fn renders_opening_balances_bean() {
         assert_eq!(
             render_opening_balances_bean("Acme Studio"),
-            "; Opening balances for Acme Studio.\n; Ledgerly starts balances at zero. Edit this file when real opening balances are known.\n"
+            "; Opening balances for Acme Studio.\n; Diurnum starts balances at zero. Edit this file when real opening balances are known.\n"
         );
     }
 }

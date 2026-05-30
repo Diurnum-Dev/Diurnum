@@ -46,5 +46,5 @@ pub fn run() {
             commands::workspace::get_mvp_reports
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Ledgerly");
+        .expect("error while running Diurnum");
 }

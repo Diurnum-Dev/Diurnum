@@ -185,7 +185,7 @@ fn load_rule(connection: &Connection, id: &str) -> Result<CategorizationRule, Wo
 
 fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
     Ok(Connection::open(
-        root.join(".ledgerly").join("ledgerly.sqlite"),
+        root.join(".diurnum").join("diurnum.sqlite"),
     )?)
 }
 
@@ -235,8 +235,8 @@ mod tests {
 
         let connection = Connection::open(
             Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         let matched = matching_rule_for_row(

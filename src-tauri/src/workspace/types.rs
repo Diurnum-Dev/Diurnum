@@ -39,8 +39,8 @@ impl Default for WorkspaceLayout {
             transactions_directory: "transactions".to_string(),
             documents_directory: "documents".to_string(),
             imports_directory: "imports".to_string(),
-            app_directory: ".ledgerly".to_string(),
-            sqlite_file: ".ledgerly/ledgerly.sqlite".to_string(),
+            app_directory: ".diurnum".to_string(),
+            sqlite_file: ".diurnum/diurnum.sqlite".to_string(),
         }
     }
 }

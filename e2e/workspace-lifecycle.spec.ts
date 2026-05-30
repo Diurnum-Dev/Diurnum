@@ -14,7 +14,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       },
     };
 
-    window.__LEDGERLY_TEST_API__ = {
+    window.__DIURNUM_TEST_API__ = {
       async createWorkspace() {
         return workspace;
       },

@@ -11,8 +11,8 @@ export function WorkspaceStart({ onCreate, onOpen, error }: WorkspaceStartProps)
         <p className="eyebrow">App-Created Workspace</p>
         <h1 id="workspace-start-title">Open your local accounting Workspace</h1>
         <p className="intro">
-          Create or reopen a Ledgerly Workspace for an MVP Business. Your
-          Beancount ledger and Ledgerly-managed local data stay in the folder
+          Create or reopen a Diurnum Workspace for an MVP Business. Your
+          Beancount ledger and Diurnum-managed local data stay in the folder
           you choose.
         </p>
         {error ? (

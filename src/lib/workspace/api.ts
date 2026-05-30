@@ -49,22 +49,22 @@ type WorkspaceApi = {
 
 declare global {
   interface Window {
-    __LEDGERLY_TEST_API__?: WorkspaceApi;
+    __DIURNUM_TEST_API__?: WorkspaceApi;
   }
 }
 
 export async function createWorkspace(
   input: WorkspaceCreateInput,
 ): Promise<WorkspaceSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.createWorkspace(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.createWorkspace(input);
   }
   return invoke<WorkspaceSummary>("create_workspace", { input });
 }
 
 export async function openWorkspace(path: string): Promise<WorkspaceSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.openWorkspace(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.openWorkspace(path);
   }
   return invoke<WorkspaceSummary>("open_workspace", { path });
 }
@@ -72,8 +72,8 @@ export async function openWorkspace(path: string): Promise<WorkspaceSummary> {
 export async function validateWorkspace(
   path: string,
 ): Promise<LedgerValidationSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.validateWorkspace(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.validateWorkspace(path);
   }
   return invoke<LedgerValidationSummary>("validate_workspace", { path });
 }
@@ -81,8 +81,8 @@ export async function validateWorkspace(
 export async function addSourceAccount(
   input: AddSourceAccountInput,
 ): Promise<WorkspaceSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.addSourceAccount(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.addSourceAccount(input);
   }
   return invoke<WorkspaceSummary>("add_source_account", { input });
 }
@@ -90,15 +90,15 @@ export async function addSourceAccount(
 export async function importStatementRows(
   input: CsvImportInput,
 ): Promise<CsvImportResult> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.importStatementRows(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.importStatementRows(input);
   }
   return invoke<CsvImportResult>("import_statement_rows", { input });
 }
 
 export async function getSuggestedEntries(path: string): Promise<SuggestedEntry[]> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.getSuggestedEntries(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getSuggestedEntries(path);
   }
   return invoke<SuggestedEntry[]>("get_suggested_entries", { path });
 }
@@ -106,8 +106,8 @@ export async function getSuggestedEntries(path: string): Promise<SuggestedEntry[
 export async function getBrokenProvenance(
   path: string,
 ): Promise<BrokenProvenance[]> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.getBrokenProvenance(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getBrokenProvenance(path);
   }
   return invoke<BrokenProvenance[]>("get_broken_provenance", { path });
 }
@@ -115,8 +115,8 @@ export async function getBrokenProvenance(
 export async function approveSuggestedEntry(
   input: ApproveSuggestedEntryInput,
 ): Promise<WorkspaceSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.approveSuggestedEntry(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.approveSuggestedEntry(input);
   }
   return invoke<WorkspaceSummary>("approve_suggested_entry", { input });
 }
@@ -124,8 +124,8 @@ export async function approveSuggestedEntry(
 export async function approveTransferEntry(
   input: ApproveTransferEntryInput,
 ): Promise<WorkspaceSummary> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.approveTransferEntry(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.approveTransferEntry(input);
   }
   return invoke<WorkspaceSummary>("approve_transfer_entry", { input });
 }
@@ -133,8 +133,8 @@ export async function approveTransferEntry(
 export async function listCategorizationRules(
   path: string,
 ): Promise<CategorizationRule[]> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.listCategorizationRules(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listCategorizationRules(path);
   }
   return invoke<CategorizationRule[]>("list_categorization_rules", { path });
 }
@@ -142,8 +142,8 @@ export async function listCategorizationRules(
 export async function createCategorizationRule(
   input: CreateCategorizationRuleInput,
 ): Promise<CategorizationRule> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.createCategorizationRule(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.createCategorizationRule(input);
   }
   return invoke<CategorizationRule>("create_categorization_rule", { input });
 }
@@ -151,15 +151,15 @@ export async function createCategorizationRule(
 export async function updateCategorizationRule(
   input: UpdateCategorizationRuleInput,
 ): Promise<CategorizationRule> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.updateCategorizationRule(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.updateCategorizationRule(input);
   }
   return invoke<CategorizationRule>("update_categorization_rule", { input });
 }
 
 export async function getAiAdapterConfig(path: string): Promise<AiAdapterConfig> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.getAiAdapterConfig(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getAiAdapterConfig(path);
   }
   return invoke<AiAdapterConfig>("get_ai_adapter_config", { path });
 }
@@ -167,8 +167,8 @@ export async function getAiAdapterConfig(path: string): Promise<AiAdapterConfig>
 export async function configureAiAdapter(
   input: ConfigureAiAdapterInput,
 ): Promise<AiAdapterConfig> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.configureAiAdapter(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.configureAiAdapter(input);
   }
   return invoke<AiAdapterConfig>("configure_ai_adapter", { input });
 }
@@ -176,22 +176,22 @@ export async function configureAiAdapter(
 export async function getAiContextDisclosure(
   path: string,
 ): Promise<AiContextDisclosure> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.getAiContextDisclosure(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getAiContextDisclosure(path);
   }
   return invoke<AiContextDisclosure>("get_ai_context_disclosure", { path });
 }
 
 export async function getMvpReports(input: ReportsInput): Promise<MvpReports> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.getMvpReports(input);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getMvpReports(input);
   }
   return invoke<MvpReports>("get_mvp_reports", { input });
 }
 
 export async function pickDirectory(): Promise<string | null> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.pickDirectory();
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.pickDirectory();
   }
   let selected: unknown = null;
   try {
@@ -207,8 +207,8 @@ export async function pickDirectory(): Promise<string | null> {
 }
 
 export async function revealWorkspace(path: string): Promise<void> {
-  if (window.__LEDGERLY_TEST_API__) {
-    return window.__LEDGERLY_TEST_API__.revealWorkspace(path);
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.revealWorkspace(path);
   }
   await openPath(path);
 }

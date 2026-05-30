@@ -67,8 +67,8 @@ const workspaceFiles = [
   "main.bean",
   "accounts.bean",
   "opening-balances.bean",
-  ".ledgerly/workspace.json",
-  ".ledgerly/ledgerly.sqlite",
+  ".diurnum/workspace.json",
+  ".diurnum/diurnum.sqlite",
 ];
 
 export function WorkspaceOverview({
@@ -118,7 +118,7 @@ export function WorkspaceOverview({
             <p className="eyebrow">Invalid Ledger State</p>
             <h2 id="ledger-alert-title">Ledger Validation needs attention</h2>
             <p>
-              Ledgerly found validation errors in the Workspace ledger. You can
+              Diurnum found validation errors in the Workspace ledger. You can
               inspect these files and edit them externally, but unsafe accounting
               actions stay blocked until validation passes.
             </p>
@@ -147,9 +147,9 @@ export function WorkspaceOverview({
         >
           <div>
             <p className="eyebrow">Broken Provenance</p>
-            <h2 id="provenance-alert-title">Ledgerly metadata needs attention</h2>
+            <h2 id="provenance-alert-title">Diurnum metadata needs attention</h2>
             <p>
-              Ledger validation still passes, but Ledgerly cannot match some
+              Ledger validation still passes, but Diurnum cannot match some
               Accounted Statement Rows back to their approved ledger entries.
             </p>
           </div>

@@ -58,12 +58,12 @@ pub fn create_workspace_contents(
     fs::create_dir_all(root_path.join("transactions"))?;
     fs::create_dir_all(root_path.join("documents"))?;
     fs::create_dir_all(root_path.join("imports"))?;
-    fs::create_dir_all(root_path.join(".ledgerly").join("cache"))?;
+    fs::create_dir_all(root_path.join(".diurnum").join("cache"))?;
 
     write_text(root_path.join("transactions").join(".gitkeep"), "")?;
     write_text(root_path.join("documents").join(".gitkeep"), "")?;
     write_text(root_path.join("imports").join(".gitkeep"), "")?;
-    write_text(root_path.join(".ledgerly").join("cache").join(".gitkeep"), "")?;
+    write_text(root_path.join(".diurnum").join("cache").join(".gitkeep"), "")?;
 
     write_text(
         root_path.join("main.bean"),
@@ -92,12 +92,12 @@ pub fn create_workspace_contents(
         updated_at: now,
     };
     write_text(
-        root_path.join(".ledgerly").join("workspace.json"),
+        root_path.join(".diurnum").join("workspace.json"),
         &serde_json::to_string_pretty(&manifest).map_err(|error| WorkspaceError::io(error.to_string()))?,
     )?;
 
     initialize_sqlite(
-        &root_path.join(".ledgerly").join("ledgerly.sqlite"),
+        &root_path.join(".diurnum").join("diurnum.sqlite"),
         business_name,
         base_currency,
         books_start_date,
@@ -205,12 +205,12 @@ mod tests {
         assert!(root.join("transactions/.gitkeep").exists());
         assert!(root.join("documents/.gitkeep").exists());
         assert!(root.join("imports/.gitkeep").exists());
-        assert!(root.join(".ledgerly/cache/.gitkeep").exists());
-        assert!(root.join(".ledgerly/workspace.json").exists());
-        assert!(root.join(".ledgerly/ledgerly.sqlite").exists());
+        assert!(root.join(".diurnum/cache/.gitkeep").exists());
+        assert!(root.join(".diurnum/workspace.json").exists());
+        assert!(root.join(".diurnum/diurnum.sqlite").exists());
 
         let manifest: WorkspaceManifest = serde_json::from_str(
-            &fs::read_to_string(root.join(".ledgerly/workspace.json")).unwrap(),
+            &fs::read_to_string(root.join(".diurnum/workspace.json")).unwrap(),
         )
         .unwrap();
         assert!(manifest.app_created);
@@ -218,7 +218,7 @@ mod tests {
         assert_eq!(manifest.business.base_currency, "USD");
         assert_eq!(manifest.business.books_start_date, "2026-01-01");
 
-        let connection = Connection::open(root.join(".ledgerly/ledgerly.sqlite")).unwrap();
+        let connection = Connection::open(root.join(".diurnum/diurnum.sqlite")).unwrap();
         let business_name: String = connection
             .query_row(
                 "select value from workspace_metadata where key = 'business_name'",

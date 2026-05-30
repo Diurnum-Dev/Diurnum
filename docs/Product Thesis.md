@@ -1,10 +1,11 @@
 ---
 type: Note
-belongs_to: "[[Ledgerly]]"
+belongs_to: "[[Diurnum]]"
 ---
-# Ledgerly Product Thesis
 
-I was thinking about designing an accounting app that would use Beancount format under the hood, and AI layered on top - something like a “second brain” for your financial reporting. Beancount would give accountants and bookkeepers a text-based double entry file format that’s easy to understand, and the AI would bring in new transactions and auto-balance and categorize them, then create reports, interactive queries, and proactive suggestions. We could wrap it all in a nice os-native interface or a web app. How would you go about designing an app like that. Do you think there would be any interest in something like this? People love to complain about QuickBooks, but I wonder if it would be compelling enough to switch. 
+# Diurnum Product Thesis
+
+I was thinking about designing an accounting app that would use Beancount format under the hood, and AI layered on top - something like a “second brain” for your financial reporting. Beancount would give accountants and bookkeepers a text-based double entry file format that’s easy to understand, and the AI would bring in new transactions and auto-balance and categorize them, then create reports, interactive queries, and proactive suggestions. We could wrap it all in a nice os-native interface or a web app. How would you go about designing an app like that. Do you think there would be any interest in something like this? People love to complain about QuickBooks, but I wonder if it would be compelling enough to switch.
 
 Yes, I think there **could be real interest**, but probably not as a direct “QuickBooks replacement for everyone” at first. The strongest wedge is: **accounting for people who hate black boxes**—bookkeepers, fractional CFOs, technical founders, agencies, consultants, family offices, nonprofits, and power users who want auditability, version control, flexible reporting, and AI assistance without surrendering their ledger to an opaque SaaS database.
 
@@ -70,21 +71,13 @@ This is where a lot of value lives.
 Connect to:
 
 - Bank feeds, via Plaid, Teller, Finicity, MX, or direct CSV import.
-    
 - Credit cards.
-    
 - Stripe, PayPal, Square.
-    
 - Payroll providers.
-    
 - Invoicing systems.
-    
 - Shopify, Amazon, WooCommerce.
-    
 - Expense tools.
-    
 - Manual uploads: CSV, PDF statements, receipts.
-    
 
 Normalize everything into an internal event model before turning it into Beancount:
 
@@ -109,25 +102,15 @@ Then create candidate postings. The AI should not write directly to the ledger. 
 Do not make the AI do everything. Use deterministic rules first:
 
 - Merchant mapping.
-    
 - Bank account mapping.
-    
 - Recurring transaction detection.
-    
 - Transfer matching.
-    
 - Invoice/payment matching.
-    
 - Payroll split templates.
-    
 - Sales tax templates.
-    
 - Owner draw / shareholder distribution templates.
-    
 - Loan amortization templates.
-    
 - Depreciation templates.
-    
 
 Then use AI for ambiguous cases, explanation, cleanup, and suggestions.
 
@@ -177,19 +160,12 @@ For small business owners:
 This is where the “second brain” metaphor becomes compelling:
 
 - “Your Stripe fees are up 38% quarter over quarter.”
-    
 - “You appear to have uncategorized meals expenses that may need receipt documentation.”
-    
 - “Cash runway is 4.2 months at current burn.”
-    
 - “You paid this vendor twice.”
-    
 - “This recurring subscription increased from $49 to $79.”
-    
 - “Sales tax liability appears underfunded.”
-    
 - “Your contractor payments may require 1099 review.”
-    
 
 ### 5. Review, audit, and controls layer
 
@@ -198,42 +174,25 @@ This is probably the most important product area.
 Every AI-generated change should have:
 
 - Confidence score.
-    
 - Explanation.
-    
 - Source documents.
-    
 - Before/after diff.
-    
 - Approval state.
-    
 - Reviewer identity.
-    
 - Timestamp.
-    
 - Ability to revert.
-    
 - Locking after close.
-    
 
 For professional users, add:
 
 - Client review queue.
-    
 - Month-end close workflow.
-    
 - “Prepared by / reviewed by.”
-    
 - Exception reports.
-    
 - Materiality thresholds.
-    
 - Comment threads.
-    
 - Supporting document links.
-    
 - Export package for CPA/tax preparer.
-    
 
 This is how you avoid the perception that it is a toy.
 
@@ -242,19 +201,12 @@ This is how you avoid the perception that it is a toy.
 I would not start with a full QuickBooks clone. Start with a beautiful, focused app around these workflows:
 
 1. **Inbox**: imported transactions needing approval.
-    
 2. **Ledger**: human-readable Beancount with friendly editing.
-    
 3. **Reports**: P&L, balance sheet, cash flow, custom queries.
-    
 4. **Assistant**: chat plus generated reports.
-    
 5. **Close**: reconcile, review, lock period.
-    
 6. **Documents**: receipts, invoices, statements.
-    
 7. **Settings**: chart of accounts, rules, integrations.
-    
 
 For the UI, I would make the raw text ledger available, but not mandatory. Think: “Notion-like accounting app where the underlying database is plain text.”
 
@@ -269,17 +221,11 @@ The killer feature is:
 That gives you a story QuickBooks cannot easily tell:
 
 - You own your books.
-    
 - Every number is traceable.
-    
 - Every change is diffable.
-    
 - Every report can be reproduced.
-    
 - AI is an assistant, not a black box.
-    
 - You can leave any time with a clean Beancount ledger.
-    
 
 That is compelling to the right buyer.
 
@@ -298,17 +244,11 @@ They understand plain text, Git, reproducibility, and dislike opaque SaaS. They 
 A bookkeeper with 20 clients could love a system that gives them:
 
 - Faster transaction review.
-    
 - Consistent categorization.
-    
 - Month-end close dashboard.
-    
 - Custom reporting.
-    
 - Clean export for tax.
-    
 - Fewer QuickBooks quirks.
-    
 
 But they will only switch if migration and client collaboration are excellent.
 
@@ -329,21 +269,13 @@ This is not the biggest revenue market, but it is a great early adopter market. 
 The strongest switching triggers:
 
 - QuickBooks price frustration.
-    
 - Messy books that need cleanup.
-    
 - Need for better custom reporting.
-    
 - Multi-entity or multi-currency pain.
-    
 - Lack of trust in AI-generated numbers.
-    
 - Desire for local-first/private accounting.
-    
 - Developer-friendly workflows.
-    
 - Accountant/bookkeeper wanting repeatable processes across clients.
-    
 
 Recent alternative lists continue to position Xero, Zoho Books, FreshBooks, Wave, NetSuite, and others as common QuickBooks alternatives, which suggests the market is actively looking for replacements—but most competitors are still traditional SaaS accounting apps. ([TaxDome](https://taxdome.com/blog/best-quickbooks-alternatives?utm_source=chatgpt.com "8 best QuickBooks alternatives in 2026 for every business ...")) Your differentiation would need to be sharper than “easier accounting.”
 
@@ -352,25 +284,15 @@ Recent alternative lists continue to position Xero, Zoho Books, FreshBooks, Wave
 The hard parts are real:
 
 - Accountants know QuickBooks.
-    
 - Payroll is hard.
-    
 - Bank feeds are expensive and messy.
-    
 - Sales tax is hard.
-    
 - Invoicing is expected.
-    
 - Migration is scary.
-    
 - AI mistakes create liability.
-    
 - Small businesses do not want to learn accounting syntax.
-    
 - Beancount is powerful but intimidating to nontechnical users.
-    
 - QuickBooks has a huge ecosystem and is adding AI rapidly. ([Reuters](https://www.reuters.com/business/intuit-strikes-100-million-deal-integrate-openai-models-into-financial-tools-2025-11-18/?utm_source=chatgpt.com "Intuit strikes $100 million deal to integrate OpenAI models into financial tools"))
-    
 
 The app should not require users to believe in plain-text accounting. It should give them a great app, with plain text as the superpower underneath.
 
@@ -385,54 +307,31 @@ Build this instead:
 Features:
 
 - Beancount ledger as canonical source.
-    
 - CSV import.
-    
 - Plaid/Teller bank import.
-    
 - Rule-based categorization.
-    
 - AI categorization suggestions.
-    
 - Transaction review inbox.
-    
 - Transfer matching.
-    
 - Receipt/document attachment.
-    
 - Basic reconciliation.
-    
 - P&L, balance sheet, cash flow.
-    
 - Natural language report queries.
-    
 - Version history and diffs.
-    
 - Exportable Beancount at all times.
-    
 - Fava-compatible output, if possible.
-    
 - QuickBooks import path.
-    
 
 The first “wow” demo:
 
 1. Connect bank account.
-    
 2. Import 12 months of transactions.
-    
 3. AI proposes chart of accounts.
-    
 4. AI categorizes transactions.
-    
 5. User reviews exceptions.
-    
 6. App generates clean Beancount.
-    
 7. User asks, “Why did profit drop in Q3?”
-    
 8. App answers with cited ledger entries and a report.
-    
 
 That is enough to test interest.
 
@@ -443,23 +342,14 @@ The moat would not be Beancount alone. Anyone can use it.
 The moat would be:
 
 - Import quality.
-    
 - Accounting-specific AI workflows.
-    
 - Review/audit UX.
-    
 - Templates for real businesses.
-    
 - Accountant trust.
-    
 - Migration tools.
-    
 - Integrations.
-    
 - A growing library of rules and report packs.
-    
 - Great explanations of financial data.
-    
 
 Eventually, anonymized pattern learning could help:
 

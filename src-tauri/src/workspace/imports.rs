@@ -63,7 +63,7 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
         });
     }
 
-    let sqlite_path = root.join(".ledgerly").join("ledgerly.sqlite");
+    let sqlite_path = root.join(".diurnum").join("diurnum.sqlite");
     let connection = Connection::open(sqlite_path)?;
     ensure_import_tables(&connection)?;
     let mapping = match input.mapping {
@@ -143,7 +143,7 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
 }
 
 fn ensure_app_created_workspace(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
-    let manifest_path = root.join(".ledgerly").join("workspace.json");
+    let manifest_path = root.join(".diurnum").join("workspace.json");
     let manifest: WorkspaceManifest = serde_json::from_str(&fs::read_to_string(manifest_path)?)
         .map_err(|_| {
             WorkspaceError::new(
@@ -196,7 +196,7 @@ pub(crate) fn ensure_import_tables(connection: &Connection) -> Result<(), Worksp
           raw_row_json text not null,
           status text not null,
           imported_at text not null,
-          ledgerly_entry_id text,
+          diurnum_entry_id text,
           ledger_entry_file text,
           unique(source_account, import_fingerprint)
         );
@@ -508,8 +508,8 @@ mod tests {
 
         let connection = Connection::open(
             std::path::Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         let row_count: i64 = connection
@@ -597,8 +597,8 @@ mod tests {
 
         let connection = Connection::open(
             std::path::Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         connection
@@ -665,8 +665,8 @@ mod tests {
 
         let connection = Connection::open(
             std::path::Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
         let payment_amount: String = connection
@@ -736,8 +736,8 @@ mod tests {
 
         let connection = Connection::open(
             std::path::Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
 
@@ -807,8 +807,8 @@ mod tests {
 
         let connection = Connection::open(
             std::path::Path::new(&created.root_path)
-                .join(".ledgerly")
-                .join("ledgerly.sqlite"),
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
         )
         .unwrap();
 

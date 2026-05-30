@@ -1,3 +1,3 @@
 fn main() {
-    ledgerly_lib::run();
+    diurnum_lib::run();
 }

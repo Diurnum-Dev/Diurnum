@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Ledgerly",
+  "productName": "Diurnum",
   "version": "0.1.0",
-  "identifier": "com.ledgerly.mvp",
+  "identifier": "com.diurnum.mvp",
   "build": {
     "beforeDevCommand": "vite --host 127.0.0.1",
     "devUrl": "http://127.0.0.1:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Ledgerly",
+        "title": "Diurnum",
         "width": 1180,
         "height": 780,
         "minWidth": 880,

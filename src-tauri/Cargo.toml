@@ -1,12 +1,12 @@
 [package]
-name = "ledgerly"
+name = "diurnum"
 version = "0.1.0"
-description = "Ledgerly local-first accounting workspace"
-authors = ["Ledgerly"]
+description = "Diurnum local-first accounting workspace"
+authors = ["Diurnum"]
 edition = "2021"
 
 [lib]
-name = "ledgerly_lib"
+name = "diurnum_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

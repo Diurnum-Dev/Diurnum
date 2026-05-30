@@ -6,7 +6,7 @@ use std::path::Path;
 
 pub fn open_workspace(path: impl AsRef<Path>) -> Result<WorkspaceSummary, WorkspaceError> {
     let root = path.as_ref();
-    let manifest_path = root.join(".ledgerly").join("workspace.json");
+    let manifest_path = root.join(".diurnum").join("workspace.json");
     if !manifest_path.exists() {
         return Err(WorkspaceError::new(
             WorkspaceErrorCode::MissingManifest,
@@ -143,8 +143,8 @@ mod tests {
     fn rejects_malformed_manifest() {
         let tempdir = tempfile::tempdir().unwrap();
         let root = tempdir.path().join("Bad Workspace");
-        fs::create_dir_all(root.join(".ledgerly")).unwrap();
-        fs::write(root.join(".ledgerly/workspace.json"), "{not-json").unwrap();
+        fs::create_dir_all(root.join(".diurnum")).unwrap();
+        fs::write(root.join(".diurnum/workspace.json"), "{not-json").unwrap();
 
         let error = open_workspace(root).unwrap_err();
         assert_eq!(error.code, WorkspaceErrorCode::NotAppCreatedWorkspace);

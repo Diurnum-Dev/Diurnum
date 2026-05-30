@@ -67,7 +67,7 @@ pub fn add_source_account(
 }
 
 fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
-    let manifest_path = root.join(".ledgerly").join("workspace.json");
+    let manifest_path = root.join(".diurnum").join("workspace.json");
     serde_json::from_str(&fs::read_to_string(manifest_path)?).map_err(|_| {
         WorkspaceError::new(
             WorkspaceErrorCode::NotAppCreatedWorkspace,

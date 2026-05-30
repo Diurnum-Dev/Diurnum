@@ -1,5 +1,5 @@
 /*
- * Ledgerly Design Tokens
+ * Diurnum Design Tokens
  *
  * Source of truth for all design values. Components must reference these
  * tokens via `var(--token-name)` — never hardcoded hex or pixel values.

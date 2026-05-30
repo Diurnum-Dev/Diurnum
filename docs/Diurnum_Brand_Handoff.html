@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diurnum — Brand Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --vellum:       #FBF6EC;
+    --vellum-deep:  #F3EAD7;
+    --vellum-rule:  #C9B99A;
+    --vellum-mid:   #E8DCC8;
+    --ink:          #1C1A17;
+    --ink-mid:      #3D2F1A;
+    --ink-muted:    #5C4A30;
+    --ink-faint:    #7B6A52;
+    --ink-ghost:    #9C8A70;
+    --lapis:        #243B6B;
+    --lapis-light:  #D8E4F0;
+    --lapis-wash:   #E8EFF8;
+    --lapis-text:   #1B3560;
+    --oxblood:      #7B2D26;
+    --oxblood-light:#F0D8D6;
+    --oxblood-wash: #F5E8E7;
+    --oxblood-text: #5C1F1A;
+    --gilt:         #B68A3E;
+    --gilt-light:   #F3EAD7;
+    --font-serif:   'Spectral', Georgia, serif;
+    --font-sans:    'Inter', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background: #EFE6D0;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  /* ── Cover ─────────────────────────────────────────────── */
+  .cover {
+    background: var(--vellum);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 12px;
+    padding: 3.5rem 3.5rem 2.5rem;
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--lapis);
+    border-radius: 12px 12px 0 0;
+  }
+  .cover::after {
+    content: 'DIURNUM';
+    position: absolute;
+    right: -1rem;
+    bottom: 1.5rem;
+    font-family: var(--font-serif);
+    font-size: 11rem;
+    font-weight: 600;
+    color: var(--vellum-mid);
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: -0.04em;
+  }
+  .cover-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 1.25rem;
+    font-family: var(--font-sans);
+  }
+  .cover-title {
+    font-family: var(--font-serif);
+    font-size: 64px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--ink);
+    margin-bottom: 0.35rem;
+    position: relative;
+    z-index: 1;
+  }
+  .cover-sub {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-style: italic;
+    color: var(--ink-muted);
+    margin-bottom: 1.75rem;
+    position: relative;
+    z-index: 1;
+  }
+  .cover-pronounce {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--vellum-deep);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 4px;
+    padding: 4px 12px;
+    color: var(--ink-mid);
+    position: relative;
+    z-index: 1;
+  }
+  .cover-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 0.5px solid var(--vellum-rule);
+    position: relative;
+    z-index: 1;
+  }
+  .cover-meta-item { }
+  .cover-meta-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 3px;
+  }
+  .cover-meta-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .section {
+    background: var(--vellum);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 10px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gilt);
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 0.5px solid var(--vellum-rule);
+    display: block;
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 0.75rem;
+  }
+
+  hr.rule {
+    border: none;
+    border-top: 0.5px solid var(--vellum-mid);
+    margin: 1.5rem 0;
+  }
+
+  /* ── Cards ─────────────────────────────────────────────── */
+  .card {
+    background: var(--vellum-deep);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-top: 1rem;
+  }
+  .card p { font-size: 13px; color: var(--ink-mid); line-height: 1.7; }
+
+  .card-lapis {
+    background: #F0EEF8;
+    border: 0.5px solid #C9B9DD;
+    border-left: 3px solid var(--lapis);
+    border-radius: 0 8px 8px 0;
+  }
+  .card-lapis p { color: var(--lapis-text); }
+
+  .card-ox {
+    background: var(--oxblood-wash);
+    border: 0.5px solid #DDC9B9;
+    border-left: 3px solid var(--oxblood);
+    border-radius: 0 8px 8px 0;
+  }
+  .card-ox p { color: var(--oxblood-text); }
+
+  .card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .card-lapis .card-label { color: var(--lapis); }
+  .card-ox .card-label { color: var(--oxblood); }
+
+  /* ── Blockquote ─────────────────────────────────────────── */
+  .blockquote {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-style: italic;
+    line-height: 1.65;
+    color: var(--lapis);
+    border-left: 2px solid var(--lapis);
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    margin: 1.25rem 0;
+  }
+
+  /* ── Body text ─────────────────────────────────────────── */
+  .body-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--ink-mid);
+    margin-bottom: 1rem;
+  }
+  .body-text:last-child { margin-bottom: 0; }
+
+  /* ── Palette ─────────────────────────────────────────────── */
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 1rem;
+  }
+  .swatch { border-radius: 8px; overflow: hidden; border: 0.5px solid rgba(0,0,0,0.08); }
+  .swatch-color { height: 56px; }
+  .swatch-info { padding: 8px 10px; background: var(--vellum); }
+  .swatch-name { font-size: 12px; font-weight: 500; color: var(--ink); display: block; }
+  .swatch-hex { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); display: block; margin: 1px 0; }
+  .swatch-role { font-size: 10px; color: var(--ink-ghost); display: block; }
+
+  /* ── Pillars ─────────────────────────────────────────────── */
+  .pillars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 1rem;
+  }
+  .pillar-item {
+    background: var(--vellum-deep);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 8px;
+    padding: 1.1rem 1.25rem;
+  }
+  .pillar-num {
+    font-family: var(--font-serif);
+    font-size: 36px;
+    font-weight: 400;
+    color: var(--vellum-rule);
+    line-height: 1;
+    margin-bottom: 0.35rem;
+  }
+  .pillar-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+  .pillar-body {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+
+  /* ── Typography specimens ─────────────────────────────────── */
+  .type-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 0.9rem 0;
+    border-bottom: 0.5px solid var(--vellum-mid);
+  }
+  .type-row:last-child { border-bottom: none; }
+  .type-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .type-sample { flex: 1; }
+  .type-spec {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-ghost);
+    flex-shrink: 0;
+  }
+
+  /* ── Diff ─────────────────────────────────────────────────── */
+  .diff {
+    background: #F8F5EE;
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  .diff-header {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    padding: 7px 14px;
+    background: var(--vellum-deep);
+    border-bottom: 0.5px solid var(--vellum-rule);
+  }
+  .diff-line {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    padding: 2px 14px;
+    line-height: 1.8;
+  }
+  .diff-add { background: var(--lapis-wash); color: var(--lapis-text); }
+  .diff-rem { background: var(--oxblood-wash); color: var(--oxblood-text); }
+  .diff-ctx { color: var(--ink-faint); }
+
+  /* ── Voice ───────────────────────────────────────────────── */
+  .voice-row {
+    display: flex;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 0.5px solid var(--vellum-mid);
+    align-items: flex-start;
+  }
+  .voice-row:last-of-type { border-bottom: none; }
+  .voice-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 4px;
+    margin-top: 3px;
+  }
+  .voice-yes { background: var(--lapis-light); color: var(--lapis-text); border: 0.5px solid #A8C0DD; }
+  .voice-no  { background: var(--oxblood-light); color: var(--oxblood-text); border: 0.5px solid #DDA8A5; }
+  .voice-text {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  /* ── Taglines ─────────────────────────────────────────────── */
+  .tagline-list { list-style: none; }
+  .tagline-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 0.5px solid var(--vellum-mid);
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .tagline-list li:last-child { border-bottom: none; }
+  .tagline-badge {
+    font-family: var(--font-sans);
+    font-style: normal;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gilt);
+    flex-shrink: 0;
+    min-width: 60px;
+  }
+
+  /* ── Not list ─────────────────────────────────────────────── */
+  .not-list { list-style: none; }
+  .not-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.7rem 0;
+    border-bottom: 0.5px solid var(--vellum-mid);
+    font-size: 13px;
+    color: var(--ink-mid);
+    line-height: 1.6;
+  }
+  .not-list li:last-child { border-bottom: none; }
+  .not-x { color: var(--oxblood); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .not-strong { font-weight: 500; color: var(--ink); }
+
+  /* ── Competition table ────────────────────────────────────── */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .comp-table th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    font-weight: 500;
+    padding: 7px 10px;
+    border-bottom: 0.5px solid var(--vellum-rule);
+    background: var(--vellum-deep);
+    font-family: var(--font-sans);
+  }
+  .comp-table td {
+    padding: 9px 10px;
+    border-bottom: 0.5px solid var(--vellum-mid);
+    color: var(--ink-mid);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .row-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  .comp-table .us-col {
+    background: #EEF1F8;
+    color: var(--lapis-text);
+    font-weight: 500;
+  }
+
+  /* ── Handles ─────────────────────────────────────────────── */
+  .handles {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 1rem;
+  }
+  .handle-item {
+    background: var(--vellum-deep);
+    border: 0.5px solid var(--vellum-rule);
+    border-radius: 7px;
+    padding: 0.75rem 1rem;
+  }
+  .handle-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-ghost);
+    margin-bottom: 4px;
+  }
+  .handle-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    margin-bottom: 5px;
+  }
+  .handle-status {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .handle-free  { background: var(--lapis-light); color: var(--lapis-text); }
+  .handle-check { background: var(--vellum-deep); color: var(--ink-faint); border: 0.5px solid var(--vellum-rule); }
+
+  /* ── Two-col grid ─────────────────────────────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  .footer {
+    text-align: center;
+    padding: 2rem 0 0;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-ghost);
+  }
+  .footer-sub {
+    font-family: var(--font-sans);
+    font-style: normal;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-ghost);
+    margin-top: 0.4rem;
+  }
+
+  @media print {
+    body { background: white; padding: 1rem; }
+    .cover::after { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .cover { padding: 2rem 1.5rem; }
+    .cover-title { font-size: 44px; }
+    .cover::after { display: none; }
+    .section { padding: 1.5rem; }
+    .palette { grid-template-columns: repeat(3, 1fr); }
+    .pillars { grid-template-columns: 1fr; }
+    .handles { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- Cover -->
+  <div class="cover">
+    <p class="cover-eyebrow">Brand Handoff &nbsp;·&nbsp; Draft v1 &nbsp;·&nbsp; 2026-05-28</p>
+    <h1 class="cover-title">Diurnum</h1>
+    <p class="cover-sub">The day-book, restored.</p>
+    <span class="cover-pronounce">dy &middot; UR &middot; num</span>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Product type</span>
+        <span class="cover-meta-value">macOS desktop app</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">License</span>
+        <span class="cover-meta-value">GPL v3 &middot; free forever</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Audience</span>
+        <span class="cover-meta-value">Founder-operators</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Direction</span>
+        <span class="cover-meta-value">Scriptorium</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Status</span>
+        <span class="cover-meta-value">Name uncleared &mdash; see §&thinsp;Handles</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Name -->
+  <section class="section">
+    <span class="section-label">The name</span>
+    <p class="body-text"><em style="font-family:var(--font-serif);">Diurnum</em> is a Latin noun meaning <strong>account-book, day-book</strong> &mdash; attested in Juvenal, used in Rome for the running record of daily transactions. Late Latin <em>diurnum</em> became Old French <em>journal</em>; the sense &ldquo;a daily record of transactions&rdquo; is first recorded in 1565.</p>
+    <p class="body-text">The journal entry &mdash; the atom of double-entry bookkeeping &mdash; is, etymologically, a <em style="font-family:var(--font-serif);">diurnum</em> entry. The name is not a metaphor for the product. It <em>is</em> the product, in its oldest form.</p>
+    <div class="card card-lapis">
+      <span class="card-label">On explaining the name</span>
+      <p>Yes, it must be explained. We treat that as a feature &mdash; the explanation is a small, satisfying story that the right user remembers and repeats. A name you grow into wears longer than one you exhaust in a week. This audience reads; they like a name with a reason behind it. The in-group recognition (&ldquo;oh &mdash; <em>journal</em>, of course&rdquo;) is not a tax. It is the point.</p>
+    </div>
+  </section>
+
+  <!-- Positioning -->
+  <section class="section">
+    <span class="section-label">Positioning</span>
+    <blockquote class="blockquote">A record you own, can read, and can prove &mdash; for as long as you keep it.</blockquote>
+    <p class="body-text">For the technical founder-operator who keeps their own books and wants a ledger that will outlive any vendor, Diurnum is a desktop accounting workspace that records everything as portable, double-entry Beancount text.</p>
+    <p class="body-text">Unlike privacy-first <strong>budgeting apps</strong> &mdash; which share the values but stop at expense tracking &mdash; Diurnum keeps the actual books: double-entry, with real financial statements, valid in the Beancount ecosystem. And unlike <strong>cloud accounting SaaS</strong>, nothing is hidden and nothing is captive.</p>
+    <p class="body-text" style="margin-bottom:0;">The category is neither budgeting nor accounting SaaS. It is <strong>the day-book, restored</strong>: auditable, version-controlled, double-entry accounting you own outright.</p>
+    <div class="card card-ox">
+      <span class="card-label">Key positioning shift</span>
+      <p>Local-first, privacy, and &ldquo;you own your files&rdquo; are now table stakes &mdash; the whole category claims them. Lead instead on: double-entry depth, the Beancount <em>standard</em> (not just a readable file), the operator audience, git-native IDE feel, and auditability. These are the claims no competitor can cheaply copy.</p>
+    </div>
+  </section>
+
+  <!-- Pillars -->
+  <section class="section">
+    <span class="section-label">Messaging pillars</span>
+    <div class="pillars">
+      <div class="pillar-item">
+        <div class="pillar-num">1</div>
+        <div class="pillar-title">The day-book, restored</div>
+        <div class="pillar-body">Double-entry accounting in its oldest, most durable form. Real P&amp;L and balance sheet &mdash; not budget bars. Books, not budgets.</div>
+      </div>
+      <div class="pillar-item">
+        <div class="pillar-num">2</div>
+        <div class="pillar-title">Written in your own hand</div>
+        <div class="pillar-body">Plain Beancount text you own outright. Opens in Fava, validates with bean-check, leaves with you to any plain-text tool. Portability with receipts.</div>
+      </div>
+      <div class="pillar-item">
+        <div class="pillar-num">3</div>
+        <div class="pillar-title">Every line, accountable</div>
+        <div class="pillar-body">Each figure traces to the entry &mdash; and the day &mdash; that produced it. AI suggestions are grounded in the ledger and cite their sources. Numbers computed, never invented.</div>
+      </div>
+      <div class="pillar-item">
+        <div class="pillar-num">4</div>
+        <div class="pillar-title">Built to endure</div>
+        <div class="pillar-body">Local-first, private, version-controlled. A record designed to outlast the software that wrote it. Free and open source, forever.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Palette -->
+  <section class="section">
+    <span class="section-label">Colour palette</span>
+    <div class="palette">
+      <div class="swatch">
+        <div class="swatch-color" style="background:#FBF6EC; border-bottom:0.5px solid #C9B99A;"></div>
+        <div class="swatch-info">
+          <span class="swatch-name">Vellum</span>
+          <span class="swatch-hex">#FBF6EC</span>
+          <span class="swatch-role">Ground / surface</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#1C1A17;"></div>
+        <div class="swatch-info">
+          <span class="swatch-name">Iron gall</span>
+          <span class="swatch-hex">#1C1A17</span>
+          <span class="swatch-role">Foreground / ink</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#243B6B;"></div>
+        <div class="swatch-info">
+          <span class="swatch-name">Lapis</span>
+          <span class="swatch-hex">#243B6B</span>
+          <span class="swatch-role">Primary / positive</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#7B2D26;"></div>
+        <div class="swatch-info">
+          <span class="swatch-name">Oxblood</span>
+          <span class="swatch-hex">#7B2D26</span>
+          <span class="swatch-role">Destructive / error</span>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#B68A3E;"></div>
+        <div class="swatch-info">
+          <span class="swatch-name">Gilt</span>
+          <span class="swatch-hex">#B68A3E</span>
+          <span class="swatch-role">Rare highlight only</span>
+        </div>
+      </div>
+    </div>
+    <div class="card card-ox" style="margin-top:1rem;">
+      <span class="card-label">Semantic assignment &mdash; do not deviate</span>
+      <p>Lapis = primary buttons, active nav, &ldquo;approve,&rdquo; diff additions, &ldquo;+&thinsp;New&rdquo; badges. Oxblood = destructive actions, validation errors, diff deletions, &ldquo;Duplicate&rdquo; warnings. Gilt is not a semantic state &mdash; reserve for the rarest of highlights. Verify every text/background pair at WCAG AA before shipping.</p>
+    </div>
+  </section>
+
+  <!-- Typography -->
+  <section class="section">
+    <span class="section-label">Typography</span>
+    <div class="type-row">
+      <span class="type-label">Display</span>
+      <span class="type-sample" style="font-family:var(--font-serif);font-size:28px;font-weight:500;">Diurnum</span>
+      <span class="type-spec">Spectral 500 &middot; wordmark &amp; h1</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Heading</span>
+      <span class="type-sample" style="font-family:var(--font-serif);font-size:19px;font-weight:500;">The day-book, restored.</span>
+      <span class="type-spec">Spectral 500 &middot; h2&ndash;h3</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Italic</span>
+      <span class="type-sample" style="font-family:var(--font-serif);font-size:16px;font-style:italic;">Every entry, in your own hand.</span>
+      <span class="type-spec">Spectral 400i &middot; subheads, pull quotes</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">UI / body</span>
+      <span class="type-sample" style="font-family:var(--font-sans);font-size:14px;">Your books live as open text on your machine.</span>
+      <span class="type-spec">Inter 400 &middot; UI chrome &amp; prose</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Ledger</span>
+      <span class="type-sample" style="font-family:var(--font-mono);font-size:13px;color:var(--ink);">2026-05-08 * "Stripe" "Payout"</span>
+      <span class="type-spec">JetBrains Mono &middot; all .bean surfaces</span>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <p>The visual thesis is the contrast: <strong>serif chrome over a monospace ledger</strong> &mdash; an ancient practice, a modern tool. The serif appears in headings, navigation labels, the wordmark, and marketing copy. Monospace appears exclusively on ledger text, diff surfaces, amounts, metadata, and code. UI chrome uses Inter for legibility at small sizes.</p>
+    </div>
+  </section>
+
+  <!-- Diff treatment -->
+  <section class="section">
+    <span class="section-label">Diff treatment &mdash; a core brand surface</span>
+    <p class="body-text">The diff is the product&rsquo;s soul. Show one on every marketing surface &mdash; landing page, README, social card. A real before/after entry says more than any paragraph about transparency and auditability.</p>
+    <div class="diff">
+      <div class="diff-header">2026-05 &nbsp;&middot;&nbsp; stripe-payout.bean</div>
+      <div class="diff-line diff-ctx">&nbsp; 2026-05-08 * "Stripe" "Payout"</div>
+      <div class="diff-line diff-rem">&minus;&nbsp;&nbsp; Assets:Bank:Checking&nbsp;&nbsp;&nbsp;&nbsp; 1842.17 USD</div>
+      <div class="diff-line diff-add">+&nbsp;&nbsp; Assets:Bank:Checking&nbsp;&nbsp;&nbsp;&nbsp; 1842.17 USD</div>
+      <div class="diff-line diff-add">+&nbsp;&nbsp; Expenses:Fees:Stripe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 57.83 USD</div>
+      <div class="diff-line diff-add">+&nbsp;&nbsp; Income:Sales&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -1900.00 USD</div>
+    </div>
+    <p style="font-size:12px;color:var(--ink-muted);line-height:1.6;">Diff additions: lapis wash background (#E8EFF8) with lapis-text (#1B3560). Deletions: oxblood wash (#F5E8E7) with oxblood-text (#5C1F1A). Context lines: muted ink (#7B6A52). Monospaced throughout.</p>
+  </section>
+
+  <!-- Voice -->
+  <section class="section">
+    <span class="section-label">Voice</span>
+    <div class="voice-row">
+      <span class="voice-badge voice-yes">We say</span>
+      <span class="voice-text">&ldquo;Here is the entry, and the day it was written. Approve it, and the record stands.&rdquo;</span>
+    </div>
+    <div class="voice-row">
+      <span class="voice-badge voice-yes">We say</span>
+      <span class="voice-text">&ldquo;Your books are Beancount text. Open them in Fava. Leave any time.&rdquo;</span>
+    </div>
+    <div class="voice-row">
+      <span class="voice-badge voice-yes">We say</span>
+      <span class="voice-text">&ldquo;AI proposes. You approve. The day-book records the result.&rdquo;</span>
+    </div>
+    <div class="voice-row">
+      <span class="voice-badge voice-no">Never</span>
+      <span class="voice-text">&ldquo;Supercharge your finances with AI-powered bookkeeping! 🚀&rdquo;</span>
+    </div>
+    <div class="voice-row">
+      <span class="voice-badge voice-no">Never</span>
+      <span class="voice-text">&ldquo;Revolutionize your financial future with cutting-edge automation.&rdquo;</span>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <p><strong>Personality:</strong> the learned, composed craftsperson. Precise, literate, calm. Short, measured sentences with a sense of weight and permanence.<br><br>
+      <strong>Guardrail:</strong> We are a scriptorium, not a Renaissance fair. Classical register lives in proportion, ruled lines, ink, and the serif &mdash; not in ornament. One well-placed archival note does the work; never costumed or fussy.</p>
+    </div>
+  </section>
+
+  <!-- Taglines -->
+  <section class="section">
+    <span class="section-label">Taglines</span>
+    <ul class="tagline-list">
+      <li><span class="tagline-badge">Primary</span>Own your books. Let AI help.</li>
+      <li><span class="tagline-badge">Hero</span>The day-book, restored.</li>
+      <li><span class="tagline-badge">Copy</span>Every entry, in your own hand.</li>
+      <li><span class="tagline-badge">Copy</span>Accounting you can read a decade from now.</li>
+      <li><span class="tagline-badge">Foil</span>Double-entry books for people who hate black boxes.</li>
+      <li><span class="tagline-badge">Foil</span>The privacy budgeting apps got the values right. They just stopped at expense tracking.</li>
+    </ul>
+  </section>
+
+  <!-- Competitive frame -->
+  <section class="section">
+    <span class="section-label">Competitive frame</span>
+    <div style="overflow-x:auto;">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Privacy budgeting apps</th>
+            <th>Cloud SaaS (QBO, Xero)</th>
+            <th>Raw Beancount + Fava</th>
+            <th style="background:#E8EDF5;color:var(--lapis-text);">Diurnum</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="row-label">Job</td>
+            <td>Track spending &amp; budgets</td>
+            <td>Full accounting</td>
+            <td>Full accounting, DIY</td>
+            <td class="us-col">Full accounting, kept to last</td>
+          </tr>
+          <tr>
+            <td class="row-label">Data</td>
+            <td>Bespoke local file</td>
+            <td>Vendor database</td>
+            <td>Standard text files</td>
+            <td class="us-col">Beancount standard</td>
+          </tr>
+          <tr>
+            <td class="row-label">Audience</td>
+            <td>Privacy-minded consumers</td>
+            <td>SMBs + accountants</td>
+            <td>Technical tinkerers</td>
+            <td class="us-col">Technical operators</td>
+          </tr>
+          <tr>
+            <td class="row-label">AI</td>
+            <td>Categorize / import</td>
+            <td>Black-box automation</td>
+            <td>None</td>
+            <td class="us-col">Grounded, cited, approved</td>
+          </tr>
+          <tr>
+            <td class="row-label">Trust</td>
+            <td>&ldquo;Local, trust us&rdquo;</td>
+            <td>&ldquo;Trust us&rdquo;</td>
+            <td>&ldquo;Do it yourself&rdquo;</td>
+            <td class="us-col">&ldquo;The record proves itself&rdquo;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- What it is not -->
+  <section class="section">
+    <span class="section-label">What Diurnum is not</span>
+    <ul class="not-list">
+      <li><span class="not-x">✕</span><span><span class="not-strong">Not a budgeting app.</span> It keeps the books; it does not draw spending bars. Different job, different buyer.</span></li>
+      <li><span class="not-x">✕</span><span><span class="not-strong">Not AI-first.</span> The durable value is a trustworthy, local-first, own-it-forever ledger. AI is a capability, not the marque. Never lead with &ldquo;AI.&rdquo;</span></li>
+      <li><span class="not-x">✕</span><span><span class="not-strong">Not a costume.</span> The classical register is restraint and permanence, not pastiche. If a flourish doesn&rsquo;t earn its place, cut it.</span></li>
+      <li><span class="not-x">✕</span><span><span class="not-strong">Not a black box.</span> If a feature can&rsquo;t show its work &mdash; and the day it did the work &mdash; it doesn&rsquo;t ship.</span></li>
+    </ul>
+  </section>
+
+  <!-- Logo direction -->
+  <section class="section">
+    <span class="section-label">Logo direction (to explore)</span>
+    <p class="body-text">Three concepts for the designer to develop. All share the same constraints: restrained, inked, precise. No gloss, no gradient. The feel of letterpress on heavy stock.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:1rem;">
+      <div class="card" style="margin-top:0;text-align:center;padding:1.5rem 1rem;">
+        <div style="font-family:var(--font-serif);font-size:48px;font-weight:600;color:var(--lapis);line-height:1;margin-bottom:0.75rem;border:1.5px solid var(--lapis);width:64px;height:64px;display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;border-radius:4px;">D</div>
+        <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:0.25rem;">Illuminated initial</div>
+        <div style="font-size:11px;color:var(--ink-ghost);line-height:1.5;">Roman capital &ldquo;D&rdquo; with a ruled border &mdash; the manuscript chapter-opener</div>
+      </div>
+      <div class="card" style="margin-top:0;text-align:center;padding:1.5rem 1rem;">
+        <div style="margin:0 auto 0.75rem;width:64px;height:64px;display:flex;flex-direction:column;justify-content:center;gap:4px;">
+          <div style="height:2px;background:var(--lapis);border-radius:1px;"></div>
+          <div style="height:2px;background:var(--lapis);border-radius:1px;opacity:0.6;"></div>
+          <div style="height:2px;background:var(--lapis);border-radius:1px;opacity:0.35;"></div>
+          <div style="height:2px;background:var(--lapis);border-radius:1px;opacity:0.15;"></div>
+        </div>
+        <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:0.25rem;">Ruled ledger lines</div>
+        <div style="font-size:11px;color:var(--ink-ghost);line-height:1.5;">Stacked horizontal rules fading to nothing &mdash; a ledger column, a page</div>
+      </div>
+      <div class="card" style="margin-top:0;text-align:center;padding:1.5rem 1rem;">
+        <div style="font-family:var(--font-serif);font-size:15px;font-weight:500;color:var(--ink);letter-spacing:0.12em;text-transform:uppercase;margin:0 auto 0.75rem;padding-bottom:6px;border-bottom:1.5px solid var(--ink);display:inline-block;line-height:1.8;">DIURNUM</div>
+        <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:0.25rem;">Wordmark with rule</div>
+        <div style="font-size:11px;color:var(--ink-ghost);line-height:1.5;">Spaced Roman capitals over a single bold baseline rule</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Handles -->
+  <section class="section">
+    <span class="section-label">Naming &amp; handles</span>
+    <div class="handles">
+      <div class="handle-item">
+        <div class="handle-label">npm</div>
+        <div class="handle-value">diurnum</div>
+        <span class="handle-status handle-free">Free</span>
+      </div>
+      <div class="handle-item">
+        <div class="handle-label">PyPI</div>
+        <div class="handle-value">diurnum</div>
+        <span class="handle-status handle-free">Free</span>
+      </div>
+      <div class="handle-item">
+        <div class="handle-label">GitHub org</div>
+        <div class="handle-value">diurnum</div>
+        <span class="handle-status handle-free">Free</span>
+      </div>
+      <div class="handle-item">
+        <div class="handle-label">Domain (primary)</div>
+        <div class="handle-value">diurnum.com</div>
+        <span class="handle-status handle-check">Verify at registrar</span>
+      </div>
+      <div class="handle-item">
+        <div class="handle-label">Domain (fallback)</div>
+        <div class="handle-value">diurnum.app</div>
+        <span class="handle-status handle-check">Verify at registrar</span>
+      </div>
+      <div class="handle-item">
+        <div class="handle-label">Trademark</div>
+        <div class="handle-value">Class 9 + 42</div>
+        <span class="handle-status handle-check">Attorney req.</span>
+      </div>
+    </div>
+    <div class="card card-ox" style="margin-top:1rem;">
+      <span class="card-label">Before any spend</span>
+      <p>Run the say-and-spell test with 5+ people &mdash; watch for stumbles on stress (dy-UR-num) and spelling. Then formal USPTO clearance in Class 9 and 42. Lock domain and handles the week the mark clears. The say-and-spell test is this name&rsquo;s weakest point; do it honestly.</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>Diurnum brand handoff &middot; Draft v1 &middot; 2026-05-28</p>
+    <p class="footer-sub">Companion docs: brand brief &middot; differentiation frame &middot; Claude Design prompts</p>
+  </footer>
+
+</main>
+</body>
+</html>
