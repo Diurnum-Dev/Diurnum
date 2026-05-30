@@ -43,6 +43,7 @@ import type {
   WorkspaceSummary,
 } from "./lib/workspace/types";
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
+import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
 import { WorkspaceOverview } from "./features/workspace/WorkspaceOverview";
 import { WorkspaceStart } from "./features/workspace/WorkspaceStart";
@@ -60,13 +61,18 @@ const emptyGitStatus: WorkspaceGitStatus = {
 
 function userFacingError(error: unknown): string {
   if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as { message: unknown }).message);
+    const message = String((error as { message: unknown }).message);
+    if (message.includes("not an App-Created Workspace")) {
+      return "This folder is not a Diurnum workspace.";
+    }
+    return message;
   }
   return "Diurnum could not complete that Workspace action.";
 }
 
 export default function App() {
   const [view, setView] = useState<View>("start");
+  const [createTemplate, setCreateTemplate] = useState<WorkspaceTemplate>(null);
   const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("ledger");
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
@@ -131,6 +137,26 @@ export default function App() {
     }
   }
 
+  function handleCreateBlankWorkspace() {
+    setError(null);
+    setCreateTemplate(null);
+    setView("create");
+  }
+
+  function handleCreateExampleWorkspace() {
+    setError(null);
+    setCreateTemplate("example");
+    setView("create");
+  }
+
+  async function handleWelcomeOpenExistingWorkspace() {
+    setError(null);
+    const path = await pickDirectory();
+    if (path) {
+      await handleOpenWorkspace(path);
+    }
+  }
+
   async function handleOpenRecentWorkspace(path: string) {
     setSwitcherOpen(false);
     await handleOpenWorkspace(path);
@@ -156,6 +182,23 @@ export default function App() {
     if (screen === "git" && !gitStatus.isRepository) return;
     setActiveScreen(screen);
     setSwitcherOpen(false);
+  }
+
+  function handleCloseWorkspace() {
+    setWorkspace(null);
+    setSuggestedEntries([]);
+    setBrokenProvenance([]);
+    setCategorizationRules([]);
+    setRuleOffer(null);
+    setAiAdapterConfig({ command: null });
+    setAiContextDisclosure({ adapterConfigured: false, fieldsSent: [] });
+    setReports(null);
+    setSnapshots([]);
+    setGitStatus(emptyGitStatus);
+    setSwitcherOpen(false);
+    setActiveScreen("ledger");
+    setError(null);
+    setView("start");
   }
 
   async function handleReveal() {
@@ -451,14 +494,11 @@ export default function App() {
     return (
       <main className="main-pane standalone-pane">
         <WorkspaceStart
-          onCreate={() => {
-            setError(null);
-            setView("create");
-          }}
-          onOpen={() => {
-            setError(null);
-            setView("open");
-          }}
+          recentWorkspaces={recentWorkspaces}
+          onCreateBlank={handleCreateBlankWorkspace}
+          onCreateExample={handleCreateExampleWorkspace}
+          onOpenExisting={handleWelcomeOpenExistingWorkspace}
+          onOpenRecentWorkspace={handleOpenRecentWorkspace}
           error={error}
         />
       </main>
@@ -469,6 +509,7 @@ export default function App() {
     return (
       <main className="main-pane standalone-pane">
         <CreateWorkspaceForm
+          initialTemplate={createTemplate}
           onCancel={() => {
             setError(null);
             setView("start");
@@ -514,6 +555,7 @@ export default function App() {
         onOpenRecentWorkspace={handleOpenRecentWorkspace}
         onRemoveRecentWorkspace={handleRemoveRecentWorkspace}
         onOpenExistingWorkspace={handleOpenExistingWorkspace}
+        onCloseWorkspace={handleCloseWorkspace}
       >
         <WorkspaceOverview
           activeScreen={activeScreen}

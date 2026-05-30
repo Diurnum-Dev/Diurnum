@@ -33,6 +33,7 @@ type AppShellProps = {
   onOpenRecentWorkspace: (path: string) => void;
   onRemoveRecentWorkspace: (path: string) => void;
   onOpenExistingWorkspace: () => void;
+  onCloseWorkspace: () => void;
 };
 
 const navItems: Array<{
@@ -75,6 +76,7 @@ export function AppShell({
   onOpenRecentWorkspace,
   onRemoveRecentWorkspace,
   onOpenExistingWorkspace,
+  onCloseWorkspace,
 }: AppShellProps) {
   const visibleNavItems = navItems.filter((item) => !item.gitOnly || gitStatus.isRepository);
 
@@ -170,6 +172,14 @@ export function AppShell({
         </div>
 
         <div className="sidebar-footer">
+          <button
+            className="settings-gear"
+            type="button"
+            aria-label="Close Workspace"
+            onClick={onCloseWorkspace}
+          >
+            <Icon path="M4 4l8 8M12 4l-8 8" />
+          </button>
           <button
             className="settings-gear"
             type="button"
