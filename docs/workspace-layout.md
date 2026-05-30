@@ -18,7 +18,17 @@ Acme Studio/
     ledgerly.sqlite
     cache/
       .gitkeep
+    snapshots/
+      <timestamp>/
+        snapshot.json
+        main.bean
+        accounts.bean
+        opening-balances.bean
+        transactions/
+          YYYY-MM.bean
 ```
+
+Implementation note: the current codebase still stores Diurnum-managed local data under `.diurnum/` while V1 product language targets `.ledgerly/`. Data Integrity snapshots currently live under `.diurnum/snapshots/`, and Workspace `.gitignore` reserves both `.diurnum/snapshots/` and `.ledgerly/snapshots/` so snapshots stay out of git while ledger files, Workspace metadata, and Documents remain committable.
 
 ## Beancount Files
 
@@ -40,6 +50,7 @@ When the Founder-Operator records a known Opening Balance, Diurnum appends a Bea
 - `workspace.json` identifies the folder as an App-Created Workspace.
 - `ledgerly.sqlite` stores local workflow and cache state.
 - `.ledgerly/cache/` is reserved for rebuildable cache files.
+- `.ledgerly/snapshots/` stores timestamped backup copies of `.bean` files for restore and crash recovery. In the current implementation this path is `.diurnum/snapshots/` until the app-directory migration lands.
 
 SQLite does not replace the ledger. It exists so later slices can add staging, source mappings, categorization rules, operation logs, and cache state while keeping the Workspace local-first.
 

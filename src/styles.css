@@ -200,6 +200,54 @@ h2 {
   gap: 10px;
 }
 
+.snapshot-panel {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0 28px;
+  border: 1px solid #c8d5cc;
+  border-radius: 8px;
+  background: #f7fbf8;
+  padding: 16px;
+}
+
+.snapshot-panel p {
+  margin-bottom: 0;
+  color: #41524a;
+  line-height: 1.5;
+}
+
+.snapshot-panel ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snapshot-panel li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #dce4df;
+  padding-top: 10px;
+}
+
+.snapshot-panel li div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.snapshot-panel span,
+.snapshot-panel small {
+  color: #68706a;
+}
+
+.snapshot-panel small {
+  overflow-wrap: anywhere;
+}
+
 .section-heading {
   margin-bottom: 28px;
 }

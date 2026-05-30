@@ -1,5 +1,6 @@
 use crate::workspace::ai_adapter::{suggestion_for_row, AiSuggestion, AiSuggestionRow};
 use crate::workspace::categorization_rules::matching_rule_for_row;
+use crate::workspace::data_integrity::{atomic_append, create_snapshot, SnapshotReason};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::imports::ensure_import_tables;
 use crate::workspace::open::open_workspace;
@@ -7,8 +8,7 @@ use crate::workspace::types::{LedgerStatus, WorkspaceSummary};
 use crate::workspace::validation::validate_workspace;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
@@ -160,6 +160,7 @@ pub fn approve_suggested_entry(
     if let Some(parent) = monthly_path.parent() {
         fs::create_dir_all(parent)?;
     }
+    create_snapshot(root, SnapshotReason::Approval)?;
     ensure_main_includes(root, &monthly_relative_path)?;
     append_approved_entry(
         &monthly_path,
@@ -212,6 +213,7 @@ pub fn approve_transfer_entry(
     if let Some(parent) = monthly_path.parent() {
         fs::create_dir_all(parent)?;
     }
+    create_snapshot(root, SnapshotReason::Approval)?;
     ensure_main_includes(root, &monthly_relative_path)?;
     append_transfer_entry(&monthly_path, &first, &second, &diurnum_entry_id)?;
 
@@ -482,8 +484,7 @@ fn ensure_main_includes(root: &Path, monthly_relative_path: &str) -> Result<(), 
     if main.contains(&include) {
         return Ok(());
     }
-    let mut file = OpenOptions::new().append(true).open(main_path)?;
-    writeln!(file, "{include}").map_err(WorkspaceError::from)
+    atomic_append(main_path, &format!("{include}\n"))
 }
 
 fn append_approved_entry(
@@ -493,13 +494,8 @@ fn append_approved_entry(
     balancing_amount: f64,
     diurnum_entry_id: &str,
 ) -> Result<(), WorkspaceError> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(monthly_path)?;
-    writeln!(
-        file,
-        "\n{} * \"{}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  {}  {} USD\n  {}  {:.2} USD",
+    let entry = format!(
+        "\n{} * \"{}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  {}  {} USD\n  {}  {:.2} USD\n",
         suggested_entry.posted_date,
         suggested_entry.description,
         diurnum_entry_id,
@@ -510,8 +506,8 @@ fn append_approved_entry(
         suggested_entry.source_amount,
         ledger_account,
         balancing_amount
-    )
-    .map_err(WorkspaceError::from)
+    );
+    atomic_append(monthly_path, &entry)
 }
 
 fn append_transfer_entry(
@@ -520,13 +516,8 @@ fn append_transfer_entry(
     second: &SuggestedEntry,
     diurnum_entry_id: &str,
 ) -> Result<(), WorkspaceError> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(monthly_path)?;
-    writeln!(
-        file,
-        "\n{} * \"Transfer: {} / {}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n  {}  {} USD\n  {}  {} USD",
+    let entry = format!(
+        "\n{} * \"Transfer: {} / {}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n  {}  {} USD\n  {}  {} USD\n",
         first.posted_date,
         first.description,
         second.description,
@@ -541,8 +532,8 @@ fn append_transfer_entry(
         first.source_amount,
         second.source_account,
         second.source_amount
-    )
-    .map_err(WorkspaceError::from)
+    );
+    atomic_append(monthly_path, &entry)
 }
 
 fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceError> {
@@ -655,6 +646,7 @@ mod tests {
         create_categorization_rule, CreateCategorizationRuleInput,
     };
     use crate::workspace::create::create_workspace;
+    use crate::workspace::data_integrity::{list_snapshots, SnapshotReason};
     use crate::workspace::imports::{import_statement_rows, CsvImportInput, CsvSourceMappingInput};
     use crate::workspace::source_accounts::{
         add_source_account, AddSourceAccountInput, SourceAccountKind,
@@ -755,6 +747,20 @@ mod tests {
         assert!(get_broken_provenance(&created.root_path)
             .unwrap()
             .is_empty());
+
+        let approval_snapshot = list_snapshots(&created.root_path)
+            .unwrap()
+            .into_iter()
+            .find(|snapshot| snapshot.reason == SnapshotReason::Approval)
+            .expect("Approval should create a Snapshot");
+        assert!(approval_snapshot
+            .affected_files
+            .iter()
+            .any(|file| file == "main.bean"));
+        assert!(approval_snapshot
+            .affected_files
+            .iter()
+            .any(|file| file == "accounts.bean"));
     }
 
     #[test]

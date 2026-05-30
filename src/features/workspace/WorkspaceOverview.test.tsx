@@ -133,6 +133,69 @@ describe("WorkspaceOverview", () => {
     expect(screen.getByText("Ledger valid")).toBeInTheDocument();
   });
 
+  it("shows recent Snapshots and restores the selected Snapshot", async () => {
+    const user = userEvent.setup();
+    const onRestoreSnapshot = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <WorkspaceOverview
+        workspace={workspace}
+        snapshots={[
+          {
+            id: "snapshot-1",
+            createdAt: "2026-05-30T12:00:00Z",
+            reason: "approval",
+            affectedFiles: ["main.bean", "transactions/2026-05.bean"],
+            relativePath: ".diurnum/snapshots/snapshot-1",
+          },
+        ]}
+        onReveal={vi.fn()}
+        onOpenAnother={vi.fn()}
+        onRestoreSnapshot={onRestoreSnapshot}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Recent Snapshots" })).toBeInTheDocument();
+    expect(screen.getByText("Approval Snapshot")).toBeInTheDocument();
+    expect(screen.getByText("main.bean, transactions/2026-05.bean")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+
+    expect(onRestoreSnapshot).toHaveBeenCalledWith("snapshot-1");
+  });
+
+  it("offers Snapshot recovery when the ledger is invalid", () => {
+    render(
+      <WorkspaceOverview
+        workspace={{
+          ...workspace,
+          ledgerStatus: "invalid",
+          ledgerValidation: {
+            status: "invalid",
+            errors: ["main.bean:1 Invalid directive."],
+          },
+        }}
+        snapshots={[
+          {
+            id: "snapshot-1",
+            createdAt: "2026-05-30T12:00:00Z",
+            reason: "daily",
+            affectedFiles: ["main.bean"],
+            relativePath: ".diurnum/snapshots/snapshot-1",
+          },
+        ]}
+        onReveal={vi.fn()}
+        onOpenAnother={vi.fn()}
+        onRestoreSnapshot={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Restore from a recent Snapshot" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Daily Snapshot")).toBeInTheDocument();
+  });
+
   it("loads MVP Reports from the overview", async () => {
     const user = userEvent.setup();
     const onLoadReports = vi.fn().mockResolvedValue(undefined);

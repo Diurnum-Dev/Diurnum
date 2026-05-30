@@ -5,6 +5,7 @@ import type {
   CsvSourceMappingInput,
   BrokenProvenance,
   MvpReports,
+  SnapshotSummary,
   SuggestedEntry,
   WorkspaceSummary,
 } from "../../lib/workspace/types";
@@ -28,9 +29,11 @@ type WorkspaceOverviewProps = {
   aiAdapterConfig?: AiAdapterConfig;
   aiContextDisclosure?: AiContextDisclosure;
   reports?: MvpReports | null;
+  snapshots?: SnapshotSummary[];
   onReveal: () => void;
   onOpenAnother: () => void;
   onValidate?: () => void | Promise<void>;
+  onRestoreSnapshot?: (snapshotId: string) => Promise<void> | void;
   onAddSourceAccount?: (input: {
     kind: SourceAccountKind;
     name: string;
@@ -80,9 +83,11 @@ export function WorkspaceOverview({
   aiAdapterConfig = { command: null },
   aiContextDisclosure = { adapterConfigured: false, fieldsSent: [] },
   reports = null,
+  snapshots = [],
   onReveal,
   onOpenAnother,
   onValidate,
+  onRestoreSnapshot,
   onAddSourceAccount,
   onImportStatementRows,
   onApproveSuggestedEntry,
@@ -136,6 +141,71 @@ export function WorkspaceOverview({
               MVP Reports blocked
             </button>
           </div>
+        </section>
+      ) : null}
+
+      {snapshots.length > 0 ? (
+        <section
+          className="snapshot-panel"
+          role={workspace.ledgerStatus === "invalid" ? "dialog" : undefined}
+          aria-labelledby={
+            workspace.ledgerStatus === "invalid"
+              ? "recovery-snapshots-title"
+              : "snapshots-title"
+          }
+        >
+          <div>
+            <p className="eyebrow">
+              {workspace.ledgerStatus === "invalid" ? "Recovery" : "Snapshots"}
+            </p>
+            <h2
+              id={
+                workspace.ledgerStatus === "invalid"
+                  ? "recovery-snapshots-title"
+                  : "snapshots-title"
+              }
+            >
+              {workspace.ledgerStatus === "invalid"
+                ? "Restore from a recent Snapshot"
+                : "Recent Snapshots"}
+            </h2>
+            <p>
+              Diurnum keeps restorable copies of Workspace ledger files before
+              risky mutations and on the first valid open each day.
+            </p>
+          </div>
+          <ul>
+            {snapshots.map((snapshot) => (
+              <li key={snapshot.id}>
+                <div>
+                  <strong>{formatSnapshotReason(snapshot.reason)}</strong>
+                  <span>{new Date(snapshot.createdAt).toLocaleString()}</span>
+                  <small>{snapshot.affectedFiles.join(", ")}</small>
+                </div>
+                {onRestoreSnapshot ? (
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => onRestoreSnapshot(snapshot.id)}
+                  >
+                    Restore
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : workspace.ledgerStatus === "invalid" ? (
+        <section
+          className="snapshot-panel snapshot-panel--empty"
+          role="dialog"
+          aria-labelledby="recovery-snapshots-title"
+        >
+          <p className="eyebrow">Recovery</p>
+          <h2 id="recovery-snapshots-title">No Snapshots available</h2>
+          <p>
+            Diurnum did not find a restorable Snapshot for this Workspace yet.
+          </p>
         </section>
       ) : null}
 
@@ -252,4 +322,15 @@ function defaultReportEndDate(booksStartDate: string): string {
   if (!year || !month) return booksStartDate;
   const end = new Date(Number(year), Number(month), 0);
   return end.toISOString().slice(0, 10);
+}
+
+function formatSnapshotReason(reason: SnapshotSummary["reason"]): string {
+  switch (reason) {
+    case "approval":
+      return "Approval Snapshot";
+    case "daily":
+      return "Daily Snapshot";
+    case "preRestore":
+      return "Pre-restore Snapshot";
+  }
 }

@@ -1,9 +1,9 @@
+use crate::workspace::data_integrity::atomic_append;
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::open::open_workspace;
 use crate::workspace::types::{WorkspaceManifest, WorkspaceSummary};
 use serde::{Deserialize, Serialize};
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -129,8 +129,7 @@ fn normalized_opening_balance(value: Option<&str>) -> Result<Option<String>, Wor
 }
 
 fn append_line(path: &Path, line: &str) -> Result<(), WorkspaceError> {
-    let mut file = OpenOptions::new().append(true).open(path)?;
-    writeln!(file, "{line}").map_err(WorkspaceError::from)
+    atomic_append(path, &format!("{line}\n"))
 }
 
 #[cfg(test)]

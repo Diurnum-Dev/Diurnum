@@ -1,3 +1,4 @@
+use crate::workspace::data_integrity::{ensure_daily_snapshot, ensure_snapshot_gitignore};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::types::{LedgerStatus, WorkspaceManifest, WorkspaceSummary};
 use crate::workspace::validation::validate_workspace;
@@ -14,8 +15,8 @@ pub fn open_workspace(path: impl AsRef<Path>) -> Result<WorkspaceSummary, Worksp
         ));
     }
 
-    let manifest: WorkspaceManifest =
-        serde_json::from_str(&fs::read_to_string(&manifest_path)?).map_err(|_| {
+    let manifest: WorkspaceManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)
+        .map_err(|_| {
             WorkspaceError::new(
                 WorkspaceErrorCode::NotAppCreatedWorkspace,
                 "Workspace manifest is unreadable.",
@@ -50,6 +51,10 @@ pub fn open_workspace(path: impl AsRef<Path>) -> Result<WorkspaceSummary, Worksp
     }
 
     let validation = validate_workspace(root)?;
+    ensure_snapshot_gitignore(root)?;
+    if validation.status == LedgerStatus::Valid {
+        ensure_daily_snapshot(root)?;
+    }
 
     Ok(WorkspaceSummary {
         root_path: root.to_string_lossy().to_string(),

@@ -8,6 +8,9 @@ use crate::workspace::categorization_rules::{
     self, CategorizationRule, CreateCategorizationRuleInput, UpdateCategorizationRuleInput,
 };
 use crate::workspace::create;
+use crate::workspace::data_integrity::{
+    self, RestoreSnapshotInput, SaveLedgerFileInput, SnapshotSummary,
+};
 use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
@@ -29,6 +32,23 @@ pub fn open_workspace(path: String) -> Result<WorkspaceSummary, WorkspaceError> 
 #[tauri::command]
 pub fn validate_workspace(path: String) -> Result<LedgerValidationSummary, WorkspaceError> {
     validation::validate_workspace(path)
+}
+
+#[tauri::command]
+pub fn list_snapshots(path: String) -> Result<Vec<SnapshotSummary>, WorkspaceError> {
+    data_integrity::list_snapshots(path)
+}
+
+#[tauri::command]
+pub fn restore_snapshot(input: RestoreSnapshotInput) -> Result<WorkspaceSummary, WorkspaceError> {
+    data_integrity::restore_snapshot(input)
+}
+
+#[tauri::command]
+pub fn save_ledger_file(
+    input: SaveLedgerFileInput,
+) -> Result<LedgerValidationSummary, WorkspaceError> {
+    data_integrity::save_ledger_file(input)
 }
 
 #[tauri::command]

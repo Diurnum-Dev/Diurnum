@@ -136,6 +136,27 @@ export type ReportsInput = {
   periodEnd: string;
 };
 
+export type SnapshotReason = "approval" | "daily" | "preRestore";
+
+export type SnapshotSummary = {
+  id: string;
+  createdAt: string;
+  reason: SnapshotReason;
+  affectedFiles: string[];
+  relativePath: string;
+};
+
+export type RestoreSnapshotInput = {
+  workspaceRootPath: string;
+  snapshotId: string;
+};
+
+export type SaveLedgerFileInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+  contents: string;
+};
+
 export type AccountAmount = {
   account: string;
   amount: number;
