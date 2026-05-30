@@ -34,6 +34,8 @@ pub fn run() {
             commands::workspace::list_snapshots,
             commands::workspace::restore_snapshot,
             commands::workspace::save_ledger_file,
+            commands::workspace::inspect_workspace_paths,
+            commands::workspace::get_workspace_git_status,
             commands::workspace::add_source_account,
             commands::workspace::import_statement_rows,
             commands::workspace::get_suggested_entries,

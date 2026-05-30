@@ -14,6 +14,7 @@ use crate::workspace::data_integrity::{
 use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
+use crate::workspace::shell::{self, WorkspaceGitStatus, WorkspacePathStatus};
 use crate::workspace::source_accounts::{self, AddSourceAccountInput};
 use crate::workspace::types::{CreateWorkspaceInput, LedgerValidationSummary, WorkspaceSummary};
 use crate::workspace::validation;
@@ -49,6 +50,18 @@ pub fn save_ledger_file(
     input: SaveLedgerFileInput,
 ) -> Result<LedgerValidationSummary, WorkspaceError> {
     data_integrity::save_ledger_file(input)
+}
+
+#[tauri::command]
+pub fn inspect_workspace_paths(
+    paths: Vec<String>,
+) -> Result<Vec<WorkspacePathStatus>, WorkspaceError> {
+    Ok(shell::inspect_workspace_paths(paths))
+}
+
+#[tauri::command]
+pub fn get_workspace_git_status(path: String) -> Result<WorkspaceGitStatus, WorkspaceError> {
+    shell::get_workspace_git_status(path)
 }
 
 #[tauri::command]

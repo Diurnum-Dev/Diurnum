@@ -30,6 +30,8 @@ Acme Studio/
 
 Implementation note: the current codebase still stores Diurnum-managed local data under `.diurnum/` while V1 product language targets `.ledgerly/`. Data Integrity snapshots currently live under `.diurnum/snapshots/`, and Workspace `.gitignore` reserves both `.diurnum/snapshots/` and `.ledgerly/snapshots/` so snapshots stay out of git while ledger files, Workspace metadata, and Documents remain committable.
 
+The Workspace Switcher recents list is app-level configuration, not Workspace data. The current V1 App Shell stores up to 10 recent Workspaces in browser-local `localStorage`, keyed by absolute Workspace path, and native helpers only inspect whether those folders still exist.
+
 ## Beancount Files
 
 The Beancount files are the accounting source of truth. `main.bean` includes the generated Starter Chart of Accounts in `accounts.bean` and the editable opening balance notes in `opening-balances.bean`.

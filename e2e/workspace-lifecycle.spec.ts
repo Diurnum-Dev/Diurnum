@@ -33,6 +33,16 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async saveLedgerFile() {
         return { status: "valid", errors: [] };
       },
+      async inspectWorkspacePaths(paths: string[]) {
+        return paths.map((path) => ({ path, exists: true }));
+      },
+      async getWorkspaceGitStatus() {
+        return {
+          isRepository: true,
+          branchName: "main",
+          uncommittedChangesCount: 0,
+        };
+      },
       async addSourceAccount() {
         return workspace;
       },
@@ -129,10 +139,28 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await page.getByRole("button", { name: "Create Workspace" }).click();
 
   await expect(page.getByRole("heading", { name: "Acme Studio" })).toBeVisible();
+  await expect(page.getByLabel("Workspace navigation")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ledger", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("button", { name: "Inbox", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Git", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Workspace status")).toContainText("Valid");
+  await expect(page.getByLabel("Workspace status")).toContainText("Git clean - main");
   await expect(page.getByText("USD")).toBeVisible();
   await expect(page.getByText("2026-01-01")).toBeVisible();
-  await expect(page.getByText("main.bean")).toBeVisible();
+  await expect(page.getByLabel("Workspace files").getByText("main.bean")).toBeVisible();
 
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Import Statement Rows" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Acme Studio/ }).click();
+  await expect(page.getByRole("menuitem", { name: /Acme Studio/ })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Open existing..." }).click();
+  await expect(page.getByRole("heading", { name: "Acme Studio" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Ledger", exact: true }).click();
   await page.getByRole("button", { name: "Open Another Workspace" }).click();
   await page.getByRole("button", { name: "Choose" }).click();
   await page.getByRole("button", { name: "Open Workspace" }).click();

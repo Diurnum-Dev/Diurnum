@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "./components/AppShell";
+import {
+  AppShell,
+  type RecentWorkspace,
+  type WorkspaceScreen,
+} from "./components/AppShell";
 import {
   addSourceAccount,
   approveTransferEntry,
@@ -12,7 +16,9 @@ import {
   getBrokenProvenance,
   getMvpReports,
   getSuggestedEntries,
+  getWorkspaceGitStatus,
   importStatementRows,
+  inspectWorkspacePaths,
   listSnapshots,
   listCategorizationRules,
   openWorkspace,
@@ -32,6 +38,7 @@ import type {
   SnapshotSummary,
   SourceAccountKind,
   SuggestedEntry,
+  WorkspaceGitStatus,
   WorkspaceCreateInput,
   WorkspaceSummary,
 } from "./lib/workspace/types";
@@ -41,7 +48,15 @@ import { WorkspaceOverview } from "./features/workspace/WorkspaceOverview";
 import { WorkspaceStart } from "./features/workspace/WorkspaceStart";
 import type { CategorizationRuleOffer } from "./features/workspace/CategorizationRulesPanel";
 
-type View = "start" | "create" | "open" | "overview";
+type View = "start" | "create" | "open" | "workspace";
+
+const RECENT_WORKSPACES_KEY = "diurnum.workspaceRecents.v1";
+
+const emptyGitStatus: WorkspaceGitStatus = {
+  isRepository: false,
+  branchName: null,
+  uncommittedChangesCount: 0,
+};
 
 function userFacingError(error: unknown): string {
   if (typeof error === "object" && error !== null && "message" in error) {
@@ -52,6 +67,8 @@ function userFacingError(error: unknown): string {
 
 export default function App() {
   const [view, setView] = useState<View>("start");
+  const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("ledger");
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [suggestedEntries, setSuggestedEntries] = useState<SuggestedEntry[]>([]);
   const [brokenProvenance, setBrokenProvenance] = useState<BrokenProvenance[]>([]);
@@ -64,6 +81,10 @@ export default function App() {
   });
   const [reports, setReports] = useState<MvpReports | null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
+  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
+    loadRecentWorkspaces,
+  );
+  const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate(input: WorkspaceCreateInput) {
@@ -79,7 +100,10 @@ export default function App() {
       setAiContextDisclosure(await getAiContextDisclosure(created.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(created.rootPath));
-      setView("overview");
+      rememberWorkspace(created);
+      await refreshGitStatus(created.rootPath);
+      setActiveScreen("ledger");
+      setView("workspace");
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -98,10 +122,40 @@ export default function App() {
       setRuleOffer(null);
       setReports(null);
       setSnapshots(await listSnapshots(opened.rootPath));
-      setView("overview");
+      rememberWorkspace(opened);
+      await refreshGitStatus(opened.rootPath);
+      setActiveScreen("ledger");
+      setView("workspace");
     } catch (caught) {
       setError(userFacingError(caught));
     }
+  }
+
+  async function handleOpenRecentWorkspace(path: string) {
+    setSwitcherOpen(false);
+    await handleOpenWorkspace(path);
+  }
+
+  async function handleOpenExistingWorkspace() {
+    setSwitcherOpen(false);
+    const path = await pickDirectory();
+    if (path) {
+      await handleOpenWorkspace(path);
+    }
+  }
+
+  function handleRemoveRecentWorkspace(path: string) {
+    setRecentWorkspaces((current) => {
+      const next = current.filter((workspace) => workspace.path !== path);
+      saveRecentWorkspaces(next);
+      return next;
+    });
+  }
+
+  function handleNavigate(screen: WorkspaceScreen) {
+    if (screen === "git" && !gitStatus.isRepository) return;
+    setActiveScreen(screen);
+    setSwitcherOpen(false);
   }
 
   async function handleReveal() {
@@ -126,6 +180,7 @@ export default function App() {
       });
       setBrokenProvenance(await getBrokenProvenance(workspace.rootPath));
       setSnapshots(await listSnapshots(workspace.rootPath));
+      await refreshGitStatus(workspace.rootPath);
       if (ledgerValidation.status === "invalid") {
         setReports(null);
       }
@@ -152,6 +207,7 @@ export default function App() {
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -177,6 +233,7 @@ export default function App() {
       setAiContextDisclosure(await getAiContextDisclosure(workspace.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(workspace.rootPath));
+      await refreshGitStatus(workspace.rootPath);
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -199,6 +256,7 @@ export default function App() {
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
       const approvedEntry = suggestedEntries.find(
         (entry) => entry.statementRowId === input.statementRowId,
       );
@@ -232,6 +290,7 @@ export default function App() {
       setRuleOffer(null);
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -318,13 +377,38 @@ export default function App() {
       setSnapshots(await listSnapshots(restored.rootPath));
       setReports(null);
       setRuleOffer(null);
+      await refreshGitStatus(restored.rootPath);
     } catch (caught) {
       setError(userFacingError(caught));
     }
   }
 
+  async function refreshGitStatus(path: string) {
+    try {
+      setGitStatus(await getWorkspaceGitStatus(path));
+    } catch {
+      setGitStatus(emptyGitStatus);
+    }
+  }
+
+  function rememberWorkspace(summary: WorkspaceSummary) {
+    setRecentWorkspaces((current) => {
+      const next = [
+        {
+          path: summary.rootPath,
+          displayName: summary.businessName,
+          lastOpenedAt: new Date().toISOString(),
+          exists: true,
+        },
+        ...current.filter((workspace) => workspace.path !== summary.rootPath),
+      ].slice(0, 10);
+      saveRecentWorkspaces(next);
+      return next;
+    });
+  }
+
   useEffect(() => {
-    if (view !== "overview" || !workspace) return;
+    if (view !== "workspace" || !workspace) return;
 
     function revalidateOnFocus() {
       void handleValidateWorkspace();
@@ -334,9 +418,38 @@ export default function App() {
     return () => window.removeEventListener("focus", revalidateOnFocus);
   }, [view, workspace?.rootPath]);
 
-  return (
-    <AppShell>
-      {view === "start" ? (
+  const recentPathsKey = recentWorkspaces.map((workspace) => workspace.path).join("\n");
+  useEffect(() => {
+    if (recentWorkspaces.length === 0) return;
+
+    let cancelled = false;
+    void inspectWorkspacePaths(recentWorkspaces.map((workspace) => workspace.path))
+      .then((statuses) => {
+        if (cancelled) return;
+        const existsByPath = new Map(statuses.map((status) => [status.path, status.exists]));
+        setRecentWorkspaces((current) =>
+          current.map((workspace) => ({
+            ...workspace,
+            exists: existsByPath.get(workspace.path) ?? workspace.exists,
+          })),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recentPathsKey]);
+
+  useEffect(() => {
+    if (!gitStatus.isRepository && activeScreen === "git") {
+      setActiveScreen("ledger");
+    }
+  }, [gitStatus.isRepository, activeScreen]);
+
+  if (view === "start") {
+    return (
+      <main className="main-pane standalone-pane">
         <WorkspaceStart
           onCreate={() => {
             setError(null);
@@ -348,9 +461,13 @@ export default function App() {
           }}
           error={error}
         />
-      ) : null}
+      </main>
+    );
+  }
 
-      {view === "create" ? (
+  if (view === "create") {
+    return (
+      <main className="main-pane standalone-pane">
         <CreateWorkspaceForm
           onCancel={() => {
             setError(null);
@@ -360,9 +477,13 @@ export default function App() {
           onCreate={handleCreate}
           error={error}
         />
-      ) : null}
+      </main>
+    );
+  }
 
-      {view === "open" ? (
+  if (view === "open") {
+    return (
+      <main className="main-pane standalone-pane">
         <OpenWorkspaceForm
           onCancel={() => {
             setError(null);
@@ -372,10 +493,30 @@ export default function App() {
           onOpen={handleOpenWorkspace}
           error={error}
         />
-      ) : null}
+      </main>
+    );
+  }
 
-      {view === "overview" && workspace ? (
+  if (view === "workspace" && workspace) {
+    return (
+      <AppShell
+        workspaceName={workspace.businessName}
+        activeScreen={activeScreen}
+        pendingInboxCount={suggestedEntries.length}
+        recentWorkspaces={recentWorkspaces}
+        gitStatus={gitStatus}
+        ledgerStatus={workspace.ledgerStatus}
+        ledgerErrorCount={workspace.ledgerValidation.errors.length}
+        statusContext={statusContextFor(activeScreen)}
+        switcherOpen={switcherOpen}
+        onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
+        onNavigate={handleNavigate}
+        onOpenRecentWorkspace={handleOpenRecentWorkspace}
+        onRemoveRecentWorkspace={handleRemoveRecentWorkspace}
+        onOpenExistingWorkspace={handleOpenExistingWorkspace}
+      >
         <WorkspaceOverview
+          activeScreen={activeScreen}
           workspace={workspace}
           suggestedEntries={suggestedEntries}
           brokenProvenance={brokenProvenance}
@@ -403,7 +544,54 @@ export default function App() {
           }}
           error={error}
         />
-      ) : null}
-    </AppShell>
+      </AppShell>
+    );
+  }
+
+  return null;
+}
+
+function loadRecentWorkspaces(): RecentWorkspace[] {
+  try {
+    const raw = window.localStorage.getItem(RECENT_WORKSPACES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RecentWorkspace[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (workspace) =>
+          typeof workspace.path === "string" &&
+          typeof workspace.displayName === "string" &&
+          typeof workspace.lastOpenedAt === "string",
+      )
+      .slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentWorkspaces(workspaces: RecentWorkspace[]) {
+  window.localStorage.setItem(
+    RECENT_WORKSPACES_KEY,
+    JSON.stringify(workspaces.slice(0, 10)),
   );
+}
+
+function statusContextFor(screen: WorkspaceScreen): string {
+  switch (screen) {
+    case "ledger":
+      return "main.bean";
+    case "inbox":
+      return "Inbox";
+    case "reports":
+      return "Reports";
+    case "documents":
+      return "Documents";
+    case "import":
+      return "Import";
+    case "git":
+      return "Git";
+    case "settings":
+      return "Settings";
+  }
 }

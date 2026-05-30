@@ -9,7 +9,8 @@ flowchart TB
   User[Founder-Operator]
 
   subgraph App[Diurnum local desktop app]
-    UI[React workspace UI]
+    UI[React App Shell and workspace UI]
+    AppConfig[App-level recents config]
     Bridge[Tauri command bridge]
     Core[Rust workspace core]
   end
@@ -27,6 +28,7 @@ flowchart TB
   end
 
   User --> UI
+  UI --> AppConfig
   UI --> Bridge
   Bridge --> Core
   Core --> Ledger
@@ -49,10 +51,13 @@ sequenceDiagram
   participant State as SQLite staging/state
 
   User->>UI: Create or open workspace
+  UI->>UI: Record recent workspace by absolute path
   UI->>Core: Workspace command
   Core->>Ledger: Create/read readable ledger files
   Core->>State: Initialize/read Diurnum state
   Core-->>UI: Workspace summary and validation status
+  UI->>Core: Inspect recent paths and git status
+  Core-->>UI: Missing-path, branch, and dirty-state signals
 
   User->>UI: Add source accounts and import CSV rows
   UI->>Core: Source account / import commands
@@ -93,7 +98,12 @@ flowchart LR
     Adapter[ai_adapter_config]
   end
 
+  subgraph AppConfig[Browser-local app config]
+    Recents[Recent workspace list]
+  end
+
   subgraph Features[Features]
+    Shell[App Shell navigation]
     Validation[Ledger validation]
     Approval[Approval and transfer matching]
     Provenance[Broken provenance check]
@@ -110,6 +120,9 @@ flowchart LR
   LedgerFiles --> Reports
   SQLite --> Approval
   SQLite --> Provenance
+  Recents --> Shell
+  Shell --> Validation
+  Shell --> Reports
   Atomic --> LedgerFiles
   LedgerFiles --> Snapshots
   Snapshots --> Recovery
@@ -142,22 +155,26 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 
 | Area                 | Primary files                                                                                                                                                                | Responsibility                                                                                                                                                                                                 |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, workspace route/state orchestration, and shared layout.                                                                                                                                       |
-| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Workspace create/open screens, invalid-ledger messaging, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
+| React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, two-column Workspace shell, active screen state, Workspace Switcher recents, conditional Git nav, and shared status bar.                                                                       |
+| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens plus shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
-| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, snapshots, restore, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
+| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
 | Core support         | `src-tauri/src/workspace/beancount.rs`, `paths.rs`, `types.rs`, `errors.rs`                                                                                                  | Beancount rendering/parsing helpers, workspace paths, shared DTOs, and error handling.                                                                                                                         |
 | Golden path test     | `src-tauri/src/workspace/golden_path_validation.rs`                                                                                                                          | End-to-end native workflow coverage from workspace creation through CSV import, approval, transfer approval, validation, provenance checks, invalid-ledger blocking, and MVP reports.                          |
 | Local agent workflow | `.agents/skills/work-ready-issues/SKILL.md`                                                                                                                                  | Sequential ready-for-agent issue selection, branch work, review, PR, merge, and continuation workflow.                                                                                                         |
 
 ## Runtime Boundaries
 
-- React owns presentation state, forms, error rendering, and Workspace overview screens.
+- React owns presentation state, forms, error rendering, the V1 App Shell, active Workspace screen selection, and shell-hosted Workspace panels.
 - `src/lib/workspace/api.ts` is the frontend boundary to native Workspace commands.
 - Tauri commands translate frontend calls into Rust domain operations.
-- `src-tauri/src/workspace/` owns Workspace filesystem layout, manifest handling, Beancount rendering, SQLite initialization, path validation, atomic `.bean` writes, backup snapshots, snapshot restore, Source Account ledger writes, CSV import staging, Source Mapping persistence, approval, AI adapter invocation, categorization rules, transfer matching, broken-provenance checks, MVP reporting, and structural ledger validation with file-aware error messages.
+- `src-tauri/src/workspace/` owns Workspace filesystem layout, manifest handling, Beancount rendering, SQLite initialization, path validation, App Shell path/git inspection, atomic `.bean` writes, backup snapshots, snapshot restore, Source Account ledger writes, CSV import staging, Source Mapping persistence, approval, AI adapter invocation, categorization rules, transfer matching, broken-provenance checks, MVP reporting, and structural ledger validation with file-aware error messages.
 - The Workspace folder owns all accounting data needed for this slice. No Diurnum cloud account is required.
+- The App Shell is only mounted after a Workspace opens. Welcome/create/open screens remain outside the two-column shell.
+- The Workspace Switcher stores up to 10 recent Workspaces in browser-local app config via `localStorage`, keyed by absolute Workspace path. Recent records are not written into ledger files or Workspace SQLite state.
+- The App Shell asks native helpers to inspect recent Workspace path existence and current Workspace Git state. Missing recent paths are disabled in the switcher until removed, and the Git nav item appears only when the current Workspace is inside a Git work tree.
+- The shared status bar is scoped to the main pane and combines active screen context, Ledger Validation state, and Git dirty-state context when Git is available.
 - Readable Beancount files are the source of truth for ledger validation and MVP Reports.
 - Diurnum-managed SQLite state stores CSV staging rows, Source Mappings, Categorization Rules, BYO AI Adapter configuration, approval provenance, placeholders, and cache state.
 - The current implementation stores Diurnum-managed local data under `.diurnum/`; V1 product docs target `.ledgerly/`. Until the manifest/storage migration lands, the Data Integrity layer stores snapshots under `.diurnum/snapshots/` and also reserves `.ledgerly/snapshots/` in Workspace `.gitignore` for forward compatibility.

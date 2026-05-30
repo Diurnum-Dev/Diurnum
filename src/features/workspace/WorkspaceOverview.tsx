@@ -9,6 +9,7 @@ import type {
   SuggestedEntry,
   WorkspaceSummary,
 } from "../../lib/workspace/types";
+import type { WorkspaceScreen } from "../../components/AppShell";
 import { AiAdapterPanel } from "./AiAdapterPanel";
 import {
   CategorizationRulesPanel,
@@ -21,6 +22,7 @@ import type { SourceAccountKind } from "../../lib/workspace/types";
 import { SuggestedEntryReview } from "./SuggestedEntryReview";
 
 type WorkspaceOverviewProps = {
+  activeScreen?: WorkspaceScreen;
   workspace: WorkspaceSummary;
   suggestedEntries?: SuggestedEntry[];
   brokenProvenance?: BrokenProvenance[];
@@ -75,6 +77,7 @@ const workspaceFiles = [
 ];
 
 export function WorkspaceOverview({
+  activeScreen = "ledger",
   workspace,
   suggestedEntries = [],
   brokenProvenance = [],
@@ -99,6 +102,16 @@ export function WorkspaceOverview({
   onLoadReports,
   error,
 }: WorkspaceOverviewProps) {
+  const showLedger = activeScreen === "ledger";
+  const showInbox = activeScreen === "inbox";
+  const showReports = activeScreen === "reports";
+  const showDocuments = activeScreen === "documents";
+  const showImport = activeScreen === "import";
+  const showGit = activeScreen === "git";
+  const showSettings = activeScreen === "settings";
+  const showLedgerSafety =
+    showLedger || showInbox || showReports || showImport || showSettings;
+
   return (
     <section className="overview" aria-labelledby="workspace-overview-title">
       <div className="overview-header">
@@ -117,7 +130,7 @@ export function WorkspaceOverview({
         </div>
       ) : null}
 
-      {workspace.ledgerStatus === "invalid" ? (
+      {workspace.ledgerStatus === "invalid" && showLedgerSafety ? (
         <section className="ledger-alert" role="alert" aria-labelledby="ledger-alert-title">
           <div>
             <p className="eyebrow">Invalid Ledger State</p>
@@ -144,7 +157,7 @@ export function WorkspaceOverview({
         </section>
       ) : null}
 
-      {snapshots.length > 0 ? (
+      {snapshots.length > 0 && (showLedger || showSettings) ? (
         <section
           className="snapshot-panel"
           role={workspace.ledgerStatus === "invalid" ? "dialog" : undefined}
@@ -195,7 +208,7 @@ export function WorkspaceOverview({
             ))}
           </ul>
         </section>
-      ) : workspace.ledgerStatus === "invalid" ? (
+      ) : workspace.ledgerStatus === "invalid" && (showLedger || showSettings) ? (
         <section
           className="snapshot-panel snapshot-panel--empty"
           role="dialog"
@@ -209,7 +222,7 @@ export function WorkspaceOverview({
         </section>
       ) : null}
 
-      {brokenProvenance.length > 0 ? (
+      {brokenProvenance.length > 0 && showLedger ? (
         <section
           className="provenance-alert"
           role="status"
@@ -233,39 +246,43 @@ export function WorkspaceOverview({
         </section>
       ) : null}
 
-      <dl className="detail-grid">
-        <div>
-          <dt>Base currency</dt>
-          <dd>{workspace.baseCurrency}</dd>
-        </div>
-        <div>
-          <dt>Books start date</dt>
-          <dd>{workspace.booksStartDate}</dd>
-        </div>
-        <div className="wide">
-          <dt>Workspace path</dt>
-          <dd>{workspace.rootPath}</dd>
-        </div>
-      </dl>
+      {showLedger || showSettings ? (
+        <dl className="detail-grid">
+          <div>
+            <dt>Base currency</dt>
+            <dd>{workspace.baseCurrency}</dd>
+          </div>
+          <div>
+            <dt>Books start date</dt>
+            <dd>{workspace.booksStartDate}</dd>
+          </div>
+          <div className="wide">
+            <dt>Workspace path</dt>
+            <dd>{workspace.rootPath}</dd>
+          </div>
+        </dl>
+      ) : null}
 
-      <section className="file-list" aria-labelledby="workspace-files-title">
-        <h2 id="workspace-files-title">Workspace files</h2>
-        <ul>
-          {workspaceFiles.map((file) => (
-            <li key={file}>{file}</li>
-          ))}
-        </ul>
-      </section>
+      {showLedger ? (
+        <section className="file-list" aria-labelledby="workspace-files-title">
+          <h2 id="workspace-files-title">Workspace files</h2>
+          <ul>
+            {workspaceFiles.map((file) => (
+              <li key={file}>{file}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-      {onAddSourceAccount ? (
+      {showSettings && onAddSourceAccount ? (
         <SourceAccountSetup onAddSourceAccount={onAddSourceAccount} />
       ) : null}
 
-      {onImportStatementRows ? (
+      {showImport && onImportStatementRows ? (
         <CsvImportSetup onImportStatementRows={onImportStatementRows} />
       ) : null}
 
-      {onConfigureAiAdapter ? (
+      {showSettings && onConfigureAiAdapter ? (
         <AiAdapterPanel
           config={aiAdapterConfig}
           disclosure={aiContextDisclosure}
@@ -273,7 +290,7 @@ export function WorkspaceOverview({
         />
       ) : null}
 
-      {onApproveSuggestedEntry ? (
+      {showInbox && onApproveSuggestedEntry ? (
         <SuggestedEntryReview
           suggestedEntries={suggestedEntries}
           ledgerStatus={workspace.ledgerStatus}
@@ -282,15 +299,17 @@ export function WorkspaceOverview({
         />
       ) : null}
 
-      <CategorizationRulesPanel
-        rules={categorizationRules}
-        offer={categorizationRuleOffer}
-        onCreateRule={onCreateCategorizationRule}
-        onUpdateRule={onUpdateCategorizationRule}
-        onDismissOffer={onDismissCategorizationRuleOffer}
-      />
+      {showSettings ? (
+        <CategorizationRulesPanel
+          rules={categorizationRules}
+          offer={categorizationRuleOffer}
+          onCreateRule={onCreateCategorizationRule}
+          onUpdateRule={onUpdateCategorizationRule}
+          onDismissOffer={onDismissCategorizationRuleOffer}
+        />
+      ) : null}
 
-      {onLoadReports ? (
+      {showReports && onLoadReports ? (
         <MvpReportsPanel
           ledgerStatus={workspace.ledgerStatus}
           reports={reports}
@@ -300,19 +319,43 @@ export function WorkspaceOverview({
         />
       ) : null}
 
-      <div className="action-row">
-        <button className="primary-button" type="button" onClick={onReveal}>
-          Reveal Workspace
-        </button>
-        {onValidate ? (
-          <button className="secondary-button" type="button" onClick={onValidate}>
-            Recheck Ledger
+      {showDocuments ? (
+        <section className="file-list" aria-labelledby="documents-title">
+          <h2 id="documents-title">Documents</h2>
+          <ul>
+            <li>Workspace folder: {workspace.rootPath}</li>
+            {workspaceFiles.map((file) => (
+              <li key={file}>{file}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {showGit ? (
+        <section className="file-list" aria-labelledby="git-title">
+          <h2 id="git-title">Git</h2>
+          <ul>
+            <li>Workspace folder: {workspace.rootPath}</li>
+            <li>Ledger files are ready for external Git workflows.</li>
+          </ul>
+        </section>
+      ) : null}
+
+      {showLedger || showSettings ? (
+        <div className="action-row">
+          <button className="primary-button" type="button" onClick={onReveal}>
+            Reveal Workspace
           </button>
-        ) : null}
-        <button className="secondary-button" type="button" onClick={onOpenAnother}>
-          Open Another Workspace
-        </button>
-      </div>
+          {onValidate ? (
+            <button className="secondary-button" type="button" onClick={onValidate}>
+              Recheck Ledger
+            </button>
+          ) : null}
+          <button className="secondary-button" type="button" onClick={onOpenAnother}>
+            Open Another Workspace
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }
