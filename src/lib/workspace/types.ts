@@ -157,6 +157,17 @@ export type SaveLedgerFileInput = {
   contents: string;
 };
 
+export type WorkspacePathStatus = {
+  path: string;
+  exists: boolean;
+};
+
+export type WorkspaceGitStatus = {
+  isRepository: boolean;
+  branchName?: string | null;
+  uncommittedChangesCount: number;
+};
+
 export type AccountAmount = {
   account: string;
   amount: number;

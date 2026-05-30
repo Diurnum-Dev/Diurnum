@@ -22,6 +22,8 @@ import type {
   SuggestedEntry,
   UpdateCategorizationRuleInput,
   WorkspaceCreateInput,
+  WorkspaceGitStatus,
+  WorkspacePathStatus,
   WorkspaceSummary,
 } from "./types";
 
@@ -32,6 +34,8 @@ type WorkspaceApi = {
   listSnapshots: (path: string) => Promise<SnapshotSummary[]>;
   restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceSummary>;
   saveLedgerFile: (input: SaveLedgerFileInput) => Promise<LedgerValidationSummary>;
+  inspectWorkspacePaths: (paths: string[]) => Promise<WorkspacePathStatus[]>;
+  getWorkspaceGitStatus: (path: string) => Promise<WorkspaceGitStatus>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
   importStatementRows: (input: CsvImportInput) => Promise<CsvImportResult>;
   getSuggestedEntries: (path: string) => Promise<SuggestedEntry[]>;
@@ -107,6 +111,24 @@ export async function saveLedgerFile(
     return window.__DIURNUM_TEST_API__.saveLedgerFile(input);
   }
   return invoke<LedgerValidationSummary>("save_ledger_file", { input });
+}
+
+export async function inspectWorkspacePaths(
+  paths: string[],
+): Promise<WorkspacePathStatus[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.inspectWorkspacePaths(paths);
+  }
+  return invoke<WorkspacePathStatus[]>("inspect_workspace_paths", { paths });
+}
+
+export async function getWorkspaceGitStatus(
+  path: string,
+): Promise<WorkspaceGitStatus> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getWorkspaceGitStatus(path);
+  }
+  return invoke<WorkspaceGitStatus>("get_workspace_git_status", { path });
 }
 
 export async function addSourceAccount(

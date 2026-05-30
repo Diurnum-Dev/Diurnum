@@ -202,6 +202,7 @@ describe("WorkspaceOverview", () => {
 
     render(
       <WorkspaceOverview
+        activeScreen="reports"
         workspace={workspace}
         reports={{
           periodStart: "2026-01-01",
@@ -238,5 +239,73 @@ describe("WorkspaceOverview", () => {
       periodEnd: "2026-01-31",
     });
     expect(screen.getByText("Income Statement")).toBeInTheDocument();
+  });
+
+  it("keeps inherited MVP panels reachable from shell screens", () => {
+    render(
+      <WorkspaceOverview
+        activeScreen="settings"
+        workspace={workspace}
+        onReveal={vi.fn()}
+        onOpenAnother={vi.fn()}
+        onAddSourceAccount={vi.fn()}
+        onConfigureAiAdapter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Add Source Account" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Optional local suggestions" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "User-confirmed rules" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Import Statement Rows" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows CSV import only on the Import screen", () => {
+    render(
+      <WorkspaceOverview
+        activeScreen="import"
+        workspace={workspace}
+        onReveal={vi.fn()}
+        onOpenAnother={vi.fn()}
+        onImportStatementRows={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Import Statement Rows" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Workspace files")).not.toBeInTheDocument();
+  });
+
+  it("shows suggested entries only on the Inbox screen", () => {
+    render(
+      <WorkspaceOverview
+        activeScreen="inbox"
+        workspace={workspace}
+        suggestedEntries={[
+          {
+            kind: "standard",
+            statementRowId: "row-1",
+            postedDate: "2026-01-02",
+            description: "Coffee Shop",
+            sourceAccount: "Assets:Bank:Checking",
+            sourceAmount: "-4.50",
+            sourceFileName: "checking.csv",
+            importFingerprint: "fingerprint-1",
+            suggestedLedgerAccount: "Expenses:Meals",
+          },
+        ]}
+        onReveal={vi.fn()}
+        onOpenAnother={vi.fn()}
+        onApproveSuggestedEntry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Review and Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Coffee Shop" })).toBeInTheDocument();
+    expect(screen.queryByText("Workspace files")).not.toBeInTheDocument();
   });
 });
