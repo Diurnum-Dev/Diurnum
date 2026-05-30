@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Ledgerly — New Workspace</title>
+<title>Diurnum — New Workspace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles/tokens.css" />
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens-diurnum.css" />
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -331,6 +331,280 @@
     color: var(--color-text-subtle);
     margin: 0;
   }
+</style>
+
+<style id="diurnum-reskin">
+/* ═══ Diurnum Reskin Patch ═════════════════════════════ */
+
+/* Parchment grain — fixed behind everything */
+body::before {
+  content:""; position:fixed; inset:0;
+  background-image:var(--grain); background-size:180px 180px;
+  opacity:0.35; mix-blend-mode:multiply;
+  pointer-events:none; z-index:0;
+}
+/* Raise all content above grain */
+.app,.page,.shell { position:relative; z-index:1; }
+
+/* ─── Brand mark — Spectral serif D on lapis ─── */
+.brand-mark {
+  font-family:var(--font-serif)!important;
+  font-size:var(--text-xl)!important;
+  font-weight:var(--weight-bold)!important;
+  color:var(--color-bg)!important;
+  width:24px!important; height:24px!important;
+  line-height:1!important;
+}
+.brand-name {
+  font-family:var(--font-serif)!important;
+  letter-spacing:0.01em!important;
+}
+
+/* ─── Page titles → Spectral serif ─── */
+.page-header h1,
+.page-header-left h1,
+.header h1 {
+  font-family:var(--font-serif)!important;
+  letter-spacing:0.005em!important;
+}
+.card-title { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
+.section-title { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
+.section-head h2 { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
+
+/* ─── Nav — inset 2px lapis rule, not filled bg ─── */
+.nav-item {
+  padding:0 var(--space-3)!important;
+  font-weight:var(--weight-medium)!important;
+}
+.nav-item.active {
+  background:var(--color-bg)!important;
+  color:var(--color-accent)!important;
+  font-weight:var(--weight-medium)!important;
+  box-shadow:inset 2px 0 0 var(--color-accent),inset 0 0 0 1px var(--color-border)!important;
+}
+.nav-item.active svg { color:var(--color-accent)!important; }
+
+/* Count badge */
+.count-badge { font-weight:var(--weight-semibold)!important; }
+.nav-item.active .count-badge {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+  border-color:transparent!important;
+}
+
+/* ─── User avatar — iron-gall ink bg ─── */
+.user-avatar {
+  background:var(--color-text)!important;
+  color:var(--color-bg)!important;
+  font-size:var(--text-xs)!important;
+  font-weight:var(--weight-semibold)!important;
+}
+
+/* ─── Hairline borders — warm + slightly stronger at key edges ─── */
+.sidebar { border-right-color:var(--color-border-strong)!important; }
+.statusbar { border-top-color:var(--color-border-strong)!important; }
+
+/* ─── Buttons ─── */
+.btn-primary { color:var(--color-bg)!important; }
+.btn-primary:hover {
+  background:var(--color-accent-hover)!important;
+  border-color:var(--color-accent-hover)!important;
+}
+/* New Workspace btn-primary */
+.btn-primary.standalone:hover,
+button.btn-primary:hover { background:var(--color-accent-hover)!important; border-color:var(--color-accent-hover)!important; }
+
+/* Reject — ghost + oxblood on hover */
+.btn-reject:hover {
+  background:var(--color-destructive-bg)!important;
+  color:var(--color-destructive)!important;
+}
+
+/* ─── Tab bar active underline ─── */
+.tab.active { border-bottom-color:var(--color-accent)!important; }
+
+/* ─── Selected rows — lapis inset rule ─── */
+.tx-row.selected {
+  background:var(--color-accent-bg)!important;
+  box-shadow:inset 2px 0 0 var(--color-accent)!important;
+}
+.commit-row.selected {
+  background:var(--color-bg-subtle)!important;
+  border-left-color:var(--color-accent)!important;
+}
+.commit-row.selected .commit-hash {
+  color:var(--color-accent)!important;
+  font-weight:var(--weight-medium)!important;
+}
+.file-table tbody tr.selected td { background:var(--color-accent-bg)!important; }
+.file-table tbody tr.selected td:first-child { box-shadow:inset 2px 0 0 var(--color-accent)!important; }
+
+/* Tree pane active */
+.tree-item.active {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+  box-shadow:inset 2px 0 0 var(--color-accent)!important;
+}
+.tree-item.active .folder-icon,
+.tree-item.active .file-count { color:var(--color-accent)!important; }
+
+/* Settings subnav active */
+.subnav-item.active {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+  box-shadow:inset 2px 0 0 var(--color-accent)!important;
+}
+.subnav-item.active .dot { background:var(--color-accent)!important; }
+
+/* ─── Transfer chip + duplicate badge — ochre ─── */
+.chip.transfer,
+.badge.dup {
+  background:var(--color-highlight-bg)!important;
+  color:var(--color-highlight-ink)!important;
+}
+
+/* ─── Drop hint banner ─── */
+.drop-hint { border-bottom-color:var(--color-accent)!important; }
+
+/* ─── Git diff — Diurnum lapis/oxblood tokens ─── */
+.diff-line.add { background:var(--diff-add-bg)!important; }
+.diff-line.add .ln,
+.diff-line.add .lnr { background:var(--diff-add-gut)!important; color:var(--diff-add-text)!important; }
+.diff-line.add .marker { color:var(--diff-add-text)!important; }
+.diff-line.del { background:var(--diff-del-bg)!important; }
+.diff-line.del .ln,
+.diff-line.del .lnr { background:var(--diff-del-gut)!important; color:var(--diff-del-text)!important; }
+.diff-line.del .marker { color:var(--diff-del-text)!important; }
+.hunk-head { background:var(--diff-hunk-bg)!important; color:var(--diff-hunk-text)!important; }
+.diff-hash { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
+.diff-stat .add { color:var(--diff-add-text)!important; }
+.diff-stat .del { color:var(--diff-del-text)!important; }
+.diff-stat .bar i.a { background:var(--color-accent-strong)!important; }
+.file-head .mini-stat .add { color:var(--diff-add-text)!important; }
+.file-head .mini-stat .del { color:var(--diff-del-text)!important; }
+.diff-filehead .add { color:var(--diff-add-text)!important; }
+.diff-filehead .del { color:var(--diff-del-text)!important; }
+/* Token highlights in code */
+.code .str { color:var(--color-highlight-ink)!important; }
+.code .flag-pending {
+  background:var(--color-highlight-bg)!important;
+  color:var(--color-highlight-ink)!important;
+}
+.code .flag-approved {
+  background:var(--diff-add-gut)!important;
+  color:var(--diff-add-text)!important;
+}
+/* Commit auto-dot */
+.auto-dot {
+  background:var(--color-accent-strong)!important;
+  box-shadow:0 0 0 3px color-mix(in oklch,var(--color-accent-strong) 22%,transparent)!important;
+}
+/* Commit prefix */
+.commit-prefix { color:var(--color-accent)!important; }
+/* Commit auto badge */
+.commit-tag.auto { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
+
+/* ─── Ledger editor ─── */
+.err-tip { background:var(--color-text)!important; color:var(--color-bg)!important; }
+.err-tip::before { background:var(--color-text)!important; }
+.err-tip code {
+  background:rgba(254,252,248,0.12)!important;
+  color:var(--color-bg)!important;
+  border-color:rgba(254,252,248,0.2)!important;
+}
+
+/* ─── Reports ─── */
+.bar.expense { background:#C4B89A!important; }
+.stat-card.accent {
+  background:var(--color-accent-bg)!important;
+  border-color:transparent!important;
+}
+.stat-card.accent .stat-label { color:var(--color-accent)!important; opacity:0.85!important; }
+.stat-card.accent .stat-value { color:var(--color-accent)!important; }
+.stat-delta.up .delta-num { color:var(--color-accent)!important; }
+.stat-delta.up svg { color:var(--color-accent)!important; }
+.stat-delta.down .delta-num { color:var(--color-destructive)!important; }
+.stat-delta.down svg { color:var(--color-destructive)!important; }
+.stmt .net-row td {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+}
+.legend-swatch.revenue { background:var(--color-accent)!important; }
+.legend-swatch.expense { background:#C4B89A!important; }
+
+/* ─── CSV Import ─── */
+.step.active {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+  font-weight:var(--weight-medium)!important;
+}
+.step.active .step-num {
+  background:var(--color-accent)!important;
+  color:var(--color-bg)!important;
+}
+.step.done .step-num {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+}
+.preview-table td.mapped { background:rgba(36,59,107,0.03)!important; }
+.preview-table tbody td.amt.positive { color:var(--color-accent)!important; }
+.badge.new { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
+.pm-legend .swatch-row { background:var(--color-accent-bg)!important; border-color:var(--color-accent)!important; }
+.bb-left .check { color:var(--color-accent)!important; }
+
+/* ─── Documents ─── */
+.file-icon.csv {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+  border-color:var(--color-accent-bg)!important;
+}
+.file-meta-tag.linked {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+}
+.mono-preview .mono-line.header .mono-text {
+  background:var(--color-accent-bg)!important;
+  color:var(--color-accent)!important;
+}
+
+/* ─── Settings ─── */
+.adapter-row.default { background:var(--color-accent-bg)!important; }
+.default-tag {
+  color:var(--color-accent)!important;
+  border-color:var(--color-accent)!important;
+  background:var(--color-bg)!important;
+}
+.radio.checked { border-color:var(--color-accent)!important; background:var(--color-accent)!important; }
+.status-dot.ok { background:var(--color-accent)!important; }
+.disclosure-icon { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
+.disclosure-foot .never { color:var(--color-destructive)!important; }
+.test-result { color:var(--color-accent)!important; }
+.status-link { color:var(--color-accent)!important; }
+
+/* ─── New Workspace ─── */
+.input:focus, .select:focus {
+  border-color:var(--color-accent)!important;
+  box-shadow:0 0 0 3px rgba(36,59,107,0.12)!important;
+}
+.tpl[aria-pressed="true"] {
+  background:var(--color-accent-bg)!important;
+  border-color:var(--color-accent)!important;
+  box-shadow:inset 0 0 0 1px var(--color-accent)!important;
+}
+.tpl[aria-pressed="true"] .tpl-check {
+  display:grid!important;
+  background:var(--color-accent)!important;
+}
+.tpl[aria-pressed="true"] .tpl-icon { color:var(--color-accent)!important; }
+
+/* ─── Command palette ─── */
+.row.focused {
+  background:var(--color-bg-muted)!important;
+  box-shadow:inset 2px 0 0 var(--color-accent)!important;
+}
+.palette {
+  border-color:var(--color-border-strong)!important;
+}
 </style>
 </head>
 <body>

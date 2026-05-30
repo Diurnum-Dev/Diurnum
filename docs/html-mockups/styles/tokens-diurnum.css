@@ -1,0 +1,179 @@
+/* ============================================================
+   DIURNUM — Design Tokens
+   "Ink on vellum." The scholar's day-book.
+   Source of truth for the design system. Light / parchment only.
+   Same token architecture & semantic names as the stone system —
+   only the values change, so pages reskin without restructuring.
+   ============================================================ */
+
+:root {
+  /* ─────────────────────────────────────────────────────────
+     Surface colors — warm parchment, never clinical white
+     ───────────────────────────────────────────────────────── */
+  --color-bg:                 #FEFCF8;  /* ground / page parchment        */
+  --color-bg-muted:           #FBF6EC;  /* raised: sidebar, chrome, hover  */
+  --color-bg-subtle:          #FCF9F2;  /* between: active block, tab hover */
+
+  /* ─────────────────────────────────────────────────────────
+     Text colors — iron-gall ink + warm grey-browns
+     ───────────────────────────────────────────────────────── */
+  --color-text:               #1C1A17;  /* iron-gall brown-black           */
+  --color-text-muted:         #6B6051;  /* secondary, captions, metadata   */
+  --color-text-subtle:        #938775;  /* tertiary, line numbers, disabled */
+
+  /* ─────────────────────────────────────────────────────────
+     Border colors — hairlines drawn from the ink, warm not cool
+     ───────────────────────────────────────────────────────── */
+  --color-border:             #EDEAE4;  /* default ruled hairline (1px)    */
+  --color-border-strong:      #E0DBD3;  /* stronger rules, emphasis        */
+
+  /* ─────────────────────────────────────────────────────────
+     Primary + positive — lapis / ink-blue
+     (primary buttons, active nav, approve, valid, diff additions,
+      "+ New" badges). Replaces sage entirely.
+     ───────────────────────────────────────────────────────── */
+  --color-accent:             #243B6B;  /* lapis — primary & positive ink  */
+  --color-accent-bg:          #E4E8F1;  /* lapis wash: active nav, hover   */
+  --color-accent-strong:      #2F4E8C;  /* indicator dots, valid emphasis  */
+  --color-accent-hover:       #1C2F56;  /* primary button hover            */
+
+  /* ─────────────────────────────────────────────────────────
+     Destructive / error — oxblood
+     (delete, validation errors, diff deletions, duplicate/warning)
+     ───────────────────────────────────────────────────────── */
+  --color-destructive:        #A03228;  /* oxblood — tilted redder for legibility */
+  --color-destructive-bg:     #F2E0DB;  /* oxblood wash                    */
+  --color-destructive-hover:  #ECCFC8;  /* destructive button hover bg     */
+
+  /* ─────────────────────────────────────────────────────────
+     Highlight — muted ochre / gold. NOT a semantic state.
+     Sparing accents only: auto-detected sparkle, gilt initial,
+     decorative rules. Never body text (fails AA on parchment).
+     ───────────────────────────────────────────────────────── */
+  --color-highlight:          #B68A3E;  /* ochre / gold                    */
+  --color-highlight-bg:       #F2E7CD;  /* faint gilt wash                 */
+  --color-highlight-ink:      #7A5A20;  /* darkened ochre — safe for text  */
+
+  /* ─────────────────────────────────────────────────────────
+     Editor-specific (Ledger Editor only)
+     ───────────────────────────────────────────────────────── */
+  --color-editor-string-bg:   #F1E6C7;  /* warm gilt tint on strings       */
+  --color-editor-active-block:#FFFFFF;  /* tx block under cursor — brightest point, near paper white */
+  --color-editor-ghost-text:  #A89C88;  /* predictive completion ghost     */
+
+  /* ─────────────────────────────────────────────────────────
+     Diff & validation — additions=lapis, deletions=oxblood.
+     Centralized here (previously hardcoded per screen).
+     ───────────────────────────────────────────────────────── */
+  --diff-add-bg:    #E7EBF3;  /* addition line ground (lapis wash)   */
+  --diff-add-gut:   #D6DCEB;  /* addition gutter                     */
+  --diff-add-text:  #243B6B;  /* addition ink (lapis)                */
+  --diff-del-bg:    #F3E2DD;  /* deletion line ground (oxblood wash) */
+  --diff-del-gut:   #EAD0C9;  /* deletion gutter                     */
+  --diff-del-text:  #A03228;  /* deletion ink (oxblood)              */
+  --diff-hunk-bg:   #F3EAD7;  /* hunk header band                    */
+  --diff-hunk-text: #6B6051;  /* hunk header text                    */
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — families
+     Serif chrome over a monospace ledger: an ancient practice,
+     a modern tool.
+     ───────────────────────────────────────────────────────── */
+  --font-serif: "Spectral", Georgia, "Iowan Old Style", "Times New Roman", serif;       /* display & headings */
+  --font-sans:  "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; /* UI chrome & prose */
+  --font-mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;     /* ledger, code, amounts, diffs */
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — scale (size / line-height)
+     Sizes unchanged so pages reskin without reflow; serif headings
+     ride a slightly more open line-height.
+     ───────────────────────────────────────────────────────── */
+  --text-xs:    11px;   --text-xs-lh:    1.45;
+  --text-sm:    12px;   --text-sm-lh:    1.45;
+  --text-base:  13px;   --text-base-lh:  1.55;
+  --text-md:    14px;   --text-md-lh:    1.55;
+  --text-lg:    16px;   --text-lg-lh:    1.5;
+  --text-xl:    20px;   --text-xl-lh:    1.35;
+  --text-2xl:   24px;   --text-2xl-lh:   1.25;
+  --text-3xl:   32px;   --text-3xl-lh:   1.2;
+
+  /* ─────────────────────────────────────────────────────────
+     Typography — weights
+     ───────────────────────────────────────────────────────── */
+  --weight-normal:    400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;  /* serif display only */
+
+  /* Tracking for inscriptional caps labels */
+  --tracking-caps:    0.08em;
+
+  /* ─────────────────────────────────────────────────────────
+     Spacing — 4px base (unchanged from stone)
+     ───────────────────────────────────────────────────────── */
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+
+  /* ─────────────────────────────────────────────────────────
+     Borders & radii — modest, the printed page not the pill
+     ───────────────────────────────────────────────────────── */
+  --border-width:   1px;
+  --radius-sm:      2px;     /* buttons, chips, inputs        */
+  --radius-md:      3px;     /* cards                          */
+  --radius-lg:      4px;     /* modals, panels                 */
+  --radius-pill:    9999px;  /* count badges only — used rarely */
+
+  /* ─────────────────────────────────────────────────────────
+     Shadows — the page lies flat. Elevation is a whisper,
+     warm-toned, reserved for genuinely floating elements.
+     Hairline borders do the separating everywhere else.
+     ───────────────────────────────────────────────────────── */
+  --shadow-none:    none;
+  --shadow-subtle:  0 1px 2px rgba(28,26,23,0.05), 0 2px 8px rgba(28,26,23,0.05);
+  --shadow-modal:   0 2px 6px rgba(28,26,23,0.06), 0 16px 40px rgba(28,26,23,0.14);
+
+  /* ─────────────────────────────────────────────────────────
+     Layout (unchanged from stone)
+     ───────────────────────────────────────────────────────── */
+  --shell-sidebar-width:      200px;
+  --shell-status-bar-height:  28px;
+  --shell-tab-bar-height:     36px;
+  --shell-header-height:      48px;
+  --modal-width-sm:           420px;
+  --modal-width-md:           520px;
+  --modal-width-lg:           640px;
+  --welcome-card-width:       280px;
+  --inspector-width:          380px;
+
+  /* ─────────────────────────────────────────────────────────
+     Motion — calm and unhurried. Slightly slower, softly eased.
+     Nothing bouncy or springy.
+     ───────────────────────────────────────────────────────── */
+  --duration-fast:    140ms;
+  --duration-medium:  260ms;
+  --duration-slow:    420ms;
+  --easing:           cubic-bezier(0.32, 0.08, 0.24, 1);
+
+  /* ─────────────────────────────────────────────────────────
+     Parchment grain — a single tiled noise, very faint.
+     Apply as a fixed overlay; never over text contrast.
+     ───────────────────────────────────────────────────────── */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast:   0ms;
+    --duration-medium: 0ms;
+    --duration-slow:   0ms;
+  }
+}

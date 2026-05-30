@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Diurnum — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens-diurnum.css" />
+<link rel="stylesheet" href="styles/diurnum.css" />
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══════ Sidebar / TOC ═══════════════════════════════ -->
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-brand">
+      <div class="toc-mark">D</div>
+      <div>
+        <div class="toc-brand-name">Diurnum</div>
+        <div class="toc-brand-sub">Design System · v2 · scriptorium</div>
+      </div>
+    </div>
+
+    <div class="toc-group">
+      <a href="#philosophy" class="active">Philosophy</a>
+    </div>
+
+    <div class="toc-group">
+      <div class="toc-group-title">Foundations</div>
+      <a href="#color">Color</a>
+      <a href="#typography">Typography</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#radii">Radii &amp; elevation</a>
+      <a href="#layout">Layout</a>
+      <a href="#motion">Motion</a>
+      <a href="#iconography">Iconography</a>
+    </div>
+
+    <div class="toc-group">
+      <div class="toc-group-title">Components</div>
+      <a href="#button">Button</a>
+      <a href="#input">Input</a>
+      <a href="#choice">Select · Checkbox · Radio</a>
+      <a href="#badge">Badge &amp; chip</a>
+      <a href="#card">Card</a>
+      <a href="#tabs">Tabs</a>
+      <a href="#sidebar-nav">Sidebar nav</a>
+      <a href="#statusbar">Status bar</a>
+      <a href="#modal">Dialog</a>
+      <a href="#cmdk">Command palette</a>
+      <a href="#tooltip">Tooltip</a>
+      <a href="#table">Table</a>
+      <a href="#inspector">Inspector</a>
+      <a href="#diff">Diff &amp; validation</a>
+    </div>
+  </nav>
+
+  <!-- ═══════ Main ════════════════════════════════════════ -->
+  <main>
+
+    <!-- ─── Hero ─────────────────────────────────────────── -->
+    <header class="hero">
+      <p class="eyebrow">Design System · v2</p>
+      <h1>A record that endures.</h1>
+      <p>Diurnum is ink on vellum — the scholar's day-book, not the accountant's office. Serif chrome over a monospace ledger: <em>an ancient practice, a modern tool.</em> The classical register lives in proportion, ruled lines, and the serif — never in ornament.</p>
+      <div class="meta-row">
+        <div class="meta-cell"><span class="meta-label">Version</span><span class="meta-value">2.0.0</span></div>
+        <div class="meta-cell"><span class="meta-label">Tokens</span><span class="meta-value">styles/tokens-diurnum.css</span></div>
+        <div class="meta-cell"><span class="meta-label">Theme</span><span class="meta-value">Parchment (light only)</span></div>
+        <div class="meta-cell"><span class="meta-label">Type</span><span class="meta-value">Spectral · Source Sans · JetBrains Mono</span></div>
+      </div>
+    </header>
+
+    <!-- ─── Philosophy ───────────────────────────────────── -->
+    <section id="philosophy">
+      <h2>Philosophy</h2>
+      <p class="section-intro">Three rules that override every other decision. They carry over from the old system in spirit — the page, the hairline, the room to breathe — but the register is now classical and composed.</p>
+      <div class="rules">
+        <div class="rule">
+          <div class="rule-num">01</div>
+          <div class="rule-title">The printed page, not the floating card.</div>
+          <div class="rule-body">Separate surfaces with ruled hairlines and generous margins. Elevation is a whisper reserved for genuinely floating things — dialogs, popovers, the palette.</div>
+        </div>
+        <div class="rule">
+          <div class="rule-num">02</div>
+          <div class="rule-title">Ink and weight over hue.</div>
+          <div class="rule-body">Most emphasis comes from the serif, from weight, from a faint wash of lapis — not from color. Reach for the palette sparingly and never for decoration.</div>
+        </div>
+        <div class="rule">
+          <div class="rule-num">03</div>
+          <div class="rule-title">Restraint is the flourish.</div>
+          <div class="rule-body">A scriptorium, not a Renaissance fair. If an ornament doesn't earn its place, cut it. Permanence reads as calm, unhurried composition.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Color ────────────────────────────────────────── -->
+    <section id="color">
+      <h2>Color</h2>
+      <p class="section-intro">All values live as CSS variables in <code>tokens-diurnum.css</code>. Components reference semantic tokens; never hardcode hex. Every text/background pair below meets WCAG AA. Ochre is for accents and borders — never body text.</p>
+
+      <h3>Surface — parchment</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#FBF6EC;"></div>
+          <div>
+            <div class="swatch-name">--color-bg</div>
+            <div class="swatch-meta">#FBF6EC</div>
+            <div class="swatch-usage">Ground / page parchment</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F3EAD7;"></div>
+          <div>
+            <div class="swatch-name">--color-bg-muted</div>
+            <div class="swatch-meta">#F3EAD7</div>
+            <div class="swatch-usage">Raised: sidebar, chrome, row hover</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F7EFDF;"></div>
+          <div>
+            <div class="swatch-name">--color-bg-subtle</div>
+            <div class="swatch-meta">#F7EFDF</div>
+            <div class="swatch-usage">Active block, tab hover</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Text — iron-gall ink</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#1C1A17;"></div>
+          <div>
+            <div class="swatch-name">--color-text</div>
+            <div class="swatch-meta">#1C1A17 · 14.8:1</div>
+            <div class="swatch-usage">Default text, brown-black ink</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#6B6051;"></div>
+          <div>
+            <div class="swatch-name">--color-text-muted</div>
+            <div class="swatch-meta">#6B6051 · 5.2:1</div>
+            <div class="swatch-usage">Secondary text, captions, metadata</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#938775;"></div>
+          <div>
+            <div class="swatch-name">--color-text-subtle</div>
+            <div class="swatch-meta">#938775 · 3.1:1</div>
+            <div class="swatch-usage">Tertiary: line numbers, disabled (large only)</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Border — warm hairlines</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#E3D8C2;"></div>
+          <div>
+            <div class="swatch-name">--color-border</div>
+            <div class="swatch-meta">#E3D8C2</div>
+            <div class="swatch-usage">Default ruled hairline (1px)</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#D0C2A6;"></div>
+          <div>
+            <div class="swatch-name">--color-border-strong</div>
+            <div class="swatch-meta">#D0C2A6</div>
+            <div class="swatch-usage">Stronger rules, input borders, emphasis</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Primary &amp; positive — lapis</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#243B6B;"></div>
+          <div>
+            <div class="swatch-name">--color-accent</div>
+            <div class="swatch-meta">#243B6B · 10.3:1 on bg</div>
+            <div class="swatch-usage">Primary buttons, active nav, approve, valid, diff additions</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#E4E8F1;"></div>
+          <div>
+            <div class="swatch-name">--color-accent-bg</div>
+            <div class="swatch-meta">#E4E8F1</div>
+            <div class="swatch-usage">Lapis wash: active nav pill, hover, selected row</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#2F4E8C;"></div>
+          <div>
+            <div class="swatch-name">--color-accent-strong</div>
+            <div class="swatch-meta">#2F4E8C</div>
+            <div class="swatch-usage">Indicator dots, valid emphasis</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#1C2F56;"></div>
+          <div>
+            <div class="swatch-name">--color-accent-hover</div>
+            <div class="swatch-meta">#1C2F56</div>
+            <div class="swatch-usage">Primary button hover</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Destructive — oxblood</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#7B2D26;"></div>
+          <div>
+            <div class="swatch-name">--color-destructive</div>
+            <div class="swatch-meta">#7B2D26 · 8.4:1 on bg</div>
+            <div class="swatch-usage">Delete, errors, diff deletions, duplicate/warning</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F2E0DB;"></div>
+          <div>
+            <div class="swatch-name">--color-destructive-bg</div>
+            <div class="swatch-meta">#F2E0DB</div>
+            <div class="swatch-usage">Error wash, destructive button bg</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Highlight — ochre / gold <span style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:400;color:var(--color-text-muted);text-transform:none;letter-spacing:0;">· rare accent, not a semantic state</span></h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#B68A3E;"></div>
+          <div>
+            <div class="swatch-name">--color-highlight</div>
+            <div class="swatch-meta">#B68A3E</div>
+            <div class="swatch-usage">Auto-detected sparkle, gilt initial, decorative rule</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F2E7CD;"></div>
+          <div>
+            <div class="swatch-name">--color-highlight-bg</div>
+            <div class="swatch-meta">#F2E7CD</div>
+            <div class="swatch-usage">Faint gilt wash, pending-flag bg</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#7A5A20;"></div>
+          <div>
+            <div class="swatch-name">--color-highlight-ink</div>
+            <div class="swatch-meta">#7A5A20 · 5.9:1</div>
+            <div class="swatch-usage">Darkened ochre — the only gold safe for text</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Diff &amp; editor</h3>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#E7EBF3;"></div>
+          <div>
+            <div class="swatch-name">--diff-add-bg</div>
+            <div class="swatch-meta">#E7EBF3</div>
+            <div class="swatch-usage">Addition lines — lapis wash</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F3E2DD;"></div>
+          <div>
+            <div class="swatch-name">--diff-del-bg</div>
+            <div class="swatch-meta">#F3E2DD</div>
+            <div class="swatch-usage">Deletion lines — oxblood wash</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#F1E6C7;"></div>
+          <div>
+            <div class="swatch-name">--color-editor-string-bg</div>
+            <div class="swatch-meta">#F1E6C7</div>
+            <div class="swatch-usage">Warm gilt tint on Beancount strings</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#A89C88;"></div>
+          <div>
+            <div class="swatch-name">--color-editor-ghost-text</div>
+            <div class="swatch-meta">#A89C88</div>
+            <div class="swatch-usage">Predictive completion ghost text</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Typography ───────────────────────────────────── -->
+    <section id="typography">
+      <h2>Typography</h2>
+      <p class="section-intro">The single biggest departure from the stone direction. A humanist old-style <strong>serif</strong> for display and headings; a quiet humanist <strong>sans</strong> for chrome and prose; <strong>monospace</strong> for the ledger, amounts, and diffs — unchanged. Three families, four weights, eight sizes.</p>
+
+      <h3>Families</h3>
+      <table class="spec-table">
+        <thead><tr><th>Token</th><th>Stack</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>--font-serif</code></td>
+            <td><span style="font-family:var(--font-serif);font-size:18px;">Spectral — a record that endures</span></td>
+            <td>Display, headings, dialog titles</td>
+          </tr>
+          <tr>
+            <td><code>--font-sans</code></td>
+            <td><span style="font-family:var(--font-sans);font-size:15px;">Source Sans 3 — quiet UI chrome and prose</span></td>
+            <td>All UI chrome, body, labels</td>
+          </tr>
+          <tr>
+            <td><code>--font-mono</code></td>
+            <td><span style="font-family:var(--font-mono);font-size:13px;">JetBrains Mono — 2026-05-29 · $12,840.55</span></td>
+            <td>Ledger content, amounts, paths, diffs</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Scale</h3>
+      <div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-xs</div><div class="type-size">11px · 1.45</div></div>
+          <div class="type-sample-sans" style="font-size:11px; line-height:1.45;">Tiny meta, badges, count indicators</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-sm</div><div class="type-size">12px · 1.45</div></div>
+          <div class="type-sample-sans" style="font-size:12px; line-height:1.45;">Status bar, captions, table cells</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-base</div><div class="type-size">13px · 1.55</div></div>
+          <div class="type-sample-sans" style="font-size:13px; line-height:1.55;">Default body text, nav items, table content</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-md</div><div class="type-size">14px · 1.55</div></div>
+          <div class="type-sample-sans" style="font-size:14px; line-height:1.55;">Default UI text — buttons, inputs, labels</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-lg</div><div class="type-size">16px · 1.5</div></div>
+          <div class="type-sample-serif" style="font-size:16px; line-height:1.5;">Card titles, prominent labels (serif)</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-xl</div><div class="type-size">20px · 1.35</div></div>
+          <div class="type-sample-serif" style="font-size:20px; line-height:1.35; font-weight:500;">Subsection headers (serif)</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-2xl</div><div class="type-size">24px · 1.25</div></div>
+          <div class="type-sample-serif" style="font-size:24px; line-height:1.25; font-weight:600;">Page titles · Inbox, Reports</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta"><div class="type-token">--text-3xl</div><div class="type-size">32px · 1.2</div></div>
+          <div class="type-sample-mono" style="font-size:32px; line-height:1.2; font-weight:500; letter-spacing:-0.01em;">$12,840.55</div>
+        </div>
+      </div>
+
+      <h3>Weights</h3>
+      <table class="spec-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Sample</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>--weight-normal</code></td><td>400</td><td style="font-weight:400;">The quick brown fox jumps over.</td><td>Body, editor comments</td></tr>
+          <tr><td><code>--weight-medium</code></td><td>500</td><td style="font-weight:500;">The quick brown fox jumps over.</td><td>Amounts, nav items, button labels</td></tr>
+          <tr><td><code>--weight-semibold</code></td><td>600</td><td style="font-weight:600;">The quick brown fox jumps over.</td><td>Labels, page titles, caps</td></tr>
+          <tr><td><code>--weight-bold</code></td><td>700</td><td style="font-family:var(--font-serif); font-weight:700; font-size:16px;">Diurnum — the day-book</td><td>Serif display only (brand, gilt initial)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Special cases</h3>
+      <table class="spec-table">
+        <thead><tr><th>Treatment</th><th>Sample</th><th>Spec</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Inscriptional caps</td>
+            <td><span style="font-size:11px; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.08em;">Recent · Revenue · Accounts</span></td>
+            <td><code>--text-xs</code> · 600 · muted · <code>--tracking-caps</code></td>
+          </tr>
+          <tr>
+            <td>Serif italic (literary)</td>
+            <td><span style="font-family:var(--font-serif); font-style:italic; font-size:18px;">a record that endures</span></td>
+            <td><code>--font-serif</code> · italic · for asides &amp; empty states</td>
+          </tr>
+          <tr>
+            <td>Inline code</td>
+            <td><span class="mono">~/ledger/personal.beancount</span></td>
+            <td><code>--font-mono</code> · <code>--text-sm</code> · muted bg</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ─── Spacing ──────────────────────────────────────── -->
+    <section id="spacing">
+      <h2>Spacing</h2>
+      <p class="section-intro">4px base unit — unchanged, so pages reskin without reflow. The scriptorium feel comes from spending these tokens more generously: wider margins, more air around the ledger.</p>
+      <div class="spacing-list">
+        <div class="spacing-row"><span class="mono">--space-1</span><span class="swatch-meta">4px</span><div class="spacing-bar" style="width:4px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-2</span><span class="swatch-meta">8px</span><div class="spacing-bar" style="width:8px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-3</span><span class="swatch-meta">12px</span><div class="spacing-bar" style="width:12px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-4</span><span class="swatch-meta">16px</span><div class="spacing-bar" style="width:16px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-5</span><span class="swatch-meta">20px</span><div class="spacing-bar" style="width:20px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-6</span><span class="swatch-meta">24px</span><div class="spacing-bar" style="width:24px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-8</span><span class="swatch-meta">32px</span><div class="spacing-bar" style="width:32px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-10</span><span class="swatch-meta">40px</span><div class="spacing-bar" style="width:40px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-12</span><span class="swatch-meta">48px</span><div class="spacing-bar" style="width:48px;"></div></div>
+        <div class="spacing-row"><span class="mono">--space-16</span><span class="swatch-meta">64px</span><div class="spacing-bar" style="width:64px;"></div></div>
+      </div>
+    </section>
+
+    <!-- ─── Radii & elevation ────────────────────────────── -->
+    <section id="radii">
+      <h2>Radii &amp; elevation</h2>
+      <p class="section-intro">One border width: 1px. Radii are modest — the printed page, not the pill. Elevation is nearly gone: warm, soft, and reserved for things that genuinely float. Hairline borders do the separating everywhere else.</p>
+
+      <h3>Border radius</h3>
+      <div class="radii-row">
+        <div class="radii-card">
+          <div class="radii-demo" style="border-radius:2px;"></div>
+          <div class="type-token">--radius-sm</div><div class="type-size">2px · buttons, chips, inputs</div>
+        </div>
+        <div class="radii-card">
+          <div class="radii-demo" style="border-radius:3px;"></div>
+          <div class="type-token">--radius-md</div><div class="type-size">3px · cards</div>
+        </div>
+        <div class="radii-card">
+          <div class="radii-demo" style="border-radius:4px;"></div>
+          <div class="type-token">--radius-lg</div><div class="type-size">4px · dialogs, panels</div>
+        </div>
+        <div class="radii-card">
+          <div class="radii-demo" style="border-radius:9999px; width:64px; height:64px; margin: 0 auto 12px;"></div>
+          <div class="type-token">--radius-pill</div><div class="type-size">9999px · count badges only</div>
+        </div>
+      </div>
+
+      <h3>Elevation</h3>
+      <div class="shadow-row">
+        <div class="shadow-card">
+          <div class="shadow-tile" style="box-shadow:none;"></div>
+          <div class="type-token">--shadow-none</div><div class="type-size">Default · cards, panels, tables</div>
+        </div>
+        <div class="shadow-card">
+          <div class="shadow-tile" style="box-shadow: 0 1px 2px rgba(28,26,23,0.05), 0 2px 8px rgba(28,26,23,0.05);"></div>
+          <div class="type-token">--shadow-subtle</div><div class="type-size">Dropdowns, popovers, tooltips</div>
+        </div>
+        <div class="shadow-card">
+          <div class="shadow-tile" style="box-shadow: 0 2px 6px rgba(28,26,23,0.06), 0 16px 40px rgba(28,26,23,0.14);"></div>
+          <div class="type-token">--shadow-modal</div><div class="type-size">Dialogs, command palette</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Layout ───────────────────────────────────────── -->
+    <section id="layout">
+      <h2>Layout</h2>
+      <p class="section-intro">Fixed widths for app shell regions, dialogs, and inspector panels. Unchanged from the stone system — the architecture holds, only the surface changes.</p>
+      <table class="spec-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>--shell-sidebar-width</code></td><td><span class="mono">200px</span></td><td>App shell sidebar</td></tr>
+          <tr><td><code>--shell-status-bar-height</code></td><td><span class="mono">28px</span></td><td>Bottom status bar</td></tr>
+          <tr><td><code>--shell-tab-bar-height</code></td><td><span class="mono">36px</span></td><td>Editor tab bar</td></tr>
+          <tr><td><code>--shell-header-height</code></td><td><span class="mono">48px</span></td><td>Per-screen header</td></tr>
+          <tr><td><code>--modal-width-sm</code></td><td><span class="mono">420px</span></td><td>Small dialogs</td></tr>
+          <tr><td><code>--modal-width-md</code></td><td><span class="mono">520px</span></td><td>New Workspace form</td></tr>
+          <tr><td><code>--modal-width-lg</code></td><td><span class="mono">640px</span></td><td>Command palette</td></tr>
+          <tr><td><code>--welcome-card-width</code></td><td><span class="mono">280px</span></td><td>Welcome screen cards</td></tr>
+          <tr><td><code>--inspector-width</code></td><td><span class="mono">380px</span></td><td>Inbox right-side inspector</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ─── Motion ───────────────────────────────────────── -->
+    <section id="motion">
+      <h2>Motion</h2>
+      <p class="section-intro">Calm and unhurried — slightly slower than the stone system, softly eased, nothing bouncy or springy. Animate <code>opacity</code>, <code>transform</code>, <code>background-color</code>, <code>border-color</code>, <code>color</code>. Respect <code>prefers-reduced-motion</code>.</p>
+      <table class="spec-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>--duration-fast</code></td><td><span class="mono">140ms</span></td><td>Hover, focus, nav transitions</td></tr>
+          <tr><td><code>--duration-medium</code></td><td><span class="mono">260ms</span></td><td>Most state changes, buttons</td></tr>
+          <tr><td><code>--duration-slow</code></td><td><span class="mono">420ms</span></td><td>Dialog open/close, panels</td></tr>
+          <tr><td><code>--easing</code></td><td><span class="mono">cubic-bezier(0.32, 0.08, 0.24, 1)</span></td><td>Gentle, unhurried — the default for everything</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ─── Iconography ──────────────────────────────────── -->
+    <section id="iconography">
+      <h2>Iconography</h2>
+      <p class="section-intro">Monoline, 1.5px stroke — a touch more classical and engraved, never ornamental. Icons inherit <code>color</code> from their parent text; never colored individually unless they are a state indicator.</p>
+      <div class="icon-row">
+        <div class="icon-cell">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+          <div class="icon-cell-label">20px · sidebar</div>
+        </div>
+        <div class="icon-cell">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+          <div class="icon-cell-label">16px · button</div>
+        </div>
+        <div class="icon-cell">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
+          <div class="icon-cell-label">14px · dense</div>
+        </div>
+        <div class="icon-cell">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+          <div class="icon-cell-label">12px · status</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════ COMPONENTS ════════════════════════════════ -->
+
+    <!-- ─── Button ───────────────────────────────────────── -->
+    <section id="button">
+      <h2>Button</h2>
+      <p class="section-intro">Three sizes (sm 24 / md 32 / lg 40) and four variants. 2px radius, calm 260ms transitions, a 2px lapis focus ring. Primary is lapis ink on parchment; destructive is oxblood.</p>
+
+      <div class="component">
+        <div class="component-stage">
+          <button class="btn btn-md btn-primary">Save changes</button>
+          <button class="btn btn-md btn-secondary">Cancel</button>
+          <button class="btn btn-md btn-ghost">Discard</button>
+          <button class="btn btn-md btn-destructive">Delete workspace</button>
+          <button class="btn btn-md btn-primary btn-disabled" disabled>Disabled</button>
+        </div>
+        <div class="component-meta"><span>Variants</span><span>md · primary · secondary · ghost · destructive · disabled</span></div>
+      </div>
+
+      <div class="component">
+        <div class="component-stage">
+          <button class="btn btn-sm btn-primary">Small</button>
+          <button class="btn btn-md btn-primary">Medium</button>
+          <button class="btn btn-lg btn-primary">Large</button>
+        </div>
+        <div class="component-meta"><span>Sizes</span><span>sm 24px · md 32px · lg 40px</span></div>
+      </div>
+
+      <div class="component">
+        <div class="component-stage">
+          <button class="btn btn-md btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            New transaction
+          </button>
+          <button class="btn btn-md btn-ghost">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5 5 5-5"/><path d="M12 4v12"/></svg>
+            Export
+          </button>
+        </div>
+        <div class="component-meta"><span>Icon + label</span><span>16px icon · --space-2 gap</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Input ────────────────────────────────────────── -->
+    <section id="input">
+      <h2>Input</h2>
+      <p class="section-intro">32px default height, 40px for prominent fields. Warm hairline border that deepens to lapis on focus with a soft accent-bg ring; oxblood ring on invalid.</p>
+
+      <div class="component">
+        <div class="component-stage column">
+          <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+            <div class="field">
+              <label class="field-label">Workspace name</label>
+              <input class="input" placeholder="e.g. Personal finances" />
+              <span class="field-help">Used as the display name in the sidebar.</span>
+            </div>
+            <div class="field">
+              <label class="field-label">File path</label>
+              <input class="input" value="~/ledger/personal.beancount" style="font-family:var(--font-mono); font-size:13px;" />
+            </div>
+          </div>
+          <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+            <div class="field">
+              <label class="field-label">Email</label>
+              <input class="input input-invalid" value="not-an-email" />
+              <span class="field-error">Please enter a valid email address.</span>
+            </div>
+            <div class="field">
+              <label class="field-label">Search</label>
+              <input class="input input-lg" placeholder="Search ledger…" />
+            </div>
+          </div>
+        </div>
+        <div class="component-meta"><span>States</span><span>default · focus · invalid · large (40px)</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Select · Checkbox · Radio ────────────────────── -->
+    <section id="choice">
+      <h2>Select · Checkbox · Radio</h2>
+      <p class="section-intro">All choice controls are 16px and share the same hairline + lapis-fill checked state.</p>
+
+      <div class="component">
+        <div class="component-stage" style="gap:var(--space-8); align-items:flex-start;">
+          <div class="field" style="flex:0 0 240px;">
+            <label class="field-label">Currency</label>
+            <div class="select-wrap">
+              <select class="input select">
+                <option>USD — US Dollar</option>
+                <option>EUR — Euro</option>
+                <option>JPY — Japanese Yen</option>
+              </select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:var(--space-2);">
+            <label class="check-row">
+              <span class="check checked"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              Show comments in editor
+            </label>
+            <label class="check-row">
+              <span class="check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              Auto-balance on save
+            </label>
+            <label class="check-row">
+              <span class="check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+              Predictive completion
+            </label>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:var(--space-2);">
+            <label class="check-row"><span class="radio checked"></span>Single-file ledger</label>
+            <label class="check-row"><span class="radio"></span>Multi-file (one per account)</label>
+            <label class="check-row"><span class="radio"></span>Imported from Beancount</label>
+          </div>
+        </div>
+        <div class="component-meta"><span>Controls</span><span>select · checkbox · radio · 16px · lapis fill</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Badge ────────────────────────────────────────── -->
+    <section id="badge">
+      <h2>Badge &amp; chip</h2>
+      <p class="section-intro">Tiny status pills. 2px radius, xs caps text. Default carries a hairline; accent is lapis, destructive oxblood, and the rare highlight chip is gilt. Round count badges for navigation.</p>
+
+      <div class="component">
+        <div class="component-stage">
+          <span class="badge badge-default">Draft</span>
+          <span class="badge badge-default">Filtered</span>
+          <span class="badge badge-accent"><span class="dot"></span>Paid</span>
+          <span class="badge badge-accent">Approved</span>
+          <span class="badge badge-new">+ New</span>
+          <span class="badge badge-destructive">Overdue</span>
+          <span class="badge badge-destructive">Duplicate</span>
+        </div>
+        <div class="component-meta"><span>Badge variants</span><span>default · accent · new · destructive</span></div>
+      </div>
+
+      <div class="component">
+        <div class="component-stage">
+          <span class="badge badge-highlight">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M12 8l1.5 2.5L16 12l-2.5 1.5L12 16l-1.5-2.5L8 12l2.5-1.5z"/></svg>
+            Auto-detected
+          </span>
+          <span style="font-size:var(--text-sm); color:var(--color-text-muted);">— ochre highlight, used sparingly; never a semantic state</span>
+        </div>
+        <div class="component-meta"><span>Highlight chip</span><span>--color-highlight-bg · gilt border · sparkle</span></div>
+      </div>
+
+      <div class="component">
+        <div class="component-stage">
+          <span class="count-badge">3</span>
+          <span class="count-badge">12</span>
+          <span class="count-badge">99+</span>
+          <span style="display:inline-flex; align-items:center; gap:var(--space-2); font-size:var(--text-base);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Inbox
+            <span class="count-badge">4</span>
+          </span>
+        </div>
+        <div class="component-meta"><span>Count badges</span><span>--radius-pill · 18px · lapis · xs · 600</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Card ─────────────────────────────────────────── -->
+    <section id="card">
+      <h2>Card</h2>
+      <p class="section-intro">Hairline border, 3px radius, 20px padding by default. No shadow — the page lies flat. Titles are set in the serif.</p>
+
+      <div class="component">
+        <div class="component-stage" style="display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-4); flex-wrap:nowrap; align-items:stretch;">
+          <div class="card">
+            <div class="card-caps">Net worth</div>
+            <div class="card-figure">$142,890</div>
+            <div style="margin-top:var(--space-2); font-size:var(--text-sm); color:var(--color-accent);">+$1,240 this month</div>
+          </div>
+          <div class="card">
+            <h4>Personal ledger</h4>
+            <p>Last edited 2 hours ago · 142 transactions</p>
+          </div>
+          <div class="card">
+            <h4>Coffee shop</h4>
+            <p>Single-file · imported from Beancount</p>
+          </div>
+        </div>
+        <div class="component-meta"><span>Card</span><span>--color-bg · 1px border · --radius-md · --space-5</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Tabs ─────────────────────────────────────────── -->
+    <section id="tabs">
+      <h2>Tabs</h2>
+      <p class="section-intro">Editor file tabs and tabbed views. 36px tall, set on the muted band; the active tab lifts to parchment with a 2px lapis underline. X icon revealed on hover or active.</p>
+
+      <div class="component">
+        <div class="tabbar">
+          <div class="tab active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            personal.beancount
+            <span class="tab-close">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
+            </span>
+          </div>
+          <div class="tab">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            assets.beancount
+            <span class="tab-close">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
+            </span>
+          </div>
+          <div class="tab">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            recurring.beancount
+            <span class="tab-close">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="component-meta"><span>Tab bar</span><span>36px · active lifts to bg · 2px lapis underline</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Sidebar nav ──────────────────────────────────── -->
+    <section id="sidebar-nav">
+      <h2>Sidebar nav item</h2>
+      <p class="section-intro">32px tall, 2px radius, 20px icon. The active item lifts to the lighter ground parchment — proud of the deeper sidebar — with a 2px lapis rule on the leading edge, like a ribbon marking the page.</p>
+
+      <div class="component">
+        <div class="component-stage tight" style="padding:0;">
+          <div class="navdemo">
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              Home
+            </div>
+            <div class="nav-item active">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Inbox
+              <span class="grow"></span>
+              <span class="count-badge">4</span>
+            </div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              Ledger
+            </div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+              Reports
+            </div>
+            <div class="navdemo-caps">Recent</div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              February close
+            </div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Q1 review
+            </div>
+          </div>
+        </div>
+        <div class="component-meta"><span>Sidebar nav</span><span>32px · 20px icon · lifted parchment + lapis ribbon</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Status bar ───────────────────────────────────── -->
+    <section id="statusbar">
+      <h2>Status bar</h2>
+      <p class="section-intro">28px strip at the foot of the app. Mono, muted, flex space-between. Validity reads in lapis, errors in oxblood.</p>
+
+      <div class="component">
+        <div class="component-stage tight" style="padding:0;">
+          <div class="statusbar" style="width:100%;">
+            <span class="statusbar-item"><span class="dot"></span>personal.beancount</span>
+            <span class="statusbar-item">main</span>
+            <span class="statusbar-item">142 txns</span>
+            <span class="grow"></span>
+            <span class="statusbar-item valid">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+              balanced
+            </span>
+            <span class="statusbar-item">Ln 248, Col 14</span>
+            <span class="statusbar-item">UTF-8</span>
+          </div>
+        </div>
+        <div class="component-meta"><span>Status bar</span><span>28px · mono sm · muted · --color-bg-muted</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Dialog ───────────────────────────────────────── -->
+    <section id="modal">
+      <h2>Dialog</h2>
+      <p class="section-intro">4px radius, the soft warm modal shadow, a hairline border for definition. Header and footer are set off by ruled lines; title is serif. Backdrop is the parchment chrome. Default width 520px.</p>
+
+      <div class="component">
+        <div class="modal-stage">
+          <div class="modal">
+            <span class="modal-close">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
+            </span>
+            <div class="modal-header">
+              <h3 class="modal-title">New workspace</h3>
+              <p class="modal-sub">A workspace is a folder of Beancount files Diurnum will watch.</p>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <label class="field-label">Name</label>
+                <input class="input" value="Personal" />
+              </div>
+              <div class="field">
+                <label class="field-label">Folder</label>
+                <input class="input" value="~/Ledger/personal" style="font-family:var(--font-mono);" />
+              </div>
+              <div class="field">
+                <label class="field-label">Base currency</label>
+                <div class="select-wrap">
+                  <select class="input select">
+                    <option>USD — US Dollar</option>
+                  </select>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-md btn-ghost">Cancel</button>
+              <button class="btn btn-md btn-primary">Create workspace</button>
+            </div>
+          </div>
+        </div>
+        <div class="component-meta"><span>Dialog · md (520px)</span><span>--radius-lg · --shadow-modal · ruled header/footer</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Command palette ──────────────────────────────── -->
+    <section id="cmdk">
+      <h2>Command palette</h2>
+      <p class="section-intro">640px wide, no padding around content. Input fills the top in the serif-adjacent prose size; list fills the rest. Keyboard focus row carries a muted band and a lapis inset rule — not a full tint.</p>
+
+      <div class="component">
+        <div class="modal-stage">
+          <div class="cmdk">
+            <input class="cmdk-input" placeholder="Type a command or search…" value="new" />
+            <div class="cmdk-list">
+              <div class="cmdk-caps">Actions</div>
+              <div class="cmdk-item focused">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <span class="grow">New transaction</span>
+                <span class="cmdk-kbd">⌘N</span>
+              </div>
+              <div class="cmdk-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+                <span class="grow">New workspace…</span>
+                <span class="cmdk-kbd">⇧⌘N</span>
+              </div>
+              <div class="cmdk-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span class="grow">New ledger file</span>
+                <span class="cmdk-kbd">⌘O</span>
+              </div>
+              <div class="cmdk-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5 5 5-5"/><path d="M12 4v12"/></svg>
+                <span class="grow">Import from CSV…</span>
+                <span class="cmdk-kbd">⌘I</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="component-meta"><span>Command palette · lg (640px)</span><span>40px rows · --color-bg-muted + lapis inset on focus</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Tooltip ──────────────────────────────────────── -->
+    <section id="tooltip">
+      <h2>Tooltip</h2>
+      <p class="section-intro">Ink on parchment inverted — light text on the iron-gall ground. xs text, 300ms hover delay, max width 240px.</p>
+
+      <div class="component">
+        <div class="component-stage" style="background:var(--color-bg-muted); justify-content:center; padding:var(--space-10);">
+          <div class="tooltip">Add a new transaction <span class="kbd">⌘N</span></div>
+          <div class="tooltip">Auto-balance posts the inverse entry so the transaction sums to zero in the base currency.</div>
+        </div>
+        <div class="component-meta"><span>Tooltip</span><span>--color-text bg · --color-bg text · --text-xs · 240px max</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Table ────────────────────────────────────────── -->
+    <section id="table">
+      <h2>Table</h2>
+      <p class="section-intro">40px row default. Header row is xs inscriptional caps under a stronger rule. Numeric columns mono, right-aligned, tabular. Selected row uses the lapis wash with a leading inset rule.</p>
+
+      <div class="component">
+        <div class="component-stage tight" style="padding:0;">
+          <table class="demo-table">
+            <thead>
+              <tr>
+                <th style="width:104px;">Date</th>
+                <th>Payee</th>
+                <th>Category</th>
+                <th class="num" style="width:120px;">Amount</th>
+                <th style="width:96px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-family:var(--font-mono);">2026-05-22</td>
+                <td>Blue Bottle Coffee</td>
+                <td><span class="badge badge-default">Food &amp; drink</span></td>
+                <td class="num neg">−$5.40</td>
+                <td><span class="badge badge-accent">Paid</span></td>
+              </tr>
+              <tr class="selected">
+                <td style="font-family:var(--font-mono);">2026-05-21</td>
+                <td>Pacific Gas &amp; Electric</td>
+                <td><span class="badge badge-default">Utilities</span></td>
+                <td class="num neg">−$148.22</td>
+                <td><span class="badge badge-accent">Paid</span></td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--font-mono);">2026-05-19</td>
+                <td>Stripe</td>
+                <td><span class="badge badge-default">Income</span></td>
+                <td class="num pos">+$2,400.00</td>
+                <td><span class="badge badge-accent">Cleared</span></td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--font-mono);">2026-05-18</td>
+                <td>Acme Hosting</td>
+                <td><span class="badge badge-default">Software</span></td>
+                <td class="num neg">−$29.00</td>
+                <td><span class="badge badge-destructive">Overdue</span></td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--font-mono);">2026-05-15</td>
+                <td>Whole Foods</td>
+                <td><span class="badge badge-default">Groceries</span></td>
+                <td class="num neg">−$72.84</td>
+                <td><span class="badge badge-accent">Paid</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="component-meta"><span>Table</span><span>40px rows · xs caps header · numeric mono right</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Inspector ────────────────────────────────────── -->
+    <section id="inspector">
+      <h2>Inspector panel</h2>
+      <p class="section-intro">380px right-side panel used in Inbox. Left hairline only — no shadow. Sections separated by ruled lines and 20px gaps. The empty state is set in a quiet serif italic.</p>
+
+      <div class="component">
+        <div class="inspector-stage">
+          <div class="inspector-empty">Select an entry to inspect</div>
+          <aside class="inspector">
+            <div class="insp-header">
+              <h4>Stripe payout</h4>
+              <p>+$2,400.00 · 2026-05-19</p>
+            </div>
+            <div class="insp-section">
+              <div class="insp-caps">Posting</div>
+              <div class="insp-row"><span class="key">Account</span><span class="val">Income:Consulting</span></div>
+              <div class="insp-row"><span class="key">Counter</span><span class="val">Assets:Checking</span></div>
+              <div class="insp-row"><span class="key">Currency</span><span class="val">USD</span></div>
+            </div>
+            <div class="insp-section">
+              <div class="insp-caps">Source</div>
+              <div class="insp-row"><span class="key">Imported from</span><span class="val">stripe-may-2026.csv</span></div>
+              <div class="insp-row"><span class="key">Row</span><span class="val">14</span></div>
+              <div class="insp-row"><span class="key">Hash</span><span class="val">7a1f…b9c2</span></div>
+            </div>
+            <div class="insp-section">
+              <div style="display:flex; gap:var(--space-2);">
+                <button class="btn btn-md btn-primary" style="flex:1;">Approve</button>
+                <button class="btn btn-md btn-secondary">Skip</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <div class="component-meta"><span>Inspector</span><span>380px · left hairline · --space-5 gaps</span></div>
+      </div>
+    </section>
+
+    <!-- ─── Diff & validation ────────────────────────────── -->
+    <section id="diff">
+      <h2>Diff &amp; validation</h2>
+      <p class="section-intro">The most semantically loaded surfaces. Additions read in lapis (positive); deletions in oxblood. Pending flags carry the gilt wash; approved flags shift to lapis. Validation states sit in lapis when valid, oxblood when not. Previously hardcoded per screen — now centralized in <code>--diff-*</code> tokens.</p>
+
+      <div class="component">
+        <div class="component-stage tight" style="padding:0;">
+          <div class="diff" style="border-radius:0; border:none;">
+            <div class="diff-filehead">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              <span class="path">personal.beancount</span>
+              <span class="mini-stat"><span class="add">+3</span><span class="del">−1</span></span>
+            </div>
+            <div class="hunk-head">@@ −40,8 +40,10 @@ ; May 2026 — operating activity</div>
+            <div class="diff-line"><span class="ln">40</span><span class="marker"> </span><span class="code"> </span></div>
+            <div class="diff-line del"><span class="ln">41</span><span class="marker">−</span><span class="code">2026-05-02 <span class="flag-pending">!</span> <span class="str">"Stripe"</span> <span class="str">"Payout"</span></span></div>
+            <div class="diff-line add"><span class="ln">41</span><span class="marker">+</span><span class="code">2026-05-02 <span class="flag-approved">*</span> <span class="str">"Stripe"</span> <span class="str">"Payout"</span></span></div>
+            <div class="diff-line add"><span class="ln">42</span><span class="marker">+</span><span class="code">    Assets:Bank:Checking          <span class="num">2400.00</span> USD</span></div>
+            <div class="diff-line add"><span class="ln">43</span><span class="marker">+</span><span class="code">    Income:Consulting            <span class="num">-2400.00</span> USD</span></div>
+            <div class="diff-line"><span class="ln">44</span><span class="marker"> </span><span class="code"> <span class="cmt">; reconciled against statement</span></span></div>
+          </div>
+        </div>
+        <div class="component-meta"><span>Unified diff</span><span>add = lapis · del = oxblood · flags gilt → lapis</span></div>
+      </div>
+
+      <div class="component">
+        <div class="component-stage column">
+          <div class="validation">
+            <span class="ok">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+              Mapping valid
+            </span>
+            <span class="sep">·</span>
+            <span class="muted">3 of 3 required fields mapped</span>
+            <span class="sep">·</span>
+            <span class="muted">1 likely duplicate flagged</span>
+          </div>
+          <div class="validation">
+            <span class="bad">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+              Transaction does not balance
+            </span>
+            <span class="sep">·</span>
+            <span class="muted">residual <span class="mono" style="color:var(--color-destructive);">−$0.40 USD</span> on 2 postings</span>
+          </div>
+        </div>
+        <div class="component-meta"><span>Validation row</span><span>valid = lapis · error = oxblood</span></div>
+      </div>
+    </section>
+
+    <footer class="doc-footer">
+      <span>Diurnum Design System · v2.0.0 · Parchment (light only)</span>
+      <span class="mono">tokens-diurnum.css</span>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Scroll-spy: highlight current section in the TOC
+  (function() {
+    const links = Array.from(document.querySelectorAll('.toc a[href^="#"]'));
+    const map = new Map();
+    links.forEach(a => {
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (target) map.set(target, a);
+    });
+
+    const setActive = (a) => {
+      links.forEach(l => l.classList.remove('active'));
+      if (a) a.classList.add('active');
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible.length) {
+        const link = map.get(visible[0].target);
+        if (link) setActive(link);
+      }
+    }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+    map.forEach((_link, target) => observer.observe(target));
+
+    links.forEach(a => {
+      a.addEventListener('click', (e) => {
+        const id = a.getAttribute('href').slice(1);
+        const target = document.getElementById(id);
+        if (!target) return;
+        e.preventDefault();
+        const top = target.getBoundingClientRect().top + window.scrollY - 32;
+        window.scrollTo({ top, behavior: 'smooth' });
+        setActive(a);
+      });
+    });
+  })();
+</script>
+</body>
+</html>
