@@ -2,7 +2,7 @@
 title: Diurnum Design System
 type: DesignSystem
 belongs_to: "[[Diurnum]]"
-date: 2026-05-26
+date: 2026-05-30
 tags:
   - diurnum
   - design
@@ -15,7 +15,7 @@ tags:
 
 ## Philosophy
 
-Diurnum's design language is **calm, precise, and confident** — Linear meets VS Code meets a well-designed terminal app. The interface should feel like reading prose, not flying a spaceship.
+Diurnum's design language is **calm, precise, and confident** — the scholar's desk: composed, unhurried, erudite. Ink on vellum. The interface should feel like reading a well-set page, not flying a spaceship.
 
 Three rules that override every other decision:
 
@@ -33,34 +33,43 @@ All colors are defined as CSS variables in `tokens.css`. Use semantic tokens in 
 
 | Token               | Hex       | Usage                                                    |
 | ------------------- | --------- | -------------------------------------------------------- |
-| `--color-bg`        | `#FFFFFF` | Main content backgrounds                                 |
-| `--color-bg-muted`  | `#F4F4F5` | Sidebar, row hover, page chrome, subtle backgrounds      |
-| `--color-bg-subtle` | `#FAFAFA` | Very subtle backgrounds (active editor block, tab hover) |
+| `--color-bg`        | `#FAF6EE` | Main content backgrounds — warm parchment ground         |
+| `--color-bg-muted`  | `#F2EAD8` | Sidebar, row hover, page chrome, subtle backgrounds      |
+| `--color-bg-subtle` | `#F7F2E5` | Very subtle backgrounds (active editor block, tab hover) |
 
 ### Text colors
 
 | Token                 | Hex       | Usage                                                    |
 | --------------------- | --------- | -------------------------------------------------------- |
-| `--color-text`        | `#18181B` | Default text, near-black                                 |
-| `--color-text-muted`  | `#71717A` | Secondary text, captions, metadata, status bar           |
-| `--color-text-subtle` | `#A1A1AA` | Tertiary text, line numbers, ghost text, disabled states |
+| `--color-text`        | `#1C1A17` | Default text — iron-gall near-black with warm undertone  |
+| `--color-text-muted`  | `#6B6458` | Secondary text, captions, metadata, status bar           |
+| `--color-text-subtle` | `#9E9182` | Tertiary text, line numbers, ghost text, disabled states |
 
 ### Border colors
 
 | Token                   | Hex       | Usage                                  |
 | ----------------------- | --------- | -------------------------------------- |
-| `--color-border`        | `#E4E4E7` | Default hairline borders (1px)         |
-| `--color-border-strong` | `#D4D4D8` | Slightly stronger borders for emphasis |
+| `--color-border`        | `#DDD4C0` | Default hairline borders (1px)         |
+| `--color-border-strong` | `#C8BEA8` | Slightly stronger borders for emphasis |
 
-### Accent (sage green)
+### Accent (oxblood)
 
 The single accent color in Diurnum. Use sparingly — only for active states, primary actions, and confirmation indicators.
 
-| Token                   | Hex       | Usage                                                            |
-| ----------------------- | --------- | ---------------------------------------------------------------- |
-| `--color-accent`        | `#2D6A4F` | Accent text and icons (active nav, primary button text on white) |
-| `--color-accent-bg`     | `#E6F4EA` | Soft accent background (active nav pill, hover states)           |
-| `--color-accent-strong` | `#4ADE80` | Indicator dots, success badges                                   |
+| Token                   | Hex       | Usage                                                                    |
+| ----------------------- | --------- | ------------------------------------------------------------------------ |
+| `--color-accent`        | `#7B2D26` | Accent text and icons (active nav, primary button text on parchment)     |
+| `--color-accent-bg`     | `#F5E8E7` | Soft accent background (active nav pill, hover states)                   |
+| `--color-accent-strong` | `#A83B32` | Indicator dots, active badges                                            |
+
+### Secondary (ochre / gold)
+
+Used for rare decorative highlights only — the gilt-initial accent. Not for UI components or state indicators.
+
+| Token                  | Hex       | Usage                                              |
+| ---------------------- | --------- | -------------------------------------------------- |
+| `--color-secondary`    | `#B68A3E` | Gilt highlight text, decorative wordmark emphasis  |
+| `--color-secondary-bg` | `#F7EDD0` | Soft ochre background for highlighted content      |
 
 ### Destructive / error
 
@@ -68,8 +77,8 @@ Used for validation errors and destructive actions. The one place alarm color is
 
 | Token                    | Hex       | Usage                                                      |
 | ------------------------ | --------- | ---------------------------------------------------------- |
-| `--color-destructive`    | `#DC2626` | Error text, validation underlines, destructive button text |
-| `--color-destructive-bg` | `#FEE2E2` | Error background, destructive button background            |
+| `--color-destructive`    | `#8C2318` | Error text, validation underlines, destructive button text |
+| `--color-destructive-bg` | `#F2E4E2` | Error background, destructive button background            |
 
 ### Editor-specific
 
@@ -77,9 +86,13 @@ These are used inside the Ledger Editor only.
 
 | Token                         | Hex       | Usage                                                              |
 | ----------------------------- | --------- | ------------------------------------------------------------------ |
-| `--color-editor-string-bg`    | `#FEF8E1` | Subtle warm background tint on Beancount strings (payee/narration) |
-| `--color-editor-active-block` | `#FAFAFA` | Background of the transaction block containing the cursor          |
-| `--color-editor-ghost-text`   | `#A1A1AA` | Predictive entry completion ghost text                             |
+| `--color-editor-string-bg`    | `#F5F0E4` | Subtle parchment tint on Beancount strings (payee/narration)       |
+| `--color-editor-active-block` | `#F7F2E5` | Background of the transaction block containing the cursor          |
+| `--color-editor-ghost-text`   | `#9E9182` | Predictive entry completion ghost text                             |
+| `--color-editor-addition`     | `#243B6B` | Diff addition text (lapis ink-blue)                                |
+| `--color-editor-addition-bg`  | `#E4EAF5` | Diff addition background                                           |
+| `--color-editor-deletion`     | `#7B2D26` | Diff deletion text (oxblood, matches accent)                       |
+| `--color-editor-deletion-bg`  | `#F5E8E7` | Diff deletion background                                           |
 
 ---
 
@@ -87,12 +100,13 @@ These are used inside the Ledger Editor only.
 
 ### Font families
 
-| Token         | Stack                                                                                        |
-| ------------- | -------------------------------------------------------------------------------------------- |
-| `--font-sans` | `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
-| `--font-mono` | `"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace`              |
+| Token            | Stack                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `--font-display` | `"EB Garamond", Garamond, "Times New Roman", serif`                                          |
+| `--font-sans`    | `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
+| `--font-mono`    | `"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace`              |
 
-Use `--font-sans` for all UI chrome. Use `--font-mono` for ledger content (editor, Beancount previews, file paths, hashes, code).
+Use `--font-display` for the wordmark, page titles, and prominent headings — this is the brand's classical voice. Use `--font-sans` for all UI chrome and prose. Use `--font-mono` for ledger content (editor, Beancount previews, file paths, hashes, code). The contrast between serif chrome and monospace ledger is the visual thesis: an ancient practice, a modern tool.
 
 ### Type scale
 
@@ -239,7 +253,7 @@ Component specs describe visual properties, not React API. Agents implementing c
 
 **Variants:**
 
-- **Primary** — `background: var(--color-accent)`, `color: white`, `border: none`, `border-radius: var(--radius-sm)`. Hover: slight darken (~6%). Disabled: `opacity: 0.5`.
+- **Primary** — `background: var(--color-accent)`, `color: var(--color-bg)`, `border: none`, `border-radius: var(--radius-sm)`. Hover: slight darken (~6%). Disabled: `opacity: 0.5`.
 - **Secondary** — `background: var(--color-bg)`, `color: var(--color-text)`, `border: 1px solid var(--color-border)`. Hover: `background: var(--color-bg-muted)`.
 - **Ghost** — no background, no border, `color: var(--color-text)`. Hover: `background: var(--color-bg-muted)`.
 - **Destructive** — `background: var(--color-destructive-bg)`, `color: var(--color-destructive)`, no border. Use only for destructive confirmations.
@@ -399,5 +413,5 @@ These should be resolved as the design system is implemented:
 | Question                                           | Resolution path                                                                                                                   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Whether to switch to Tailwind v4 later             | Tokens are framework-agnostic CSS variables, so Tailwind v4 (which uses CSS variables natively) integrates cleanly if you switch  |
-| Dark mode token strategy                           | Light mode only in V1. When dark mode lands, define a `[data-theme="dark"]` block with overridden variables                       |
+| Dark mode token strategy                           | Light mode only in V1. The palette has an obvious candlelit dark variant (ink-dark ground, parchment text) — define a `[data-theme="dark"]` block with overridden variables when ready |
 | Component library choice (Radix, custom, headless) | Open. Most Diurnum UI is custom, but consider Radix primitives for accessibility-heavy components (Dialog, DropdownMenu, Tooltip) |
