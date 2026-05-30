@@ -1,7 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import type { WorkspaceCreateInput } from "../../lib/workspace/types";
 
+export type WorkspaceTemplate = "example" | null;
+
 type CreateWorkspaceFormProps = {
+  initialTemplate?: WorkspaceTemplate;
   onCancel: () => void;
   onChooseDirectory: () => Promise<string | null>;
   onCreate: (input: WorkspaceCreateInput) => Promise<void>;
@@ -9,11 +12,15 @@ type CreateWorkspaceFormProps = {
 };
 
 export function CreateWorkspaceForm({
+  initialTemplate = null,
   onCancel,
   onChooseDirectory,
   onCreate,
   error,
 }: CreateWorkspaceFormProps) {
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkspaceTemplate>(
+    initialTemplate,
+  );
   const [businessName, setBusinessName] = useState("");
   const [booksStartDate, setBooksStartDate] = useState("2026-01-01");
   const [parentDirectory, setParentDirectory] = useState("");
@@ -77,6 +84,30 @@ export function CreateWorkspaceForm({
             placeholder="Acme Studio"
           />
         </label>
+
+        <fieldset className="template-picker">
+          <legend>Template</legend>
+          <div className="template-options">
+            <button
+              className="template-option"
+              type="button"
+              aria-pressed={selectedTemplate === null}
+              onClick={() => setSelectedTemplate(null)}
+            >
+              <strong>Blank</strong>
+              <small>No template selected</small>
+            </button>
+            <button
+              className="template-option"
+              type="button"
+              aria-pressed={selectedTemplate === "example"}
+              onClick={() => setSelectedTemplate("example")}
+            >
+              <strong>Example workspace</strong>
+              <small>Starter accounts and sample entries</small>
+            </button>
+          </div>
+        </fieldset>
 
         <label>
           <span>Books start date</span>

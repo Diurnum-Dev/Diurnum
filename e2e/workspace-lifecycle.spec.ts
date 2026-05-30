@@ -18,7 +18,10 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async createWorkspace() {
         return workspace;
       },
-      async openWorkspace() {
+      async openWorkspace(path: string) {
+        if (path.includes("not-workspace")) {
+          throw new Error("This folder is not an App-Created Workspace.");
+        }
         return workspace;
       },
       async validateWorkspace() {
@@ -125,16 +128,47 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         };
       },
       async pickDirectory() {
-        return "/tmp";
+        return (window as unknown as { __nextPickedDirectory?: string })
+          .__nextPickedDirectory ?? "/tmp";
       },
       async revealWorkspace() {},
     };
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Create Workspace" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Open your accounting Workspace" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Your books are stored locally. No account required."),
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    (window as unknown as { __nextPickedDirectory?: string }).__nextPickedDirectory =
+      "/tmp/not-workspace";
+  });
+  await page.getByRole("button", { name: /Open existing workspace/ }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "This folder is not a Diurnum workspace.",
+  );
+
+  await page.getByRole("button", { name: /Example workspace/ }).click();
+  await expect(page.getByRole("button", { name: /Example workspace/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  await page.getByRole("button", { name: /New blank workspace/ }).click();
+  await expect(page.getByRole("button", { name: /Example workspace/ })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   await page.getByLabel("Business name").fill("Acme Studio");
   await page.getByLabel("Books start date").fill("2026-01-01");
+  await page.evaluate(() => {
+    (window as unknown as { __nextPickedDirectory?: string }).__nextPickedDirectory = "/tmp";
+  });
   await page.getByRole("button", { name: "Choose" }).click();
   await page.getByRole("button", { name: "Create Workspace" }).click();
 
@@ -161,8 +195,11 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await expect(page.getByRole("heading", { name: "Acme Studio" })).toBeVisible();
 
   await page.getByRole("button", { name: "Ledger", exact: true }).click();
-  await page.getByRole("button", { name: "Open Another Workspace" }).click();
-  await page.getByRole("button", { name: "Choose" }).click();
-  await page.getByRole("button", { name: "Open Workspace" }).click();
+  await page.getByRole("button", { name: "Close Workspace" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Open your accounting Workspace" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent Workspaces" })).toBeVisible();
+  await page.getByRole("button", { name: /Acme Studio/ }).click();
   await expect(page.getByRole("heading", { name: "Acme Studio" })).toBeVisible();
 });

@@ -29,6 +29,26 @@ describe("CreateWorkspaceForm", () => {
     expect(screen.getByLabelText("Currency")).toHaveAttribute("readonly");
   });
 
+  it("can open with the example template preselected", () => {
+    render(
+      <CreateWorkspaceForm
+        initialTemplate="example"
+        onCancel={vi.fn()}
+        onChooseDirectory={async () => null}
+        onCreate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Example workspace/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /Blank/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("submits the Workspace creation input", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn().mockResolvedValue(undefined);

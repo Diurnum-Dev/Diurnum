@@ -40,6 +40,7 @@ function renderShell(
     onOpenRecentWorkspace: vi.fn(),
     onRemoveRecentWorkspace: vi.fn(),
     onOpenExistingWorkspace: vi.fn(),
+    onCloseWorkspace: vi.fn(),
     children: <div>Workspace content</div>,
     ...overrides,
   };
@@ -59,6 +60,7 @@ describe("AppShell", () => {
     );
     expect(screen.getByRole("button", { name: /Inbox 3/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Settings/ })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Close Workspace" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Git/ })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Workspace status")).toHaveTextContent("main.bean");
     expect(screen.getByLabelText("Workspace status")).toHaveTextContent("Valid");
@@ -109,5 +111,16 @@ describe("AppShell", () => {
 
     await user.click(screen.getByRole("menuitem", { name: "Open existing..." }));
     expect(onOpenExistingWorkspace).toHaveBeenCalledOnce();
+  });
+
+  it("closes the current Workspace from the sidebar footer", async () => {
+    const user = userEvent.setup();
+    const onCloseWorkspace = vi.fn();
+
+    renderShell({ onCloseWorkspace });
+
+    await user.click(screen.getByRole("button", { name: "Close Workspace" }));
+
+    expect(onCloseWorkspace).toHaveBeenCalledOnce();
   });
 });

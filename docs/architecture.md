@@ -50,6 +50,11 @@ sequenceDiagram
   participant Ledger as Beancount files
   participant State as SQLite staging/state
 
+  User->>UI: Launch with no workspace open
+  UI->>UI: Render Welcome Screen outside App Shell
+  UI->>Core: Inspect recent workspace paths when recents exist
+  Core-->>UI: Recent path availability
+
   User->>UI: Create or open workspace
   UI->>UI: Record recent workspace by absolute path
   UI->>Core: Workspace command
@@ -73,11 +78,12 @@ sequenceDiagram
   Core->>State: Mark approved rows accounted
   Core-->>UI: Refreshed workspace summary
 
-  User->>UI: Recheck ledger, restore snapshot, or run MVP reports
+  User->>UI: Recheck ledger, restore snapshot, run MVP reports, or close workspace
   UI->>Core: Validation/restore/report command
   Core->>Ledger: Restore selected snapshot with atomic writes when requested
   Core->>Ledger: Validate and derive reports from readable ledger files
   Core-->>UI: Invalid-ledger details or MVP reports
+  UI->>UI: Return to Welcome Screen after Close Workspace
 ```
 
 ## Data Ownership Map
@@ -155,8 +161,8 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 
 | Area                 | Primary files                                                                                                                                                                | Responsibility                                                                                                                                                                                                 |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, two-column Workspace shell, active screen state, Workspace Switcher recents, conditional Git nav, and shared status bar.                                                                       |
-| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens plus shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
+| React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, no-workspace Welcome flow, two-column Workspace shell, active screen state, Workspace Switcher recents, conditional Git nav, Close Workspace, and shared status bar.                           |
+| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, and shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
 | Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
@@ -171,8 +177,10 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Tauri commands translate frontend calls into Rust domain operations.
 - `src-tauri/src/workspace/` owns Workspace filesystem layout, manifest handling, Beancount rendering, SQLite initialization, path validation, App Shell path/git inspection, atomic `.bean` writes, backup snapshots, snapshot restore, Source Account ledger writes, CSV import staging, Source Mapping persistence, approval, AI adapter invocation, categorization rules, transfer matching, broken-provenance checks, MVP reporting, and structural ledger validation with file-aware error messages.
 - The Workspace folder owns all accounting data needed for this slice. No Diurnum cloud account is required.
-- The App Shell is only mounted after a Workspace opens. Welcome/create/open screens remain outside the two-column shell.
+- The Welcome Screen is the no-Workspace surface. It is shown on first launch, after Close Workspace, and whenever no Workspace is open. Welcome/create/open screens remain outside the two-column shell.
+- The New Workspace flow can be entered from Welcome as a blank Workspace with no template selected or with the example template preselected. The current create command still creates the same App-Created Workspace layout; template-specific seed data is a later backend extension.
 - The Workspace Switcher stores up to 10 recent Workspaces in browser-local app config via `localStorage`, keyed by absolute Workspace path. Recent records are not written into ledger files or Workspace SQLite state.
+- The Welcome Screen reuses the same app-level recents source, showing up to 5 recent Workspaces below the three primary start actions.
 - The App Shell asks native helpers to inspect recent Workspace path existence and current Workspace Git state. Missing recent paths are disabled in the switcher until removed, and the Git nav item appears only when the current Workspace is inside a Git work tree.
 - The shared status bar is scoped to the main pane and combines active screen context, Ledger Validation state, and Git dirty-state context when Git is available.
 - Readable Beancount files are the source of truth for ledger validation and MVP Reports.
