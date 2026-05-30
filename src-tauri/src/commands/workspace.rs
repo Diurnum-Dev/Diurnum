@@ -12,6 +12,9 @@ use crate::workspace::data_integrity::{
     self, RestoreSnapshotInput, SaveLedgerFileInput, SnapshotSummary,
 };
 use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
+use crate::workspace::ledger_editor::{
+    self, LedgerEditorState, LedgerFileSnapshot, ReadLedgerFileInput, SaveLedgerEditorSessionInput,
+};
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
 use crate::workspace::shell::{self, WorkspaceGitStatus, WorkspacePathStatus};
@@ -50,6 +53,23 @@ pub fn save_ledger_file(
     input: SaveLedgerFileInput,
 ) -> Result<LedgerValidationSummary, WorkspaceError> {
     data_integrity::save_ledger_file(input)
+}
+
+#[tauri::command]
+pub fn get_ledger_editor_state(path: String) -> Result<LedgerEditorState, WorkspaceError> {
+    ledger_editor::get_ledger_editor_state(path)
+}
+
+#[tauri::command]
+pub fn read_ledger_file(input: ReadLedgerFileInput) -> Result<LedgerFileSnapshot, WorkspaceError> {
+    ledger_editor::read_ledger_file(input)
+}
+
+#[tauri::command]
+pub fn save_ledger_editor_session(
+    input: SaveLedgerEditorSessionInput,
+) -> Result<crate::workspace::LedgerEditorSession, WorkspaceError> {
+    ledger_editor::save_ledger_editor_session(input)
 }
 
 #[tauri::command]

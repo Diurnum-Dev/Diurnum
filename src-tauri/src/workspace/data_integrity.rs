@@ -44,6 +44,8 @@ pub struct SaveLedgerFileInput {
     pub workspace_root_path: String,
     pub relative_path: String,
     pub contents: String,
+    #[serde(default)]
+    pub expected_modified_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -250,9 +252,26 @@ pub fn save_ledger_file(
             "Ledger Editor saves can only write .bean files.",
         ));
     }
+    if let Some(expected_modified_at) = input.expected_modified_at {
+        let current_modified_at = file_modified_at(&destination_path)?;
+        if current_modified_at != expected_modified_at {
+            return Err(WorkspaceError::new(
+                WorkspaceErrorCode::InvalidLedger,
+                "Ledger file changed outside Diurnum. Reload before saving.",
+            ));
+        }
+    }
 
     atomic_write(destination_path, &input.contents)?;
     validate_workspace(root)
+}
+
+fn file_modified_at(path: &Path) -> Result<u64, WorkspaceError> {
+    let modified = fs::metadata(path)?.modified()?;
+    let duration = modified
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| WorkspaceError::io(error.to_string()))?;
+    Ok(duration.as_millis() as u64)
 }
 
 fn snapshot_by_id(root: &Path, snapshot_id: &str) -> Result<SnapshotSummary, WorkspaceError> {
@@ -450,6 +469,7 @@ mod tests {
             workspace_root_path: created.root_path.clone(),
             relative_path: "main.bean".to_string(),
             contents: "include \"accounts.bean\"\ninclude \"opening-balances.bean\"\n".to_string(),
+            expected_modified_at: None,
         })
         .unwrap();
 
@@ -458,6 +478,7 @@ mod tests {
             workspace_root_path: created.root_path,
             relative_path: "../outside.bean".to_string(),
             contents: "".to_string(),
+            expected_modified_at: None,
         })
         .unwrap_err();
         assert_eq!(traversal.code, WorkspaceErrorCode::InvalidLedger);

@@ -931,6 +931,177 @@ dd {
   margin: 0 0 8px;
 }
 
+.ledger-editor {
+  display: grid;
+  min-height: calc(100vh - 132px);
+  gap: 12px;
+}
+
+.ledger-editor-alert,
+.ledger-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ledger-editor-alert {
+  border: 1px solid #bf9d43;
+  border-radius: 8px;
+  background: #fff9df;
+  color: #574411;
+  padding: 10px 12px;
+}
+
+.ledger-editor-toolbar {
+  color: #68706a;
+}
+
+.ledger-editor-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 620px;
+  border: 1px solid #dfddd5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.ledger-file-tree {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  border-right: 1px solid #dfddd5;
+  background: #f2f0e8;
+  padding: 10px;
+}
+
+.ledger-file-tree button,
+.command-results button {
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #34443b;
+  cursor: pointer;
+  padding: 8px 10px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-file-tree button:hover,
+.ledger-file-tree button.active,
+.command-results button:hover {
+  background: #ffffff;
+  color: #1f6b4e;
+}
+
+.ledger-editor-pane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.ledger-tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid #dfddd5;
+  background: #fbfaf6;
+}
+
+.ledger-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-right: 1px solid #dfddd5;
+  background: transparent;
+  color: #34443b;
+  cursor: pointer;
+  padding: 0 12px;
+}
+
+.ledger-tabs > button.active {
+  background: #ffffff;
+  color: #1f6b4e;
+  font-weight: 800;
+}
+
+.ledger-tabs [role="button"] {
+  color: #68706a;
+  font-weight: 700;
+}
+
+.codemirror-host {
+  min-width: 0;
+  min-height: 0;
+}
+
+.codemirror-host .cm-editor {
+  height: 100%;
+  min-height: 580px;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.92rem;
+}
+
+.codemirror-host .cm-scroller {
+  overflow: auto;
+}
+
+.codemirror-host .cm-content {
+  white-space: pre;
+}
+
+.cm-current-transaction {
+  background: #fafafa;
+}
+
+.cm-bean-amount {
+  font-weight: 600;
+}
+
+.cm-bean-string {
+  border-radius: 3px;
+  background: #fef8e1;
+}
+
+.cm-include-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.cm-ledger-error {
+  text-decoration: underline wavy #b23b2d;
+  text-underline-offset: 2px;
+}
+
+.command-popover {
+  position: fixed;
+  z-index: 30;
+  top: 90px;
+  left: 50%;
+  display: grid;
+  width: min(520px, calc(100vw - 40px));
+  gap: 8px;
+  transform: translateX(-50%);
+  border: 1px solid #d0cdc3;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgb(23 32 28 / 16%);
+  padding: 12px;
+}
+
+.command-results {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+}
+
 .journal-detail dl {
   display: grid;
   gap: 10px;
@@ -1050,6 +1221,7 @@ dd {
 
   .directory-field,
   .detail-grid,
+  .ledger-editor-layout,
   .mapping-grid,
   .report-period-form,
   .reports-grid {

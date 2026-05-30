@@ -39,11 +39,13 @@ import type {
   SourceAccountKind,
   SuggestedEntry,
   WorkspaceGitStatus,
+  LedgerValidationSummary,
   WorkspaceCreateInput,
   WorkspaceSummary,
 } from "./lib/workspace/types";
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
+import { LedgerEditor } from "./features/workspace/LedgerEditor";
 import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
 import { WorkspaceOverview } from "./features/workspace/WorkspaceOverview";
 import { WorkspaceStart } from "./features/workspace/WorkspaceStart";
@@ -74,6 +76,8 @@ export default function App() {
   const [view, setView] = useState<View>("start");
   const [createTemplate, setCreateTemplate] = useState<WorkspaceTemplate>(null);
   const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("ledger");
+  const [ledgerActiveFile, setLedgerActiveFile] = useState("main.bean");
+  const [ledgerRequestedFile, setLedgerRequestedFile] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [suggestedEntries, setSuggestedEntries] = useState<SuggestedEntry[]>([]);
@@ -109,6 +113,7 @@ export default function App() {
       rememberWorkspace(created);
       await refreshGitStatus(created.rootPath);
       setActiveScreen("ledger");
+      setLedgerRequestedFile("main.bean");
       setView("workspace");
     } catch (caught) {
       setError(userFacingError(caught));
@@ -131,6 +136,7 @@ export default function App() {
       rememberWorkspace(opened);
       await refreshGitStatus(opened.rootPath);
       setActiveScreen("ledger");
+      setLedgerRequestedFile("main.bean");
       setView("workspace");
     } catch (caught) {
       setError(userFacingError(caught));
@@ -197,8 +203,22 @@ export default function App() {
     setGitStatus(emptyGitStatus);
     setSwitcherOpen(false);
     setActiveScreen("ledger");
+    setLedgerActiveFile("main.bean");
+    setLedgerRequestedFile(null);
     setError(null);
     setView("start");
+  }
+
+  function handleLedgerValidationChange(validation: LedgerValidationSummary) {
+    if (!workspace) return;
+    setWorkspace({
+      ...workspace,
+      ledgerStatus: validation.status,
+      ledgerValidation: validation,
+    });
+    if (validation.status === "invalid") {
+      setReports(null);
+    }
   }
 
   async function handleReveal() {
@@ -304,6 +324,8 @@ export default function App() {
         (entry) => entry.statementRowId === input.statementRowId,
       );
       if (approvedEntry) {
+        setLedgerRequestedFile(monthlyLedgerPath(approvedEntry.postedDate));
+        setActiveScreen("ledger");
         setRuleOffer({
           sourceAccount: approvedEntry.sourceAccount,
           matchText: approvedEntry.description,
@@ -334,6 +356,13 @@ export default function App() {
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      const approvedEntry = suggestedEntries.find(
+        (entry) => entry.statementRowId === input.statementRowId,
+      );
+      if (approvedEntry) {
+        setLedgerRequestedFile(monthlyLedgerPath(approvedEntry.postedDate));
+        setActiveScreen("ledger");
+      }
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -548,7 +577,7 @@ export default function App() {
         gitStatus={gitStatus}
         ledgerStatus={workspace.ledgerStatus}
         ledgerErrorCount={workspace.ledgerValidation.errors.length}
-        statusContext={statusContextFor(activeScreen)}
+        statusContext={activeScreen === "ledger" ? ledgerActiveFile : statusContextFor(activeScreen)}
         switcherOpen={switcherOpen}
         onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
         onNavigate={handleNavigate}
@@ -557,40 +586,54 @@ export default function App() {
         onOpenExistingWorkspace={handleOpenExistingWorkspace}
         onCloseWorkspace={handleCloseWorkspace}
       >
-        <WorkspaceOverview
-          activeScreen={activeScreen}
-          workspace={workspace}
-          suggestedEntries={suggestedEntries}
-          brokenProvenance={brokenProvenance}
-          categorizationRules={categorizationRules}
-          categorizationRuleOffer={ruleOffer}
-          aiAdapterConfig={aiAdapterConfig}
-          aiContextDisclosure={aiContextDisclosure}
-          reports={reports}
-          snapshots={snapshots}
-          onReveal={handleReveal}
-          onValidate={handleValidateWorkspace}
-          onRestoreSnapshot={handleRestoreSnapshot}
-          onAddSourceAccount={handleAddSourceAccount}
-          onImportStatementRows={handleImportStatementRows}
-          onApproveSuggestedEntry={handleApproveSuggestedEntry}
-          onApproveTransferEntry={handleApproveTransferEntry}
-          onCreateCategorizationRule={handleCreateCategorizationRule}
-          onUpdateCategorizationRule={handleUpdateCategorizationRule}
-          onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
-          onConfigureAiAdapter={handleConfigureAiAdapter}
-          onLoadReports={handleLoadReports}
-          onOpenAnother={() => {
-            setError(null);
-            setView("open");
-          }}
-          error={error}
-        />
+        {activeScreen === "ledger" ? (
+          <LedgerEditor
+            workspace={workspace}
+            requestedFile={ledgerRequestedFile}
+            onActiveFileChange={setLedgerActiveFile}
+            onValidationChange={handleLedgerValidationChange}
+            onError={setError}
+          />
+        ) : (
+          <WorkspaceOverview
+            activeScreen={activeScreen}
+            workspace={workspace}
+            suggestedEntries={suggestedEntries}
+            brokenProvenance={brokenProvenance}
+            categorizationRules={categorizationRules}
+            categorizationRuleOffer={ruleOffer}
+            aiAdapterConfig={aiAdapterConfig}
+            aiContextDisclosure={aiContextDisclosure}
+            reports={reports}
+            snapshots={snapshots}
+            onReveal={handleReveal}
+            onValidate={handleValidateWorkspace}
+            onRestoreSnapshot={handleRestoreSnapshot}
+            onAddSourceAccount={handleAddSourceAccount}
+            onImportStatementRows={handleImportStatementRows}
+            onApproveSuggestedEntry={handleApproveSuggestedEntry}
+            onApproveTransferEntry={handleApproveTransferEntry}
+            onCreateCategorizationRule={handleCreateCategorizationRule}
+            onUpdateCategorizationRule={handleUpdateCategorizationRule}
+            onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
+            onConfigureAiAdapter={handleConfigureAiAdapter}
+            onLoadReports={handleLoadReports}
+            onOpenAnother={() => {
+              setError(null);
+              setView("open");
+            }}
+            error={error}
+          />
+        )}
       </AppShell>
     );
   }
 
   return null;
+}
+
+function monthlyLedgerPath(postedDate: string): string {
+  return `transactions/${postedDate.slice(0, 7)}.bean`;
 }
 
 function loadRecentWorkspaces(): RecentWorkspace[] {

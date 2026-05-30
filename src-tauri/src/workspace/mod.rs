@@ -6,6 +6,7 @@ pub mod create;
 pub mod data_integrity;
 pub mod errors;
 pub mod imports;
+pub mod ledger_editor;
 pub mod open;
 pub mod paths;
 pub mod reports;

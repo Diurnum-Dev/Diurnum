@@ -54,6 +54,25 @@ pub struct WorkspaceManifest {
     pub layout: WorkspaceLayout,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_session: Option<LedgerEditorSession>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LedgerEditorSession {
+    pub open_tabs: Vec<LedgerEditorTabSession>,
+    pub active_tab: String,
+    #[serde(default)]
+    pub recently_closed_tabs: Vec<LedgerEditorTabSession>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LedgerEditorTabSession {
+    pub relative_path: String,
+    pub cursor: usize,
+    pub scroll_top: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

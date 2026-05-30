@@ -14,10 +14,15 @@ import type {
   CsvImportInput,
   CsvImportResult,
   LedgerValidationSummary,
+  LedgerEditorSession,
+  LedgerEditorState,
+  LedgerFileSnapshot,
   MvpReports,
+  ReadLedgerFileInput,
   ReportsInput,
   RestoreSnapshotInput,
   SaveLedgerFileInput,
+  SaveLedgerEditorSessionInput,
   SnapshotSummary,
   SuggestedEntry,
   UpdateCategorizationRuleInput,
@@ -34,6 +39,11 @@ type WorkspaceApi = {
   listSnapshots: (path: string) => Promise<SnapshotSummary[]>;
   restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceSummary>;
   saveLedgerFile: (input: SaveLedgerFileInput) => Promise<LedgerValidationSummary>;
+  getLedgerEditorState: (path: string) => Promise<LedgerEditorState>;
+  readLedgerFile: (input: ReadLedgerFileInput) => Promise<LedgerFileSnapshot>;
+  saveLedgerEditorSession: (
+    input: SaveLedgerEditorSessionInput,
+  ) => Promise<LedgerEditorSession>;
   inspectWorkspacePaths: (paths: string[]) => Promise<WorkspacePathStatus[]>;
   getWorkspaceGitStatus: (path: string) => Promise<WorkspaceGitStatus>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
@@ -111,6 +121,33 @@ export async function saveLedgerFile(
     return window.__DIURNUM_TEST_API__.saveLedgerFile(input);
   }
   return invoke<LedgerValidationSummary>("save_ledger_file", { input });
+}
+
+export async function getLedgerEditorState(
+  path: string,
+): Promise<LedgerEditorState> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getLedgerEditorState(path);
+  }
+  return invoke<LedgerEditorState>("get_ledger_editor_state", { path });
+}
+
+export async function readLedgerFile(
+  input: ReadLedgerFileInput,
+): Promise<LedgerFileSnapshot> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.readLedgerFile(input);
+  }
+  return invoke<LedgerFileSnapshot>("read_ledger_file", { input });
+}
+
+export async function saveLedgerEditorSession(
+  input: SaveLedgerEditorSessionInput,
+): Promise<LedgerEditorSession> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.saveLedgerEditorSession(input);
+  }
+  return invoke<LedgerEditorSession>("save_ledger_editor_session", { input });
 }
 
 export async function inspectWorkspacePaths(
