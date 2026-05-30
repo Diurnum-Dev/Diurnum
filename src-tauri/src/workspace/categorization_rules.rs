@@ -43,6 +43,13 @@ pub fn list_categorization_rules(
     load_rules(&connection)
 }
 
+pub(crate) fn list_categorization_rules_from_connection(
+    connection: &Connection,
+) -> Result<Vec<CategorizationRule>, WorkspaceError> {
+    ensure_categorization_rules_table(connection)?;
+    load_rules(connection)
+}
+
 pub fn create_categorization_rule(
     input: CreateCategorizationRuleInput,
 ) -> Result<CategorizationRule, WorkspaceError> {

@@ -68,6 +68,9 @@ sequenceDiagram
   Core-->>UI: Missing-path, branch, and dirty-state signals
 
   User->>UI: Edit ledger text in CodeMirror
+  UI->>Core: Request Predictive Entry Completion for date-line trigger
+  Core->>State: Check Categorization Rules and approved entry history
+  Core-->>UI: Ghost-text completion or no suggestion
   UI->>Core: Save ledger file with expected modification time
   Core->>Ledger: Write through Data Integrity atomic path
   Core-->>UI: Validation status or external-edit conflict
@@ -119,6 +122,7 @@ flowchart LR
   subgraph Features[Features]
     Shell[App Shell navigation]
     Editor[Ledger Editor]
+    Completion[Predictive completion]
     Validation[Ledger validation]
     Approval[Approval and transfer matching]
     Provenance[Broken provenance check]
@@ -137,7 +141,10 @@ flowchart LR
   SQLite --> Provenance
   Recents --> Shell
   Shell --> Editor
+  Editor --> Completion
   Editor --> LedgerFiles
+  Rules --> Completion
+  Rows --> Completion
   Shell --> Validation
   Shell --> Reports
   Atomic --> LedgerFiles
@@ -176,7 +183,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 | Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, CodeMirror Ledger Editor, and shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
-| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `ledger_editor.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Ledger Editor file/session state, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
+| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `ledger_editor.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Ledger Editor file/session/completion state, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
 | Core support         | `src-tauri/src/workspace/beancount.rs`, `paths.rs`, `types.rs`, `errors.rs`                                                                                                  | Beancount rendering/parsing helpers, workspace paths, shared DTOs, and error handling.                                                                                                                         |
 | Golden path test     | `src-tauri/src/workspace/golden_path_validation.rs`                                                                                                                          | End-to-end native workflow coverage from workspace creation through CSV import, approval, transfer approval, validation, provenance checks, invalid-ledger blocking, and MVP reports.                          |
 | Local agent workflow | `.agents/skills/work-ready-issues/SKILL.md`                                                                                                                                  | Sequential ready-for-agent issue selection, branch work, review, PR, merge, and continuation workflow.                                                                                                         |
@@ -195,6 +202,9 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - The App Shell asks native helpers to inspect recent Workspace path existence and current Workspace Git state. Missing recent paths are disabled in the switcher until removed, and the Git nav item appears only when the current Workspace is inside a Git work tree.
 - The shared status bar is scoped to the main pane and combines active screen context, Ledger Validation state, and Git dirty-state context when Git is available.
 - The Ledger Editor is the Workspace home screen. It opens `main.bean` by default, restores saved tabs/cursor/scroll from `.diurnum/workspace.json`, and can open `.bean` files from the tree, command palette, or include directives.
+- Predictive Entry Completion is requested from the Ledger Editor when the cursor is at the end of a valid `YYYY-MM-DD ` date-trigger line. The Rust workspace core returns only insert text whose accounts exist in the Workspace chart of accounts.
+- Predictive Entry Completion source priority is Categorization Rules, approved entry history, then BYO AI Adapter. Rule completions may omit amounts; history completions reuse approved Statement Row amounts and approved ledger postings; adapter completions require structured `sourceAccount`, `sourceAmount`, and `ledgerAccount` fields before any amount is inserted.
+- Accepted predictive completions only enter the editor buffer. Persistence still depends on the existing autosave, Data Integrity atomic write path, and Ledger Validation.
 - Readable Beancount files are the source of truth for ledger validation and MVP Reports.
 - Diurnum-managed SQLite state stores CSV staging rows, Source Mappings, Categorization Rules, BYO AI Adapter configuration, approval provenance, placeholders, and cache state.
 - The current implementation stores Diurnum-managed local data under `.diurnum/`; V1 product docs target `.ledgerly/`. Until the manifest/storage migration lands, the Data Integrity layer stores snapshots under `.diurnum/snapshots/`, the Ledger Editor stores session state in `.diurnum/workspace.json`, and Workspace `.gitignore` reserves `.ledgerly/snapshots/` for forward compatibility.
@@ -210,7 +220,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
 - After approving a Suggested Entry or Transfer Match, the UI returns to the Ledger Editor and requests the monthly transaction file that received the new Beancount entry.
 - Categorization Rules are user-confirmed SQLite records scoped to Source Account by default, visible/editable in the Workspace overview, and used to prefill future Standard Suggested Entries before any AI suggestion layer.
-- BYO AI Adapter configuration is optional SQLite state. When configured, Diurnum sends Curated Ledger Context over stdin to the local adapter command and reads a structured AI Suggestion from stdout.
+- BYO AI Adapter configuration is optional SQLite state. When configured, Diurnum sends Curated Ledger Context over stdin to the local adapter command and reads a structured AI Suggestion from stdout. Predictive completion treats the adapter as a final fallback and only uses structured source-account/source-amount fields for completion amounts.
 - Curated Ledger Context includes the Statement Row, Source Account, chart of accounts, Categorization Rules, similar approved entries, and business profile. It does not grant direct Workspace file access to the adapter.
 - AI Suggestions can prefill review fields and expose confidence/explanation, but they never write to Beancount; Approval remains required.
 - Transfer Matches are suggested from opposite-signed same-date Statement Rows across different Source Accounts, never auto-approved, and approved as one balanced Beancount Transfer Entry that marks both linked Statement Rows accounted.

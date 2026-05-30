@@ -18,6 +18,8 @@ import type {
   LedgerEditorState,
   LedgerFileSnapshot,
   MvpReports,
+  PredictiveEntryCompletion,
+  PredictiveEntryCompletionInput,
   ReadLedgerFileInput,
   ReportsInput,
   RestoreSnapshotInput,
@@ -44,6 +46,9 @@ type WorkspaceApi = {
   saveLedgerEditorSession: (
     input: SaveLedgerEditorSessionInput,
   ) => Promise<LedgerEditorSession>;
+  getPredictiveEntryCompletion: (
+    input: PredictiveEntryCompletionInput,
+  ) => Promise<PredictiveEntryCompletion | null>;
   inspectWorkspacePaths: (paths: string[]) => Promise<WorkspacePathStatus[]>;
   getWorkspaceGitStatus: (path: string) => Promise<WorkspaceGitStatus>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
@@ -148,6 +153,15 @@ export async function saveLedgerEditorSession(
     return window.__DIURNUM_TEST_API__.saveLedgerEditorSession(input);
   }
   return invoke<LedgerEditorSession>("save_ledger_editor_session", { input });
+}
+
+export async function getPredictiveEntryCompletion(
+  input: PredictiveEntryCompletionInput,
+): Promise<PredictiveEntryCompletion | null> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getPredictiveEntryCompletion(input);
+  }
+  return invoke<PredictiveEntryCompletion | null>("get_predictive_entry_completion", { input });
 }
 
 export async function inspectWorkspacePaths(

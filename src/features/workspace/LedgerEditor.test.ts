@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alignTransactionAmounts } from "./LedgerEditor";
+import { alignTransactionAmounts, completionLinePrefixAtCursor } from "./LedgerEditor";
 
 describe("alignTransactionAmounts", () => {
   it("aligns decimal columns inside transaction blocks", () => {
@@ -28,5 +28,25 @@ describe("alignTransactionAmounts", () => {
     ].join("\n");
 
     expect(alignTransactionAmounts(contents, 3)).toBe(contents);
+  });
+});
+
+describe("completionLinePrefixAtCursor", () => {
+  it("detects a date trigger at the end of the current line", () => {
+    const contents = "include \"accounts.bean\"\n2026-05-08 ";
+
+    expect(completionLinePrefixAtCursor(contents, contents.length)).toBe("2026-05-08 ");
+  });
+
+  it("detects a partial transaction description for completion updates", () => {
+    const contents = '2026-05-08 * "Soft';
+
+    expect(completionLinePrefixAtCursor(contents, contents.length)).toBe('2026-05-08 * "Soft');
+  });
+
+  it("does not trigger in the middle of a line", () => {
+    const contents = '2026-05-08 * "Software"';
+
+    expect(completionLinePrefixAtCursor(contents, "2026-05-08 ".length)).toBeNull();
   });
 });
