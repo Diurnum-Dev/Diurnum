@@ -155,6 +155,40 @@ export type SaveLedgerFileInput = {
   workspaceRootPath: string;
   relativePath: string;
   contents: string;
+  expectedModifiedAt?: number | null;
+};
+
+export type LedgerEditorTabSession = {
+  relativePath: string;
+  cursor: number;
+  scrollTop: number;
+};
+
+export type LedgerEditorSession = {
+  openTabs: LedgerEditorTabSession[];
+  activeTab: string;
+  recentlyClosedTabs: LedgerEditorTabSession[];
+};
+
+export type LedgerEditorState = {
+  files: string[];
+  session: LedgerEditorSession;
+};
+
+export type ReadLedgerFileInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+};
+
+export type LedgerFileSnapshot = {
+  relativePath: string;
+  contents: string;
+  modifiedAt: number;
+};
+
+export type SaveLedgerEditorSessionInput = {
+  workspaceRootPath: string;
+  session: LedgerEditorSession;
 };
 
 export type WorkspacePathStatus = {

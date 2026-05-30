@@ -50,6 +50,7 @@ When the Founder-Operator records a known Opening Balance, Diurnum appends a Bea
 `.ledgerly/` stores Diurnum-managed local data:
 
 - `workspace.json` identifies the folder as an App-Created Workspace.
+- `workspace.json` also stores optional Ledger Editor session state for open tabs, the active tab, cursor positions, scroll positions, and recently closed tabs.
 - `ledgerly.sqlite` stores local workflow and cache state.
 - `.ledgerly/cache/` is reserved for rebuildable cache files.
 - `.ledgerly/snapshots/` stores timestamped backup copies of `.bean` files for restore and crash recovery. In the current implementation this path is `.diurnum/snapshots/` until the app-directory migration lands.

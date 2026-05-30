@@ -100,6 +100,7 @@ pub fn create_workspace_contents(
         layout: WorkspaceLayout::default(),
         created_at: now.clone(),
         updated_at: now,
+        editor_session: None,
     };
     write_text(
         root_path.join(".diurnum").join("workspace.json"),
