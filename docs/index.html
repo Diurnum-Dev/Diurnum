@@ -625,6 +625,51 @@
     letter-spacing: 0.01em;
   }
 
+  /* === Loops form states === */
+  .newsletter-form-container { width: 100%; }
+
+  .newsletter-form {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .newsletter-success,
+  .newsletter-error {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .newsletter-success-message {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 18px;
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  .newsletter-error-message {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--color-destructive);
+    text-align: center;
+  }
+
+  .newsletter-back-button {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--color-text-subtle);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    margin: 12px auto 0;
+    display: none;
+    transition: color 140ms ease;
+  }
+  .newsletter-back-button:hover { color: var(--color-text-muted); text-decoration: underline; }
+
   /* === Footer === */
   .site-footer {
     border-top: 1px solid var(--color-border);
@@ -692,8 +737,8 @@
     .nav-links { display: none; }
     .pillars-grid { grid-template-columns: 1fr; }
     .diff-line { font-size: 11px; }
-    .waitlist-form { flex-direction: column; }
-    .waitlist-form .btn { width: 100%; justify-content: center; }
+    .newsletter-form { flex-direction: column; }
+    .newsletter-form .btn { width: 100%; justify-content: center; }
     .app-frame { border-radius: 6px; }
   }
 
@@ -908,19 +953,28 @@
     <p class="waitlist-body">
       Diurnum is coming to macOS. Join the waitlist and we&rsquo;ll let you know when it&rsquo;s ready.
     </p>
-    <!-- Replace REPLACE_WITH_FORM_ID with your Formspree endpoint -->
-    <form class="waitlist-form" action="https://formspree.io/f/REPLACE_WITH_FORM_ID" method="POST">
-      <input
-        class="waitlist-input"
-        type="email"
-        name="email"
-        placeholder="your@email.com"
-        required
-        autocomplete="email"
-        aria-label="Email address"
-      >
-      <button type="submit" class="btn btn-primary">Notify me</button>
-    </form>
+    <div class="newsletter-form-container">
+      <form class="newsletter-form" action="https://app.loops.so/api/newsletter-form/cmpsnm4zc020y0ju7laidu81y" method="POST">
+        <input
+          class="newsletter-form-input waitlist-input"
+          type="email"
+          name="newsletter-form-input"
+          placeholder="your@email.com"
+          required
+          autocomplete="email"
+          aria-label="Email address"
+        >
+        <button type="submit" class="newsletter-form-button btn btn-primary">Notify me</button>
+        <button type="button" class="newsletter-loading-button btn btn-primary" style="display:none;">Please wait&hellip;</button>
+      </form>
+      <div class="newsletter-success" style="display:none;">
+        <p class="newsletter-success-message">You&rsquo;re on the list. We&rsquo;ll be in touch.</p>
+      </div>
+      <div class="newsletter-error" style="display:none;">
+        <p class="newsletter-error-message">Oops &mdash; something went wrong. Please try again.</p>
+      </div>
+      <button class="newsletter-back-button" type="button" style="display:none;">&larr; Back</button>
+    </div>
     <p class="waitlist-note">No account required. Local-first. Free forever.</p>
   </div>
 </section>
@@ -946,21 +1000,90 @@
   );
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-  // Form: simple success state
-  const form = document.querySelector('.waitlist-form');
-  if (form) {
-    form.addEventListener('submit', async e => {
-      const action = form.getAttribute('action');
-      if (action.includes('REPLACE_WITH_FORM_ID')) return; // dev placeholder
-      e.preventDefault();
-      const data = new FormData(form);
-      try {
-        const res = await fetch(action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
-        if (res.ok) {
-          form.innerHTML = '<p style="font-family:var(--font-serif);font-style:italic;color:var(--color-text-muted);font-size:18px;">You&rsquo;re on the list. We&rsquo;ll be in touch.</p>';
+  // Loops.so waitlist form
+  function submitHandler(event) {
+    event.preventDefault();
+    var container = event.target.parentNode;
+    var form = container.querySelector(".newsletter-form");
+    var formInput = container.querySelector(".newsletter-form-input");
+    var success = container.querySelector(".newsletter-success");
+    var errorContainer = container.querySelector(".newsletter-error");
+    var errorMessage = container.querySelector(".newsletter-error-message");
+    var backButton = container.querySelector(".newsletter-back-button");
+    var submitButton = container.querySelector(".newsletter-form-button");
+    var loadingButton = container.querySelector(".newsletter-loading-button");
+
+    const rateLimit = () => {
+      errorContainer.style.display = "flex";
+      errorMessage.innerText = "Too many signups, please try again in a little while";
+      submitButton.style.display = "none";
+      formInput.style.display = "none";
+      backButton.style.display = "block";
+    };
+
+    var time = new Date();
+    var timestamp = time.valueOf();
+    var previousTimestamp = localStorage.getItem("loops-form-timestamp");
+    if (previousTimestamp && Number(previousTimestamp) + 60000 > timestamp) { rateLimit(); return; }
+    localStorage.setItem("loops-form-timestamp", timestamp);
+
+    submitButton.style.display = "none";
+    loadingButton.style.display = "flex";
+
+    fetch(event.target.action, {
+      method: "POST",
+      body: "userGroup=&mailingLists=&email=" + encodeURIComponent(formInput.value),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    })
+      .then(res => [res.ok, res.json(), res])
+      .then(([ok, dataPromise, res]) => {
+        if (ok) {
+          success.style.display = "flex";
+          form.reset();
+        } else {
+          dataPromise.then(data => {
+            errorContainer.style.display = "flex";
+            errorMessage.innerText = data.message ? data.message : res.statusText;
+          });
         }
-      } catch {}
-    });
+      })
+      .catch(error => {
+        if (error.message === "Failed to fetch") { rateLimit(); return; }
+        errorContainer.style.display = "flex";
+        if (error.message) errorMessage.innerText = error.message;
+        localStorage.setItem("loops-form-timestamp", '');
+      })
+      .finally(() => {
+        formInput.style.display = "none";
+        loadingButton.style.display = "none";
+        backButton.style.display = "block";
+      });
+  }
+
+  function resetFormHandler(event) {
+    var container = event.target.parentNode;
+    var formInput = container.querySelector(".newsletter-form-input");
+    var success = container.querySelector(".newsletter-success");
+    var errorContainer = container.querySelector(".newsletter-error");
+    var errorMessage = container.querySelector(".newsletter-error-message");
+    var backButton = container.querySelector(".newsletter-back-button");
+    var submitButton = container.querySelector(".newsletter-form-button");
+
+    success.style.display = "none";
+    errorContainer.style.display = "none";
+    errorMessage.innerText = "Oops — something went wrong. Please try again.";
+    backButton.style.display = "none";
+    formInput.style.display = "flex";
+    submitButton.style.display = "flex";
+  }
+
+  var formContainers = document.getElementsByClassName("newsletter-form-container");
+  for (var i = 0; i < formContainers.length; i++) {
+    var fc = formContainers[i];
+    if (fc.classList.contains("newsletter-handlers-added")) continue;
+    fc.querySelector(".newsletter-form").addEventListener("submit", submitHandler);
+    fc.querySelector(".newsletter-back-button").addEventListener("click", resetFormHandler);
+    fc.classList.add("newsletter-handlers-added");
   }
 </script>
 </body>
