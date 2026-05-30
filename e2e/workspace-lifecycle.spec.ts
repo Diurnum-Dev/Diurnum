@@ -24,6 +24,15 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async validateWorkspace() {
         return { status: "valid", errors: [] };
       },
+      async listSnapshots() {
+        return [];
+      },
+      async restoreSnapshot() {
+        return workspace;
+      },
+      async saveLedgerFile() {
+        return { status: "valid", errors: [] };
+      },
       async addSourceAccount() {
         return workspace;
       },

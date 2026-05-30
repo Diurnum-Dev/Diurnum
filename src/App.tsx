@@ -13,10 +13,12 @@ import {
   getMvpReports,
   getSuggestedEntries,
   importStatementRows,
+  listSnapshots,
   listCategorizationRules,
   openWorkspace,
   pickDirectory,
   revealWorkspace,
+  restoreSnapshot,
   updateCategorizationRule,
   validateWorkspace,
 } from "./lib/workspace/api";
@@ -27,6 +29,7 @@ import type {
   CsvSourceMappingInput,
   BrokenProvenance,
   MvpReports,
+  SnapshotSummary,
   SourceAccountKind,
   SuggestedEntry,
   WorkspaceCreateInput,
@@ -60,6 +63,7 @@ export default function App() {
     fieldsSent: [],
   });
   const [reports, setReports] = useState<MvpReports | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate(input: WorkspaceCreateInput) {
@@ -74,6 +78,7 @@ export default function App() {
       setAiAdapterConfig({ command: null });
       setAiContextDisclosure(await getAiContextDisclosure(created.rootPath));
       setReports(null);
+      setSnapshots(await listSnapshots(created.rootPath));
       setView("overview");
     } catch (caught) {
       setError(userFacingError(caught));
@@ -92,6 +97,7 @@ export default function App() {
       setAiContextDisclosure(await getAiContextDisclosure(opened.rootPath));
       setRuleOffer(null);
       setReports(null);
+      setSnapshots(await listSnapshots(opened.rootPath));
       setView("overview");
     } catch (caught) {
       setError(userFacingError(caught));
@@ -119,6 +125,7 @@ export default function App() {
         ledgerValidation,
       });
       setBrokenProvenance(await getBrokenProvenance(workspace.rootPath));
+      setSnapshots(await listSnapshots(workspace.rootPath));
       if (ledgerValidation.status === "invalid") {
         setReports(null);
       }
@@ -144,6 +151,7 @@ export default function App() {
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setReports(null);
+      setSnapshots(await listSnapshots(updated.rootPath));
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -168,6 +176,7 @@ export default function App() {
       setCategorizationRules(await listCategorizationRules(workspace.rootPath));
       setAiContextDisclosure(await getAiContextDisclosure(workspace.rootPath));
       setReports(null);
+      setSnapshots(await listSnapshots(workspace.rootPath));
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -189,6 +198,7 @@ export default function App() {
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setReports(null);
+      setSnapshots(await listSnapshots(updated.rootPath));
       const approvedEntry = suggestedEntries.find(
         (entry) => entry.statementRowId === input.statementRowId,
       );
@@ -221,6 +231,7 @@ export default function App() {
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setRuleOffer(null);
       setReports(null);
+      setSnapshots(await listSnapshots(updated.rootPath));
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -290,6 +301,28 @@ export default function App() {
     }
   }
 
+  async function handleRestoreSnapshot(snapshotId: string) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const restored = await restoreSnapshot({
+        workspaceRootPath: workspace.rootPath,
+        snapshotId,
+      });
+      setWorkspace(restored);
+      setSuggestedEntries(await getSuggestedEntries(restored.rootPath));
+      setBrokenProvenance(await getBrokenProvenance(restored.rootPath));
+      setCategorizationRules(await listCategorizationRules(restored.rootPath));
+      setAiAdapterConfig(await getAiAdapterConfig(restored.rootPath));
+      setAiContextDisclosure(await getAiContextDisclosure(restored.rootPath));
+      setSnapshots(await listSnapshots(restored.rootPath));
+      setReports(null);
+      setRuleOffer(null);
+    } catch (caught) {
+      setError(userFacingError(caught));
+    }
+  }
+
   useEffect(() => {
     if (view !== "overview" || !workspace) return;
 
@@ -351,8 +384,10 @@ export default function App() {
           aiAdapterConfig={aiAdapterConfig}
           aiContextDisclosure={aiContextDisclosure}
           reports={reports}
+          snapshots={snapshots}
           onReveal={handleReveal}
           onValidate={handleValidateWorkspace}
+          onRestoreSnapshot={handleRestoreSnapshot}
           onAddSourceAccount={handleAddSourceAccount}
           onImportStatementRows={handleImportStatementRows}
           onApproveSuggestedEntry={handleApproveSuggestedEntry}

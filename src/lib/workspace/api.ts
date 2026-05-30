@@ -16,6 +16,9 @@ import type {
   LedgerValidationSummary,
   MvpReports,
   ReportsInput,
+  RestoreSnapshotInput,
+  SaveLedgerFileInput,
+  SnapshotSummary,
   SuggestedEntry,
   UpdateCategorizationRuleInput,
   WorkspaceCreateInput,
@@ -26,6 +29,9 @@ type WorkspaceApi = {
   createWorkspace: (input: WorkspaceCreateInput) => Promise<WorkspaceSummary>;
   openWorkspace: (path: string) => Promise<WorkspaceSummary>;
   validateWorkspace: (path: string) => Promise<LedgerValidationSummary>;
+  listSnapshots: (path: string) => Promise<SnapshotSummary[]>;
+  restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceSummary>;
+  saveLedgerFile: (input: SaveLedgerFileInput) => Promise<LedgerValidationSummary>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
   importStatementRows: (input: CsvImportInput) => Promise<CsvImportResult>;
   getSuggestedEntries: (path: string) => Promise<SuggestedEntry[]>;
@@ -76,6 +82,31 @@ export async function validateWorkspace(
     return window.__DIURNUM_TEST_API__.validateWorkspace(path);
   }
   return invoke<LedgerValidationSummary>("validate_workspace", { path });
+}
+
+export async function listSnapshots(path: string): Promise<SnapshotSummary[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listSnapshots(path);
+  }
+  return invoke<SnapshotSummary[]>("list_snapshots", { path });
+}
+
+export async function restoreSnapshot(
+  input: RestoreSnapshotInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.restoreSnapshot(input);
+  }
+  return invoke<WorkspaceSummary>("restore_snapshot", { input });
+}
+
+export async function saveLedgerFile(
+  input: SaveLedgerFileInput,
+): Promise<LedgerValidationSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.saveLedgerFile(input);
+  }
+  return invoke<LedgerValidationSummary>("save_ledger_file", { input });
 }
 
 export async function addSourceAccount(

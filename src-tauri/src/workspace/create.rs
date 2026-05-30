@@ -1,6 +1,7 @@
 use crate::workspace::beancount::{
     render_accounts_bean, render_main_bean, render_opening_balances_bean,
 };
+use crate::workspace::data_integrity::{atomic_write, ensure_snapshot_gitignore};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::paths::{
     sanitize_workspace_folder_name, validate_books_start_date, validate_business_name,
@@ -32,7 +33,13 @@ pub fn create_workspace(input: CreateWorkspaceInput) -> Result<WorkspaceSummary,
     }
 
     fs::create_dir_all(&root_path)?;
-    create_workspace_contents(&root_path, &business_name, &base_currency, &books_start_date)?;
+    create_workspace_contents(
+        &root_path,
+        &business_name,
+        &base_currency,
+        &books_start_date,
+    )?;
+    ensure_snapshot_gitignore(&root_path)?;
     let ledger_validation = validate_workspace(&root_path)?;
 
     Ok(WorkspaceSummary {
@@ -63,7 +70,10 @@ pub fn create_workspace_contents(
     write_text(root_path.join("transactions").join(".gitkeep"), "")?;
     write_text(root_path.join("documents").join(".gitkeep"), "")?;
     write_text(root_path.join("imports").join(".gitkeep"), "")?;
-    write_text(root_path.join(".diurnum").join("cache").join(".gitkeep"), "")?;
+    write_text(
+        root_path.join(".diurnum").join("cache").join(".gitkeep"),
+        "",
+    )?;
 
     write_text(
         root_path.join("main.bean"),
@@ -93,7 +103,8 @@ pub fn create_workspace_contents(
     };
     write_text(
         root_path.join(".diurnum").join("workspace.json"),
-        &serde_json::to_string_pretty(&manifest).map_err(|error| WorkspaceError::io(error.to_string()))?,
+        &serde_json::to_string_pretty(&manifest)
+            .map_err(|error| WorkspaceError::io(error.to_string()))?,
     )?;
 
     initialize_sqlite(
@@ -107,7 +118,7 @@ pub fn create_workspace_contents(
 }
 
 fn write_text(path: PathBuf, contents: &str) -> Result<(), WorkspaceError> {
-    fs::write(path, contents).map_err(WorkspaceError::from)
+    atomic_write(path, contents)
 }
 
 fn initialize_sqlite(

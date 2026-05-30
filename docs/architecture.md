@@ -18,6 +18,7 @@ flowchart TB
     Ledger[Readable Beancount ledger files]
     LocalState[Diurnum-managed SQLite state]
     Manifest[Workspace manifest and cache]
+    Snapshots[Backup snapshots]
   end
 
   subgraph Collaboration[Local agent collaboration]
@@ -31,6 +32,7 @@ flowchart TB
   Core --> Ledger
   Core --> LocalState
   Core --> Manifest
+  Core --> Snapshots
   Core --> UI
   User --> Issues
   Issues --> PRs
@@ -61,12 +63,14 @@ sequenceDiagram
   User->>UI: Review suggestions, rules, AI hints, or transfer matches
   UI->>Core: Review and approval commands
   Core->>State: Read staged rows, rules, adapter config, and provenance
+  Core->>Ledger: Snapshot current .bean files
   Core->>Ledger: Write approved monthly transactions only
   Core->>State: Mark approved rows accounted
   Core-->>UI: Refreshed workspace summary
 
-  User->>UI: Recheck ledger or run MVP reports
-  UI->>Core: Validation/report command
+  User->>UI: Recheck ledger, restore snapshot, or run MVP reports
+  UI->>Core: Validation/restore/report command
+  Core->>Ledger: Restore selected snapshot with atomic writes when requested
   Core->>Ledger: Validate and derive reports from readable ledger files
   Core-->>UI: Invalid-ledger details or MVP reports
 ```
@@ -96,10 +100,20 @@ flowchart LR
     Reports[MVP reports]
   end
 
+  subgraph Integrity[Data integrity layer]
+    Atomic[Atomic file writes]
+    Snapshots[Snapshot manifests and .bean copies]
+    Recovery[Recovery restore]
+  end
+
   LedgerFiles --> Validation
   LedgerFiles --> Reports
   SQLite --> Approval
   SQLite --> Provenance
+  Atomic --> LedgerFiles
+  LedgerFiles --> Snapshots
+  Snapshots --> Recovery
+  Recovery --> LedgerFiles
   Approval --> Monthly
   Provenance --> Monthly
 ```
@@ -132,7 +146,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 | Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Workspace create/open screens, invalid-ledger messaging, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
-| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting.                                        |
+| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, snapshots, restore, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
 | Core support         | `src-tauri/src/workspace/beancount.rs`, `paths.rs`, `types.rs`, `errors.rs`                                                                                                  | Beancount rendering/parsing helpers, workspace paths, shared DTOs, and error handling.                                                                                                                         |
 | Golden path test     | `src-tauri/src/workspace/golden_path_validation.rs`                                                                                                                          | End-to-end native workflow coverage from workspace creation through CSV import, approval, transfer approval, validation, provenance checks, invalid-ledger blocking, and MVP reports.                          |
 | Local agent workflow | `.agents/skills/work-ready-issues/SKILL.md`                                                                                                                                  | Sequential ready-for-agent issue selection, branch work, review, PR, merge, and continuation workflow.                                                                                                         |
@@ -142,11 +156,16 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - React owns presentation state, forms, error rendering, and Workspace overview screens.
 - `src/lib/workspace/api.ts` is the frontend boundary to native Workspace commands.
 - Tauri commands translate frontend calls into Rust domain operations.
-- `src-tauri/src/workspace/` owns Workspace filesystem layout, manifest handling, Beancount rendering, SQLite initialization, path validation, Source Account ledger writes, CSV import staging, Source Mapping persistence, approval, AI adapter invocation, categorization rules, transfer matching, broken-provenance checks, MVP reporting, and structural ledger validation with file-aware error messages.
+- `src-tauri/src/workspace/` owns Workspace filesystem layout, manifest handling, Beancount rendering, SQLite initialization, path validation, atomic `.bean` writes, backup snapshots, snapshot restore, Source Account ledger writes, CSV import staging, Source Mapping persistence, approval, AI adapter invocation, categorization rules, transfer matching, broken-provenance checks, MVP reporting, and structural ledger validation with file-aware error messages.
 - The Workspace folder owns all accounting data needed for this slice. No Diurnum cloud account is required.
 - Readable Beancount files are the source of truth for ledger validation and MVP Reports.
 - Diurnum-managed SQLite state stores CSV staging rows, Source Mappings, Categorization Rules, BYO AI Adapter configuration, approval provenance, placeholders, and cache state.
+- The current implementation stores Diurnum-managed local data under `.diurnum/`; V1 product docs target `.ledgerly/`. Until the manifest/storage migration lands, the Data Integrity layer stores snapshots under `.diurnum/snapshots/` and also reserves `.ledgerly/snapshots/` in Workspace `.gitignore` for forward compatibility.
+- The Data Integrity layer writes `.bean` file changes with a write-temp, fsync, rename sequence. Current Source Account writes, Approval writes, transfer Approval writes, and the Ledger Editor save command go through this boundary.
+- Approval creates a Snapshot before mutating `main.bean` or Monthly Transaction Files. Valid Workspace open creates one daily Snapshot at most, and restore creates a pre-restore Snapshot before replacing current `.bean` contents and rerunning Ledger Validation.
+- Workspace `.gitignore` excludes snapshot folders only; Beancount files, Workspace metadata, and `documents/` remain committable.
 - The Workspace overview renders Invalid Ledger State details from `WorkspaceSummary.ledgerValidation` and blocks unsafe Approval and MVP Report affordances while validation is invalid.
+- The Workspace overview currently exposes recent Snapshots and restore actions, and shows them as a recovery affordance when opening a Workspace in Invalid Ledger State. The full V1 Settings navigation will host the same Snapshot surface when issue #41 lands.
 - Source Account setup appends valid Beancount directives to the readable ledger files rather than storing canonical account setup only in SQLite.
 - CSV Import stores normalized Statement Rows in SQLite Staging Area tables without writing to Beancount.
 - Import deduplication is scoped to `(source_account, import_fingerprint)` and skips duplicates even when prior rows are already accounted.
