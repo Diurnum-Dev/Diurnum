@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { basicSetup } from "codemirror";
 import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
-import { EditorView, Decoration, keymap, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { EditorView, Decoration, keymap, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { bracketMatching, foldGutter, foldKeymap, foldService } from "@codemirror/language";
 import { searchKeymap } from "@codemirror/search";
@@ -11,9 +11,11 @@ import type {
   LedgerEditorTabSession,
   LedgerFileSnapshot,
   LedgerValidationSummary,
+  PredictiveEntryCompletion,
   WorkspaceSummary,
 } from "../../lib/workspace/types";
 import {
+  getPredictiveEntryCompletion,
   getLedgerEditorState,
   readLedgerFile,
   saveLedgerEditorSession,
@@ -60,6 +62,8 @@ export function LedgerEditor({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState(workspace.ledgerValidation.errors);
+  const [predictiveCompletion, setPredictiveCompletion] =
+    useState<PredictiveEntryCompletion | null>(null);
 
   const activeTab = tabs.find((tab) => tab.relativePath === activePath) ?? null;
   const activeLineRef = useRef(1);
@@ -234,6 +238,38 @@ export function LedgerEditor({
     const timeout = window.setTimeout(() => void saveActiveFile(), 2000);
     return () => window.clearTimeout(timeout);
   }, [activeTab?.contents, activeTab?.isDirty, saveActiveFile]);
+
+  useEffect(() => {
+    if (!activeTab) {
+      setPredictiveCompletion(null);
+      return;
+    }
+    const linePrefix = completionLinePrefixAtCursor(activeTab.contents, activeTab.cursor);
+    if (!linePrefix) {
+      setPredictiveCompletion(null);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      void getPredictiveEntryCompletion({
+        workspaceRootPath: workspace.rootPath,
+        linePrefix,
+      })
+        .then((completion) => {
+          if (cancelled) return;
+          setPredictiveCompletion(completion?.insertText ? completion : null);
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          setPredictiveCompletion(null);
+          onError(errorMessage(error));
+        });
+    }, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [activeTab?.contents, activeTab?.cursor, activePath, onError, workspace.rootPath]);
 
   useEffect(() => {
     if (!activeTab || activeTab.isDirty) return;
@@ -435,11 +471,13 @@ export function LedgerEditor({
             cursor={activeTab.cursor}
             scrollTop={activeTab.scrollTop}
             validationErrors={validationErrorsForFile(validationErrors, activePath)}
+            completionText={predictiveCompletion?.insertText ?? null}
             onChange={updateActiveContents}
             onSave={saveActiveFile}
             onCloseTab={() => closeTab()}
             onReopenTab={reopenClosedTab}
             onOpenInclude={(relativePath) => void openFile(relativePath)}
+            onDismissCompletion={() => setPredictiveCompletion(null)}
           />
         </div>
       </div>
@@ -452,11 +490,13 @@ type CodeMirrorEditorProps = {
   cursor: number;
   scrollTop: number;
   validationErrors: FileValidationError[];
+  completionText: string | null;
   onChange: (contents: string, cursor: number, scrollTop: number) => void;
   onSave: () => void;
   onCloseTab: () => void;
   onReopenTab: () => void;
   onOpenInclude: (relativePath: string) => void;
+  onDismissCompletion: () => void;
 };
 
 function CodeMirrorEditor({
@@ -464,32 +504,39 @@ function CodeMirrorEditor({
   cursor,
   scrollTop,
   validationErrors,
+  completionText,
   onChange,
   onSave,
   onCloseTab,
   onReopenTab,
   onOpenInclude,
+  onDismissCompletion,
 }: CodeMirrorEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const lintCompartment = useRef(new Compartment());
+  const completionCompartment = useRef(new Compartment());
   const callbacksRef = useRef({
+    completionText,
     onChange,
     onSave,
     onCloseTab,
     onReopenTab,
     onOpenInclude,
+    onDismissCompletion,
   });
 
   useEffect(() => {
     callbacksRef.current = {
+      completionText,
       onChange,
       onSave,
       onCloseTab,
       onReopenTab,
       onOpenInclude,
+      onDismissCompletion,
     };
-  }, [onChange, onSave, onCloseTab, onReopenTab, onOpenInclude]);
+  }, [completionText, onChange, onSave, onCloseTab, onReopenTab, onOpenInclude, onDismissCompletion]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -506,10 +553,33 @@ function CodeMirrorEditor({
           transactionFolding,
           beanDecorations((relativePath) => callbacksRef.current.onOpenInclude(relativePath)),
           currentTransactionHighlight,
+          completionCompartment.current.of(ghostCompletion(completionText)),
           lintCompartment.current.of(
             linter((view) => diagnosticsFromErrors(validationErrors, view.state)),
           ),
           keymap.of([
+            {
+              key: "Tab",
+              run: (view) => {
+                const text = callbacksRef.current.completionText;
+                if (!text) return false;
+                const cursor = view.state.selection.main.head;
+                view.dispatch({
+                  changes: { from: cursor, to: cursor, insert: text },
+                  selection: EditorSelection.cursor(cursor + text.length),
+                });
+                callbacksRef.current.onDismissCompletion();
+                return true;
+              },
+            },
+            {
+              key: "Escape",
+              run: () => {
+                if (!callbacksRef.current.completionText) return false;
+                callbacksRef.current.onDismissCompletion();
+                return true;
+              },
+            },
             {
               key: "Mod-s",
               run: () => {
@@ -565,7 +635,66 @@ function CodeMirrorEditor({
     });
   }, [validationErrors]);
 
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: completionCompartment.current.reconfigure(ghostCompletion(completionText)),
+    });
+  }, [completionText]);
+
   return <div ref={hostRef} className="codemirror-host" />;
+}
+
+class GhostCompletionWidget extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+
+  eq(other: GhostCompletionWidget) {
+    return this.text === other.text;
+  }
+
+  toDOM() {
+    const element = document.createElement("span");
+    element.className = "cm-ghost-completion";
+    element.textContent = this.text;
+    return element;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
+
+const ghostCompletion = (text: string | null) =>
+  ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        this.decorations = ghostCompletionDecorations(view, text);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.selectionSet || update.docChanged || update.viewportChanged) {
+          this.decorations = ghostCompletionDecorations(update.view, text);
+        }
+      }
+    },
+    {
+      decorations: (plugin) => plugin.decorations,
+    },
+  );
+
+function ghostCompletionDecorations(view: EditorView, text: string | null): DecorationSet {
+  if (!text || !view.state.selection.main.empty) return Decoration.set([]);
+  return Decoration.set([
+    Decoration.widget({
+      widget: new GhostCompletionWidget(text),
+      side: 1,
+    }).range(view.state.selection.main.head),
+  ]);
 }
 
 type FileValidationError = {
@@ -804,6 +933,16 @@ function shortName(relativePath: string): string {
 
 function lineNumberAt(contents: string, cursor: number): number {
   return contents.slice(0, cursor).split("\n").length;
+}
+
+export function completionLinePrefixAtCursor(contents: string, cursor: number): string | null {
+  const boundedCursor = Math.max(0, Math.min(cursor, contents.length));
+  const lineStart = contents.lastIndexOf("\n", boundedCursor - 1) + 1;
+  const nextLineBreak = contents.indexOf("\n", boundedCursor);
+  const lineEnd = nextLineBreak === -1 ? contents.length : nextLineBreak;
+  if (boundedCursor !== lineEnd) return null;
+  const linePrefix = contents.slice(lineStart, boundedCursor);
+  return /^\d{4}-\d{2}-\d{2}\s/.test(linePrefix) ? linePrefix : null;
 }
 
 function errorMessage(error: unknown): string {

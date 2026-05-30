@@ -13,7 +13,8 @@ use crate::workspace::data_integrity::{
 };
 use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
 use crate::workspace::ledger_editor::{
-    self, LedgerEditorState, LedgerFileSnapshot, ReadLedgerFileInput, SaveLedgerEditorSessionInput,
+    self, LedgerEditorState, LedgerFileSnapshot, PredictiveEntryCompletion,
+    PredictiveEntryCompletionInput, ReadLedgerFileInput, SaveLedgerEditorSessionInput,
 };
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
@@ -70,6 +71,13 @@ pub fn save_ledger_editor_session(
     input: SaveLedgerEditorSessionInput,
 ) -> Result<crate::workspace::LedgerEditorSession, WorkspaceError> {
     ledger_editor::save_ledger_editor_session(input)
+}
+
+#[tauri::command]
+pub fn get_predictive_entry_completion(
+    input: PredictiveEntryCompletionInput,
+) -> Result<Option<PredictiveEntryCompletion>, WorkspaceError> {
+    ledger_editor::get_predictive_entry_completion(input)
 }
 
 #[tauri::command]

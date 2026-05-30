@@ -65,6 +65,9 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       }) {
         return input.session;
       },
+      async getPredictiveEntryCompletion() {
+        return null;
+      },
       async inspectWorkspacePaths(paths: string[]) {
         return paths.map((path) => ({ path, exists: true }));
       },

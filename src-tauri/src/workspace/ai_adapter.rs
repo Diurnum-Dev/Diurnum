@@ -73,6 +73,10 @@ pub struct AiBusinessProfile {
 #[serde(rename_all = "camelCase")]
 pub struct AiSuggestion {
     pub ledger_account: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_account: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_amount: Option<String>,
     pub payee: Option<String>,
     pub narration: Option<String>,
     pub confidence: Option<f64>,

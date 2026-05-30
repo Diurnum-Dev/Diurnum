@@ -37,6 +37,7 @@ pub fn run() {
             commands::workspace::get_ledger_editor_state,
             commands::workspace::read_ledger_file,
             commands::workspace::save_ledger_editor_session,
+            commands::workspace::get_predictive_entry_completion,
             commands::workspace::inspect_workspace_paths,
             commands::workspace::get_workspace_git_status,
             commands::workspace::add_source_account,

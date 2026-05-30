@@ -1069,6 +1069,12 @@ dd {
   background: #fef8e1;
 }
 
+.cm-ghost-completion {
+  color: #8c887d;
+  pointer-events: none;
+  white-space: pre;
+}
+
 .cm-include-link {
   cursor: pointer;
   text-decoration: underline;

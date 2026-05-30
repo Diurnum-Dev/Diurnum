@@ -61,6 +61,8 @@ export type SuggestedEntry = {
 
 export type AiSuggestion = {
   ledgerAccount?: string | null;
+  sourceAccount?: string | null;
+  sourceAmount?: string | null;
   payee?: string | null;
   narration?: string | null;
   confidence?: number | null;
@@ -189,6 +191,21 @@ export type LedgerFileSnapshot = {
 export type SaveLedgerEditorSessionInput = {
   workspaceRootPath: string;
   session: LedgerEditorSession;
+};
+
+export type PredictiveEntryCompletionSource = "rule" | "history" | "aiAdapter";
+
+export type PredictiveEntryCompletionInput = {
+  workspaceRootPath: string;
+  linePrefix: string;
+};
+
+export type PredictiveEntryCompletion = {
+  insertText: string;
+  source: PredictiveEntryCompletionSource;
+  ledgerAccount?: string | null;
+  sourceAccount?: string | null;
+  sourceAmount?: string | null;
 };
 
 export type WorkspacePathStatus = {
