@@ -398,6 +398,120 @@
     user-select: none;
   }
 
+  /* === Editor Preview ======================================== */
+  .editor-preview {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin: var(--space-6) auto 0;
+    max-width: 760px;
+  }
+
+  .editor-preview-header {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg-muted);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .editor-preview-body {
+    display: flex;
+    max-height: 420px;
+    overflow: auto;
+  }
+
+  .editor-gutter {
+    flex-shrink: 0;
+    background: var(--color-bg-muted);
+    border-right: 1px solid var(--color-border);
+    padding: var(--space-4) var(--space-3);
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text-subtle);
+    user-select: none;
+  }
+
+  .editor-gutter .ln {
+    display: block;
+  }
+
+  .editor-code {
+    flex: 1;
+    padding: var(--space-4) var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    overflow-x: auto;
+    min-width: 0;
+  }
+
+  .editor-code .line {
+    display: block;
+    white-space: pre;
+    margin-bottom: 0;
+    padding-left: 0;
+  }
+
+  .editor-code .line-blank {
+    height: 1.6em;
+    display: block;
+  }
+
+  .editor-code .t-comment {
+    color: var(--color-text);
+    font-weight: var(--weight-normal);
+  }
+
+  .editor-code .t-date {
+    color: var(--color-text);
+    font-weight: var(--weight-normal);
+  }
+
+  .editor-code .t-keyword {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+
+  .editor-code .t-account {
+    color: var(--color-text);
+    font-weight: var(--weight-normal);
+  }
+
+  .editor-code .t-amount {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+
+  .editor-code .t-currency {
+    color: var(--color-text);
+    font-weight: var(--weight-normal);
+  }
+
+  .editor-code .t-string {
+    color: var(--color-text);
+    background: rgba(242, 230, 199, 0.5);
+    border-radius: 1px;
+    padding: 0 2px;
+  }
+
+  .editor-code .t-tag {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-medium);
+  }
+
+  .editor-code .t-flag {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+
   /* === Etymology ============================================= */
   .etymology {
     padding: var(--space-12) 0;
@@ -676,6 +790,9 @@
     .diff-line { padding: 1px var(--space-4); font-size: var(--text-xs); }
     .voice-text { font-size: var(--text-md); }
     .comp-table { font-size: var(--text-xs); }
+    .editor-preview-body { max-height: 320px; }
+    .editor-gutter { padding: var(--space-3) var(--space-2); font-size: var(--text-xs); }
+    .editor-code { padding: var(--space-3) var(--space-4); font-size: var(--text-xs); }
   }
 
   @media (max-width: 480px) {
@@ -738,14 +855,39 @@
     <p style="font-size:var(--text-md); color:var(--color-text-muted); line-height:1.6;">Plain Beancount text. Open in Fava. Validate with <span class="font-mono" style="font-size:var(--text-sm);">bean-check</span>. Leave any time.</p>
   </div>
 
-  <div class="diff-frame">
-    <div class="diff-header">2026-05 &middot; stripe-payout.bean</div>
-    <div class="diff-body">
-      <div class="diff-line diff-ctx"><span class="diff-marker"> </span>2026-05-08 * "Stripe" "Payout"</div>
-      <div class="diff-line diff-del"><span class="diff-marker">&minus;</span>  Assets:Bank:Checking      1842.17 USD</div>
-      <div class="diff-line diff-add"><span class="diff-marker">+</span>  Assets:Bank:Checking      1842.17 USD</div>
-      <div class="diff-line diff-add"><span class="diff-marker">+</span>  Expenses:Fees:Stripe        57.83 USD</div>
-      <div class="diff-line diff-add"><span class="diff-marker">+</span>  Income:Sales             -1900.00 USD</div>
+  <div class="editor-preview">
+    <div class="editor-preview-header">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 2.5h5l3 3V13a.5.5 0 01-.5.5h-7A.5.5 0 014 13V3a.5.5 0 01.5-.5h-.5z" stroke-linejoin="round"/><path d="M9 2.5V5.5h3" stroke-linejoin="round"/></svg>
+      main.beancount
+    </div>
+    <div class="editor-preview-body">
+      <div class="editor-gutter">
+        <span class="ln">1</span>
+        <span class="ln">2</span>
+        <span class="ln">3</span>
+        <span class="ln">4</span>
+        <span class="ln">5</span>
+        <span class="ln">6</span>
+        <span class="ln">7</span>
+        <span class="ln">8</span>
+        <span class="ln">9</span>
+        <span class="ln">10</span>
+        <span class="ln">11</span>
+        <span class="ln">12</span>
+        <span class="ln">13</span>
+        <span class="ln">14</span>
+        <span class="ln">15</span>
+        <span class="ln">16</span>
+        <span class="ln">17</span>
+        <span class="ln">18</span>
+        <span class="ln">19</span>
+        <span class="ln">20</span>
+        <span class="ln">21</span>
+        <span class="ln">22</span>
+        <span class="ln">23</span>
+        <span class="ln">24</span>
+      </div>
+      <div class="editor-code"><span class="line"><span class="t-comment">;; main.beancount — Personal Finances</span></span><span class="line"><span class="t-comment">;; Maintained by Elena · last reviewed 2026-05-20</span></span><span class="line-blank"></span><span class="line"><span class="t-comment">;; ── May 2026 ──────────────────────────────────────────────────</span></span><span class="line-blank"></span><span class="line"><span class="t-date">2026-05-02</span> <span class="t-flag">*</span> <span class="t-string">"Foundry Labs"</span> <span class="t-string">"May salary"</span></span><span class="line">    <span class="t-account">Income:Salary:Foundry</span>            <span class="t-amount">-8,420.00</span> <span class="t-currency">USD</span></span><span class="line">    <span class="t-account">Assets:Checking:Mercury</span></span><span class="line-blank"></span><span class="line"><span class="t-date">2026-05-03</span> <span class="t-flag">*</span> <span class="t-string">"Bridgepoint Property Co."</span> <span class="t-string">"May rent"</span></span><span class="line">    <span class="t-account">Expenses:Rent</span>                      <span class="t-amount">2,650.00</span> <span class="t-currency">USD</span></span><span class="line">    <span class="t-account">Assets:Checking:Mercury</span></span><span class="line-blank"></span><span class="line"><span class="t-date">2026-05-08</span> <span class="t-flag">*</span> <span class="t-string">"Whole Foods"</span> <span class="t-string">"Weekly groceries"</span> <span class="t-tag">#groceries</span></span><span class="line">    <span class="t-account">Expenses:Groceries</span>                  <span class="t-amount">&nbsp;98.37</span> <span class="t-currency">USD</span></span><span class="line">    <span class="t-account">Liabilities:CreditCard:Amex</span>         <span class="t-amount">-98.37</span> <span class="t-currency">USD</span></span><span class="line-blank"></span><span class="line"><span class="t-date">2026-05-11</span> <span class="t-flag">*</span> <span class="t-string">"Verve Coffee"</span> <span class="t-string">"Pourover + pastry"</span></span><span class="line">    <span class="t-account">Expenses:Coffee</span>                     <span class="t-amount">&nbsp;8.25</span> <span class="t-currency">USD</span></span><span class="line">    <span class="t-account">Liabilities:CreditCard:Amex</span>         <span class="t-amount">-8.25</span> <span class="t-currency">USD</span></span><span class="line-blank"></span><span class="line"><span class="t-date">2026-05-18</span> <span class="t-flag">*</span> <span class="t-string">"Ally Bank"</span> <span class="t-string">"Monthly transfer to savings"</span></span><span class="line">    <span class="t-account">Assets:Savings:Ally</span>                 <span class="t-amount">1,000.00</span> <span class="t-currency">USD</span></span><span class="line">    <span class="t-account">Assets:Checking:Mercury</span>            <span class="t-amount">-1,000.00</span> <span class="t-currency">USD</span></span></div>
     </div>
   </div>
 </section>
