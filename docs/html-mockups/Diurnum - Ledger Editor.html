@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles/tokens-diurnum.css" />
 <style>
+  :root { --fb-width: 200px; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body {
@@ -25,8 +26,9 @@
   /* ─── App shell ─────────────────────────────────────────── */
   .app {
     display: grid;
-    grid-template-columns: var(--shell-sidebar-width) 1fr;
+    grid-template-columns: var(--shell-sidebar-width) var(--fb-width, 200px) 1fr;
     height: 100vh;
+    transition: grid-template-columns 0.18s ease;
   }
   .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -116,7 +118,6 @@
     color: var(--color-accent);
     border-color: transparent;
   }
-
   .footer {
     margin-top: auto;
     border-top: var(--border-width) solid var(--color-border);
@@ -169,6 +170,103 @@
     transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
   }
   .theme-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  /* ─── File Browser ─────────────────────────────────────── */
+  .file-browser {
+    background: var(--color-bg-muted);
+    border-right: var(--border-width) solid var(--color-border-strong);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    flex: none;
+  }
+  .fb-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 36px;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex: none;
+  }
+  .fb-title {
+    flex: 1;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .fb-icon-btn {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-subtle);
+    flex: none;
+    transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+  }
+  .fb-icon-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+  .fb-tree {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--space-1) 0 var(--space-6);
+  }
+  .fb-tree::-webkit-scrollbar { width: 6px; }
+  .fb-tree::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+  .fb-tree::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+  .fb-root-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--duration-fast) var(--easing);
+    user-select: none;
+  }
+  .fb-root-label:hover { color: var(--color-text); }
+  .fb-root-label .root-chev { transition: transform 0.12s ease; flex: none; }
+  .fb-root-label.collapsed .root-chev { transform: rotate(-90deg); }
+
+  /* tree-item: shared for both files and folders */
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--color-text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    padding-right: var(--space-3);
+    transition: background var(--duration-fast) var(--easing);
+    user-select: none;
+    position: relative;
+  }
+  .tree-item:hover { background: var(--color-bg-subtle); }
+  .tree-item .tree-chev {
+    flex: none;
+    color: var(--color-text-subtle);
+    transition: transform 0.12s ease;
+  }
+  .tree-item.collapsed .tree-chev { transform: rotate(-90deg); }
+  .tree-item .folder-icon { color: var(--color-text-muted); flex: none; }
+  .tree-item .file-icon { color: var(--color-text-subtle); flex: none; }
+  .tree-item span.label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
   /* ─── Tab bar ──────────────────────────────────────────── */
   .tabbar {
@@ -224,16 +322,13 @@
     overflow: auto;
     background: var(--color-bg);
     font-family: var(--font-mono);
-    font-size: var(--text-base);
+    font-size: var(--editor-fs, var(--text-base));
     line-height: 1.65;
     position: relative;
+    transition: font-size 0.12s ease;
   }
-  .editor-inner {
-    padding: var(--space-4) 0 var(--space-16);
-    min-height: 100%;
-  }
+  .editor-inner { padding: var(--space-4) 0 var(--space-16); min-height: 100%; }
 
-  /* Transaction block — a "paragraph" of code */
   .tx {
     display: block;
     padding: 2px 0;
@@ -241,7 +336,6 @@
   }
   .tx.active { background: var(--color-editor-active-block); }
 
-  /* Each line: gutter + content */
   .line {
     display: grid;
     grid-template-columns: 56px 1fr;
@@ -259,27 +353,17 @@
   }
   .gutter-dot {
     position: absolute;
-    left: 8px;
-    top: 50%;
+    left: 8px; top: 50%;
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--color-destructive);
     transform: translateY(-50%);
   }
-  .content {
-    color: var(--color-text);
-    white-space: pre;
-    padding-right: var(--space-6);
-  }
+  .content { color: var(--color-text); white-space: pre; padding-right: var(--space-6); }
 
-  /* Tokens */
-  .str {
-    background: var(--color-editor-string-bg);
-    padding: 1px 2px;
-    border-radius: 2px;
-  }
+  .str { background: var(--color-editor-string-bg); padding: 1px 2px; border-radius: 2px; }
   .amt { font-weight: var(--weight-medium); }
-  .cmt { color: var(--color-text); }                 /* comments NOT muted */
+  .cmt { color: var(--color-text); }
   .err {
     text-decoration: underline wavy var(--color-destructive);
     text-decoration-thickness: 1.5px;
@@ -289,8 +373,7 @@
   }
   .err-tip {
     position: absolute;
-    left: 0;
-    top: calc(100% + 8px);
+    left: 0; top: calc(100% + 8px);
     background: #18181B;
     color: #fff;
     font-family: var(--font-sans);
@@ -306,8 +389,7 @@
   .err-tip::before {
     content: "";
     position: absolute;
-    top: -5px;
-    left: 16px;
+    top: -5px; left: 16px;
     width: 8px; height: 8px;
     background: #18181B;
     transform: rotate(45deg);
@@ -321,11 +403,9 @@
     color: #fff;
   }
 
-  /* Cursor */
   .cursor {
     display: inline-block;
-    width: 1.5px;
-    height: 1.05em;
+    width: 1.5px; height: 1.05em;
     background: var(--color-text);
     vertical-align: -0.15em;
     margin: 0 -0.75px;
@@ -333,7 +413,6 @@
   }
   @keyframes blink { 50% { opacity: 0; } }
 
-  /* Ghost text — predictive completion */
   .ghost { color: var(--color-editor-ghost-text); }
   .ghost .str { background: transparent; padding: 0; }
   .ghost .amt { font-weight: var(--weight-normal); }
@@ -375,8 +454,10 @@
     font-size: var(--text-sm);
     color: var(--color-text-muted);
     gap: var(--space-3);
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
   }
-  .statusbar { flex: none; overflow: hidden; white-space: nowrap; }
   .statusbar .spacer { flex: 1; }
   .statusbar-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
   .status-sep { color: var(--color-border-strong); }
@@ -384,7 +465,7 @@
   .status-check { width: 12px; height: 12px; }
   .status-dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-muted); }
 
-  /* Scrollbar polish */
+  /* Scrollbars */
   .editor::-webkit-scrollbar, .sidebar::-webkit-scrollbar { width: 10px; height: 10px; }
   .editor::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb {
     background: var(--color-border);
@@ -396,18 +477,14 @@
 
 <style id="diurnum-reskin">
 /* ═══ Diurnum Reskin Patch ═════════════════════════════ */
-
-/* Parchment grain — fixed behind everything */
 body::before {
   content:""; position:fixed; inset:0;
   background-image:var(--grain); background-size:180px 180px;
   opacity:0.35; mix-blend-mode:multiply;
   pointer-events:none; z-index:0;
 }
-/* Raise all content above grain */
 .app,.page,.shell { position:relative; z-index:1; }
 
-/* ─── Brand mark — Spectral serif D on lapis ─── */
 .brand-mark {
   font-family:var(--font-serif)!important;
   font-size:var(--text-xl)!important;
@@ -416,27 +493,9 @@ body::before {
   width:24px!important; height:24px!important;
   line-height:1!important;
 }
-.brand-name {
-  font-family:var(--font-serif)!important;
-  letter-spacing:0.01em!important;
-}
+.brand-name { font-family:var(--font-serif)!important; letter-spacing:0.01em!important; }
 
-/* ─── Page titles → Spectral serif ─── */
-.page-header h1,
-.page-header-left h1,
-.header h1 {
-  font-family:var(--font-serif)!important;
-  letter-spacing:0.005em!important;
-}
-.card-title { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
-.section-title { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
-.section-head h2 { font-family:var(--font-serif)!important; letter-spacing:0.005em!important; }
-
-/* ─── Nav — inset 2px lapis rule, not filled bg ─── */
-.nav-item {
-  padding:0 var(--space-3)!important;
-  font-weight:var(--weight-medium)!important;
-}
+.nav-item { padding:0 var(--space-3)!important; font-weight:var(--weight-medium)!important; }
 .nav-item.active {
   background:var(--color-bg)!important;
   color:var(--color-accent)!important;
@@ -444,8 +503,6 @@ body::before {
   box-shadow:inset 2px 0 0 var(--color-accent),inset 0 0 0 1px var(--color-border)!important;
 }
 .nav-item.active svg { color:var(--color-accent)!important; }
-
-/* Count badge */
 .count-badge { font-weight:var(--weight-semibold)!important; }
 .nav-item.active .count-badge {
   background:var(--color-accent-bg)!important;
@@ -453,7 +510,6 @@ body::before {
   border-color:transparent!important;
 }
 
-/* ─── User avatar — iron-gall ink bg ─── */
 .user-avatar {
   background:var(--color-text)!important;
   color:var(--color-bg)!important;
@@ -461,111 +517,21 @@ body::before {
   font-weight:var(--weight-semibold)!important;
 }
 
-/* ─── Hairline borders — warm + slightly stronger at key edges ─── */
 .sidebar { border-right-color:var(--color-border-strong)!important; }
 .statusbar { border-top-color:var(--color-border-strong)!important; }
 
-/* ─── Buttons ─── */
-.btn-primary { color:var(--color-bg)!important; }
-.btn-primary:hover {
-  background:var(--color-accent-hover)!important;
-  border-color:var(--color-accent-hover)!important;
-}
-/* New Workspace btn-primary */
-.btn-primary.standalone:hover,
-button.btn-primary:hover { background:var(--color-accent-hover)!important; border-color:var(--color-accent-hover)!important; }
-
-/* Reject — ghost + oxblood on hover */
-.btn-reject:hover {
-  background:var(--color-destructive-bg)!important;
-  color:var(--color-destructive)!important;
-}
-
-/* ─── Tab bar active underline ─── */
 .tab.active { border-bottom-color:var(--color-accent)!important; }
 
-/* ─── Selected rows — lapis inset rule ─── */
-.tx-row.selected {
-  background:var(--color-accent-bg)!important;
-  box-shadow:inset 2px 0 0 var(--color-accent)!important;
-}
-.commit-row.selected {
-  background:var(--color-bg-subtle)!important;
-  border-left-color:var(--color-accent)!important;
-}
-.commit-row.selected .commit-hash {
-  color:var(--color-accent)!important;
-  font-weight:var(--weight-medium)!important;
-}
-.file-table tbody tr.selected td { background:var(--color-accent-bg)!important; }
-.file-table tbody tr.selected td:first-child { box-shadow:inset 2px 0 0 var(--color-accent)!important; }
-
-/* Tree pane active */
+/* File browser tree active item */
 .tree-item.active {
   background:var(--color-accent-bg)!important;
   color:var(--color-accent)!important;
   box-shadow:inset 2px 0 0 var(--color-accent)!important;
+  font-weight:var(--weight-medium)!important;
 }
 .tree-item.active .folder-icon,
-.tree-item.active .file-count { color:var(--color-accent)!important; }
+.tree-item.active .file-icon { color:var(--color-accent)!important; }
 
-/* Settings subnav active */
-.subnav-item.active {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-  box-shadow:inset 2px 0 0 var(--color-accent)!important;
-}
-.subnav-item.active .dot { background:var(--color-accent)!important; }
-
-/* ─── Transfer chip + duplicate badge — ochre ─── */
-.chip.transfer,
-.badge.dup {
-  background:var(--color-highlight-bg)!important;
-  color:var(--color-highlight-ink)!important;
-}
-
-/* ─── Drop hint banner ─── */
-.drop-hint { border-bottom-color:var(--color-accent)!important; }
-
-/* ─── Git diff — Diurnum lapis/oxblood tokens ─── */
-.diff-line.add { background:var(--diff-add-bg)!important; }
-.diff-line.add .ln,
-.diff-line.add .lnr { background:var(--diff-add-gut)!important; color:var(--diff-add-text)!important; }
-.diff-line.add .marker { color:var(--diff-add-text)!important; }
-.diff-line.del { background:var(--diff-del-bg)!important; }
-.diff-line.del .ln,
-.diff-line.del .lnr { background:var(--diff-del-gut)!important; color:var(--diff-del-text)!important; }
-.diff-line.del .marker { color:var(--diff-del-text)!important; }
-.hunk-head { background:var(--diff-hunk-bg)!important; color:var(--diff-hunk-text)!important; }
-.diff-hash { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
-.diff-stat .add { color:var(--diff-add-text)!important; }
-.diff-stat .del { color:var(--diff-del-text)!important; }
-.diff-stat .bar i.a { background:var(--color-accent-strong)!important; }
-.file-head .mini-stat .add { color:var(--diff-add-text)!important; }
-.file-head .mini-stat .del { color:var(--diff-del-text)!important; }
-.diff-filehead .add { color:var(--diff-add-text)!important; }
-.diff-filehead .del { color:var(--diff-del-text)!important; }
-/* Token highlights in code */
-.code .str { color:var(--color-highlight-ink)!important; }
-.code .flag-pending {
-  background:var(--color-highlight-bg)!important;
-  color:var(--color-highlight-ink)!important;
-}
-.code .flag-approved {
-  background:var(--diff-add-gut)!important;
-  color:var(--diff-add-text)!important;
-}
-/* Commit auto-dot */
-.auto-dot {
-  background:var(--color-accent-strong)!important;
-  box-shadow:0 0 0 3px color-mix(in oklch,var(--color-accent-strong) 22%,transparent)!important;
-}
-/* Commit prefix */
-.commit-prefix { color:var(--color-accent)!important; }
-/* Commit auto badge */
-.commit-tag.auto { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
-
-/* ─── Ledger editor ─── */
 .err-tip { background:var(--color-text)!important; color:var(--color-bg)!important; }
 .err-tip::before { background:var(--color-text)!important; }
 .err-tip code {
@@ -573,104 +539,11 @@ button.btn-primary:hover { background:var(--color-accent-hover)!important; borde
   color:var(--color-bg)!important;
   border-color:rgba(254,252,248,0.2)!important;
 }
-
-/* ─── Reports ─── */
-.bar.expense { background:#C4B89A!important; }
-.stat-card.accent {
-  background:var(--color-accent-bg)!important;
-  border-color:transparent!important;
-}
-.stat-card.accent .stat-label { color:var(--color-accent)!important; opacity:0.85!important; }
-.stat-card.accent .stat-value { color:var(--color-accent)!important; }
-.stat-delta.up .delta-num { color:var(--color-accent)!important; }
-.stat-delta.up svg { color:var(--color-accent)!important; }
-.stat-delta.down .delta-num { color:var(--color-destructive)!important; }
-.stat-delta.down svg { color:var(--color-destructive)!important; }
-.stmt .net-row td {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-}
-.legend-swatch.revenue { background:var(--color-accent)!important; }
-.legend-swatch.expense { background:#C4B89A!important; }
-
-/* ─── CSV Import ─── */
-.step.active {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-  font-weight:var(--weight-medium)!important;
-}
-.step.active .step-num {
-  background:var(--color-accent)!important;
-  color:var(--color-bg)!important;
-}
-.step.done .step-num {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-}
-.preview-table td.mapped { background:rgba(36,59,107,0.03)!important; }
-.preview-table tbody td.amt.positive { color:var(--color-accent)!important; }
-.badge.new { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
-.pm-legend .swatch-row { background:var(--color-accent-bg)!important; border-color:var(--color-accent)!important; }
-.bb-left .check { color:var(--color-accent)!important; }
-
-/* ─── Documents ─── */
-.file-icon.csv {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-  border-color:var(--color-accent-bg)!important;
-}
-.file-meta-tag.linked {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-}
-.mono-preview .mono-line.header .mono-text {
-  background:var(--color-accent-bg)!important;
-  color:var(--color-accent)!important;
-}
-
-/* ─── Settings ─── */
-.adapter-row.default { background:var(--color-accent-bg)!important; }
-.default-tag {
-  color:var(--color-accent)!important;
-  border-color:var(--color-accent)!important;
-  background:var(--color-bg)!important;
-}
-.radio.checked { border-color:var(--color-accent)!important; background:var(--color-accent)!important; }
-.status-dot.ok { background:var(--color-accent)!important; }
-.disclosure-icon { background:var(--color-accent-bg)!important; color:var(--color-accent)!important; }
-.disclosure-foot .never { color:var(--color-destructive)!important; }
-.test-result { color:var(--color-accent)!important; }
-.status-link { color:var(--color-accent)!important; }
-
-/* ─── New Workspace ─── */
-.input:focus, .select:focus {
-  border-color:var(--color-accent)!important;
-  box-shadow:0 0 0 3px rgba(36,59,107,0.12)!important;
-}
-.tpl[aria-pressed="true"] {
-  background:var(--color-accent-bg)!important;
-  border-color:var(--color-accent)!important;
-  box-shadow:inset 0 0 0 1px var(--color-accent)!important;
-}
-.tpl[aria-pressed="true"] .tpl-check {
-  display:grid!important;
-  background:var(--color-accent)!important;
-}
-.tpl[aria-pressed="true"] .tpl-icon { color:var(--color-accent)!important; }
-
-/* ─── Command palette ─── */
-.row.focused {
-  background:var(--color-bg-muted)!important;
-  box-shadow:inset 2px 0 0 var(--color-accent)!important;
-}
-.palette {
-  border-color:var(--color-border-strong)!important;
-}
 </style>
 </head>
 <body>
 
-<div class="app">
+<div class="app" id="app">
 
   <!-- ═══════ Sidebar ═══════════════════════════════════════ -->
   <aside class="sidebar">
@@ -735,25 +608,139 @@ button.btn-primary:hover { background:var(--color-accent-hover)!important; borde
     </div>
   </aside>
 
+  <!-- ═══════ File Browser ════════════════════════════════ -->
+  <aside class="file-browser" id="file-browser" aria-label="File explorer">
+
+    <div class="fb-head">
+      <span class="fb-title">Explorer</span>
+      <button class="fb-icon-btn" title="New file" type="button" aria-label="New file">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+      </button>
+      <button class="fb-icon-btn" title="New folder" type="button" aria-label="New folder">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 13v4"/><path d="M10 15h4"/></svg>
+      </button>
+      <button class="fb-icon-btn" title="Collapse all" type="button" aria-label="Collapse all" id="btn-collapse-all">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h4"/></svg>
+      </button>
+    </div>
+
+    <div class="fb-tree" role="tree">
+
+      <!-- ── Root label ── -->
+      <div class="fb-root-label" id="root-label" role="treeitem" aria-expanded="true">
+        <svg class="root-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        finance
+      </div>
+
+      <div id="group-root">
+
+        <!-- ── Root-level files ── -->
+        <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="0" aria-label="main.bean">
+          <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="label">main.bean</span>
+        </div>
+        <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="0" aria-label="accounts.bean">
+          <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="label">accounts.bean</span>
+        </div>
+        <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="0" aria-label="balances.bean">
+          <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="label">balances.bean</span>
+        </div>
+        <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="0" aria-label="prices.bean">
+          <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="label">prices.bean</span>
+        </div>
+
+        <!-- ── transactions/ ── -->
+        <div class="tree-item" id="folder-transactions" style="padding-left:8px" role="treeitem" aria-expanded="true" tabindex="0">
+          <svg class="tree-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          <svg class="folder-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="label">transactions</span>
+        </div>
+        <div id="group-transactions">
+
+          <!-- 2025/ (collapsed) -->
+          <div class="tree-item collapsed" id="folder-2025" style="padding-left:20px" role="treeitem" aria-expanded="false" tabindex="0">
+            <svg class="tree-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            <svg class="folder-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span class="label">2025</span>
+          </div>
+          <div id="group-2025" style="display:none" role="group">
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-01.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-02.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-03.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-04.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-05.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-06.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-07.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-08.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-09.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-10.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-11.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="-1"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2025-12.bean</span></div>
+          </div>
+
+          <!-- 2026/ (expanded) -->
+          <div class="tree-item" id="folder-2026" style="padding-left:20px" role="treeitem" aria-expanded="true" tabindex="0">
+            <svg class="tree-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            <svg class="folder-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span class="label">2026</span>
+          </div>
+          <div id="group-2026" role="group">
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="0"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2026-01.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="0"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2026-02.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="0"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2026-03.bean</span></div>
+            <div class="tree-item" style="padding-left:44px" role="treeitem" tabindex="0"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2026-04.bean</span></div>
+            <div class="tree-item active" style="padding-left:44px" role="treeitem" aria-selected="true" tabindex="0"><svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="label">2026-05.bean</span></div>
+          </div>
+
+        </div>
+
+        <!-- ── documents/ (collapsed) ── -->
+        <div class="tree-item collapsed" id="folder-documents" style="padding-left:8px" role="treeitem" aria-expanded="false" tabindex="0">
+          <svg class="tree-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          <svg class="folder-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="label">documents</span>
+        </div>
+        <div id="group-documents" style="display:none" role="group">
+          <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="-1">
+            <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span class="label">Q1-2026-Chase.pdf</span>
+          </div>
+          <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="-1">
+            <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span class="label">2026-03-AWS.pdf</span>
+          </div>
+          <div class="tree-item" style="padding-left:20px" role="treeitem" tabindex="-1">
+            <svg class="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span class="label">2026-04-Amex.pdf</span>
+          </div>
+        </div>
+
+      </div><!-- /group-root -->
+    </div><!-- /fb-tree -->
+  </aside>
+
   <!-- ═══════ Main ════════════════════════════════════════ -->
   <section class="main">
 
     <!-- Tab bar -->
     <div class="tabbar" role="tablist">
-      <div class="tab active" role="tab" aria-selected="true">
+      <div class="tab" role="tab" aria-selected="false">
         <span>main.bean</span>
         <span class="tab-modified-dot" title="Unsaved changes"></span>
         <span class="tab-close" title="Close">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
         </span>
       </div>
-      <div class="tab" role="tab">
-        <span>transactions/2026-05.bean</span>
+      <div class="tab active" role="tab" aria-selected="true">
+        <span>2026-05.bean</span>
         <span class="tab-close" title="Close">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
         </span>
       </div>
-      <div class="tab" role="tab">
+      <div class="tab" role="tab" aria-selected="false">
         <span>accounts.bean</span>
         <span class="tab-close" title="Close">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M6 18L18 6"/></svg>
@@ -766,66 +753,59 @@ button.btn-primary:hover { background:var(--color-accent-hover)!important; borde
     <div class="editor" id="editor">
       <div class="editor-inner">
 
-        <!-- Comment header -->
         <div class="tx">
-          <div class="line"><span class="gutter">36</span><span class="content"><span class="cmt">; ───────────────────────────────────────────────</span></span></div>
-          <div class="line"><span class="gutter">37</span><span class="content"><span class="cmt">; May 2026 — operating activity</span></span></div>
-          <div class="line"><span class="gutter">38</span><span class="content"><span class="cmt">; ───────────────────────────────────────────────</span></span></div>
-          <div class="line"><span class="gutter">39</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">1</span><span class="content"><span class="cmt">; ───────────────────────────────────────────────</span></span></div>
+          <div class="line"><span class="gutter">2</span><span class="content"><span class="cmt">; May 2026 — operating activity</span></span></div>
+          <div class="line"><span class="gutter">3</span><span class="content"><span class="cmt">; ───────────────────────────────────────────────</span></span></div>
+          <div class="line"><span class="gutter">4</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 1: Stripe payout -->
         <div class="tx">
-          <div class="line"><span class="gutter">40</span><span class="content">2026-05-02 * <span class="str">"Stripe"</span> <span class="str">"April subscription payout"</span></span></div>
-          <div class="line"><span class="gutter">41</span><span class="content">    Assets:Bank:Chase                       <span class="amt"> 3,240.00</span> USD</span></div>
-          <div class="line"><span class="gutter">42</span><span class="content">    Income:SaaS:Subscriptions               <span class="amt">-3,240.00</span> USD</span></div>
-          <div class="line"><span class="gutter">43</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">5</span><span class="content">2026-05-02 * <span class="str">"Stripe"</span> <span class="str">"April subscription payout"</span></span></div>
+          <div class="line"><span class="gutter">6</span><span class="content">    Assets:Bank:Chase                       <span class="amt"> 3,240.00</span> USD</span></div>
+          <div class="line"><span class="gutter">7</span><span class="content">    Income:SaaS:Subscriptions               <span class="amt">-3,240.00</span> USD</span></div>
+          <div class="line"><span class="gutter">8</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 2: AWS -->
         <div class="tx">
-          <div class="line"><span class="gutter">44</span><span class="content">2026-05-03 * <span class="str">"AWS"</span> <span class="str">"May infrastructure"</span>  <span class="cmt">; us-east-1, prod cluster</span></span></div>
-          <div class="line"><span class="gutter">45</span><span class="content">    Expenses:Hosting                          <span class="amt">412.83</span> USD</span></div>
-          <div class="line"><span class="gutter">46</span><span class="content">    Liabilities:CreditCard:Amex              <span class="amt">-412.83</span> USD</span></div>
-          <div class="line"><span class="gutter">47</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">9</span><span class="content">2026-05-03 * <span class="str">"AWS"</span> <span class="str">"May infrastructure"</span>  <span class="cmt">; us-east-1, prod cluster</span></span></div>
+          <div class="line"><span class="gutter">10</span><span class="content">    Expenses:Hosting                          <span class="amt">412.83</span> USD</span></div>
+          <div class="line"><span class="gutter">11</span><span class="content">    Liabilities:CreditCard:Amex              <span class="amt">-412.83</span> USD</span></div>
+          <div class="line"><span class="gutter">12</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 3: Notion -->
         <div class="tx">
-          <div class="line"><span class="gutter">48</span><span class="content">2026-05-05 * <span class="str">"Notion"</span> <span class="str">"Team plan — annual"</span></span></div>
-          <div class="line"><span class="gutter">49</span><span class="content">    Expenses:Software:Tools                   <span class="amt">192.00</span> USD</span></div>
-          <div class="line"><span class="gutter">50</span><span class="content">    Assets:Bank:Chase                        <span class="amt">-192.00</span> USD</span></div>
-          <div class="line"><span class="gutter">51</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">13</span><span class="content">2026-05-05 * <span class="str">"Notion"</span> <span class="str">"Team plan — annual"</span></span></div>
+          <div class="line"><span class="gutter">14</span><span class="content">    Expenses:Software:Tools                   <span class="amt">192.00</span> USD</span></div>
+          <div class="line"><span class="gutter">15</span><span class="content">    Assets:Bank:Chase                        <span class="amt">-192.00</span> USD</span></div>
+          <div class="line"><span class="gutter">16</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 4: Sweetgreen — has the validation error -->
         <div class="tx">
-          <div class="line"><span class="gutter">52</span><span class="content">2026-05-06 * <span class="str">"Sweetgreen"</span> <span class="str">"Lunch — design team review"</span></span></div>
+          <div class="line"><span class="gutter">17</span><span class="content">2026-05-06 * <span class="str">"Sweetgreen"</span> <span class="str">"Lunch — design team review"</span></span></div>
           <div class="line">
-            <span class="gutter"><span class="gutter-dot" aria-hidden="true"></span>53</span>
+            <span class="gutter"><span class="gutter-dot" aria-hidden="true"></span>18</span>
             <span class="content">    <span class="err">Expenses:Meals<span class="err-tip">Account <code>Expenses:Meals</code> is not open. <kbd style="font-family:var(--font-mono);font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);">⌘.</kbd> to fix</span></span>                            <span class="amt">87.40</span> USD</span>
           </div>
-          <div class="line"><span class="gutter">54</span><span class="content">    Assets:Bank:Chase                         <span class="amt">-87.40</span> USD</span></div>
-          <div class="line"><span class="gutter">55</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">19</span><span class="content">    Assets:Bank:Chase                         <span class="amt">-87.40</span> USD</span></div>
+          <div class="line"><span class="gutter">20</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 5: OpenAI -->
-        <div class="tx active">
-          <div class="line"><span class="gutter">56</span><span class="content">2026-05-07 * <span class="str">"OpenAI"</span> <span class="str">"ChatGPT Team subscription"</span></span></div>
-          <div class="line"><span class="gutter">57</span><span class="content">    Expenses:Software:AI                       <span class="amt">25.00</span> USD</span></div>
-          <div class="line"><span class="gutter">58</span><span class="content">    Liabilities:CreditCard:Amex               <span class="amt">-25.00</span> USD</span></div>
-          <div class="line"><span class="gutter">59</span><span class="content"> </span></div>
+        <div class="tx">
+          <div class="line"><span class="gutter">21</span><span class="content">2026-05-07 * <span class="str">"OpenAI"</span> <span class="str">"ChatGPT Team subscription"</span></span></div>
+          <div class="line"><span class="gutter">22</span><span class="content">    Expenses:Software:AI                       <span class="amt">25.00</span> USD</span></div>
+          <div class="line"><span class="gutter">23</span><span class="content">    Liabilities:CreditCard:Amex               <span class="amt">-25.00</span> USD</span></div>
+          <div class="line"><span class="gutter">24</span><span class="content"> </span></div>
         </div>
 
-        <!-- TX 6: in-progress with ghost completion -->
         <div class="tx active">
           <div class="line">
-            <span class="gutter">60</span>
+            <span class="gutter">25</span>
             <span class="content">2026-05-08 <span class="cursor" aria-hidden="true"></span><span class="ghost">* <span class="str">"Stripe"</span> <span class="str">"Payout"</span></span><span class="ghost-hint"><kbd>Tab</kbd> to accept</span></span>
           </div>
-          <div class="line"><span class="gutter">61</span><span class="content"><span class="ghost">    Assets:Bank:Chase                       <span class="amt"> 1,842.17</span> USD</span></span></div>
-          <div class="line"><span class="gutter">62</span><span class="content"><span class="ghost">    Income:SaaS:Subscriptions               <span class="amt">-1,842.17</span> USD</span></span></div>
-          <div class="line"><span class="gutter">63</span><span class="content"> </span></div>
+          <div class="line"><span class="gutter">26</span><span class="content"><span class="ghost">    Assets:Bank:Chase                       <span class="amt"> 1,842.17</span> USD</span></span></div>
+          <div class="line"><span class="gutter">27</span><span class="content"><span class="ghost">    Income:SaaS:Subscriptions               <span class="amt">-1,842.17</span> USD</span></span></div>
+          <div class="line"><span class="gutter">28</span><span class="content"> </span></div>
         </div>
 
       </div>
@@ -833,9 +813,9 @@ button.btn-primary:hover { background:var(--color-accent-hover)!important; borde
 
     <!-- Status bar -->
     <div class="statusbar">
-      <span class="statusbar-item">main.bean</span>
+      <span class="statusbar-item">transactions/2026-05.bean</span>
       <span class="status-sep">·</span>
-      <span class="statusbar-item">Ln 60, Col 12</span>
+      <span class="statusbar-item">Ln 25, Col 12</span>
       <span class="status-sep">·</span>
       <span class="statusbar-item status-valid">
         <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
@@ -854,6 +834,85 @@ button.btn-primary:hover { background:var(--color-accent-hover)!important; borde
 
   </section>
 </div>
+
+<!-- Tweaks root -->
+<div id="tweaks-root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "showBrowser": true,
+    "browserWidth": 200,
+    "fontSize": "M"
+  }/*EDITMODE-END*/;
+
+  function TweaksApp() {
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+    React.useEffect(() => {
+      const root = document.documentElement;
+      const w = t.showBrowser ? `${t.browserWidth}px` : '0px';
+      root.style.setProperty('--fb-width', w);
+      const fsMap = { S: '12px', M: '13.5px', L: '15.5px' };
+      root.style.setProperty('--editor-fs', fsMap[t.fontSize] || '13.5px');
+    }, [t.showBrowser, t.browserWidth, t.fontSize]);
+
+    return (
+      <TweaksPanel>
+        <TweakSection label="File Browser" />
+        <TweakToggle label="Visible" value={t.showBrowser}
+                     onChange={v => setTweak('showBrowser', v)} />
+        <TweakSlider label="Width" value={t.browserWidth} min={140} max={320} step={4} unit="px"
+                     onChange={v => setTweak('browserWidth', v)} />
+        <TweakSection label="Editor" />
+        <TweakRadio label="Font size" value={t.fontSize}
+                    options={['S', 'M', 'L']}
+                    onChange={v => setTweak('fontSize', v)} />
+      </TweaksPanel>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<TweaksApp />);
+</script>
+
+<!-- Folder expand/collapse -->
+<script>
+  function bindFolder(folderId, groupId) {
+    var folder = document.getElementById(folderId);
+    var group = document.getElementById(groupId);
+    if (!folder || !group) return;
+    folder.addEventListener('click', function() {
+      var isCollapsed = folder.classList.toggle('collapsed');
+      group.style.display = isCollapsed ? 'none' : '';
+      folder.setAttribute('aria-expanded', String(!isCollapsed));
+    });
+  }
+
+  bindFolder('folder-transactions', 'group-transactions');
+  bindFolder('folder-2025', 'group-2025');
+  bindFolder('folder-2026', 'group-2026');
+  bindFolder('folder-documents', 'group-documents');
+
+  // Root label collapse
+  var rootLabel = document.getElementById('root-label');
+  var groupRoot = document.getElementById('group-root');
+  rootLabel.addEventListener('click', function() {
+    var isCollapsed = rootLabel.classList.toggle('collapsed');
+    groupRoot.style.display = isCollapsed ? 'none' : '';
+    rootLabel.setAttribute('aria-expanded', String(!isCollapsed));
+  });
+
+  // Collapse all button
+  document.getElementById('btn-collapse-all').addEventListener('click', function() {
+    ['folder-transactions','folder-2025','folder-2026','folder-documents'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && !el.classList.contains('collapsed')) el.click();
+    });
+  });
+</script>
 
 </body>
 </html>
