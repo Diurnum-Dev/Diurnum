@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AppShell,
   type RecentWorkspace,
@@ -9,6 +9,7 @@ import {
   approveTransferEntry,
   approveSuggestedEntry,
   closeSourceAccount,
+  commitGitChanges,
   deleteCategorizationRule,
   disableCategorizationRule,
   detectAiAdapters,
@@ -16,6 +17,7 @@ import {
   createCategorizationRule,
   createWorkspace,
   getGitIdentity,
+  getGitPanelState,
   getAiAdapterConfig,
   getAiContextDisclosure,
   getBrokenProvenance,
@@ -50,6 +52,7 @@ import type {
   CloseSourceAccountInput,
   DetectedAiAdapter,
   GitIdentitySummary,
+  GitPanelState,
   MvpReports,
   SnapshotSummary,
   SourceAccountSummary,
@@ -68,6 +71,7 @@ import type {
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
 import { InboxPanel } from "./features/workspace/InboxPanel";
 import { DocumentsPanel } from "./features/workspace/DocumentsPanel";
+import { GitPanel } from "./features/workspace/GitPanel";
 import { SettingsPanel } from "./features/workspace/SettingsPanel";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { LedgerEditor } from "./features/workspace/LedgerEditor";
@@ -124,6 +128,9 @@ export default function App() {
     globalEmail: null,
     warning: null,
   });
+  const [gitPanelState, setGitPanelState] = useState<GitPanelState | null>(null);
+  const [gitWarning, setGitWarning] = useState<string | null>(null);
+  const [gitHookOutput, setGitHookOutput] = useState<string | null>(null);
   const [reports, setReports] = useState<MvpReports | null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
@@ -131,9 +138,11 @@ export default function App() {
   );
   const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
   const [error, setError] = useState<string | null>(null);
+  const gitBackupTimerRef = useRef<number | null>(null);
 
   async function handleCreate(input: WorkspaceCreateInput) {
     setError(null);
+    clearGitBackupTimer();
     try {
       const created = await createWorkspace(input);
       setWorkspace(created);
@@ -150,6 +159,7 @@ export default function App() {
       setSnapshots(await listSnapshots(created.rootPath));
       rememberWorkspace(created);
       await refreshGitStatus(created.rootPath);
+      await refreshGitPanel(created.rootPath);
       setActiveScreen("ledger");
       setLedgerRequestedFile("main.bean");
       setView("workspace");
@@ -160,6 +170,7 @@ export default function App() {
 
   async function handleOpenWorkspace(path: string) {
     setError(null);
+    clearGitBackupTimer();
     try {
       const opened = await openWorkspace(path);
       setWorkspace(opened);
@@ -176,6 +187,7 @@ export default function App() {
       setGitIdentity(await getGitIdentity(opened.rootPath));
       rememberWorkspace(opened);
       await refreshGitStatus(opened.rootPath);
+      await refreshGitPanel(opened.rootPath);
       setActiveScreen("ledger");
       setLedgerRequestedFile("main.bean");
       setView("workspace");
@@ -231,7 +243,15 @@ export default function App() {
     setSwitcherOpen(false);
   }
 
-  function handleCloseWorkspace() {
+  async function handleCloseWorkspace() {
+    clearGitBackupTimer();
+    if (workspace && gitStatus.isRepository) {
+      try {
+        await commitGitWorkspaceChanges(`workspace backup ${new Date().toISOString()}`);
+      } catch {
+        // Closing the Workspace should not be blocked by Git errors.
+      }
+    }
     setWorkspace(null);
     setSuggestedEntries([]);
     setBrokenProvenance([]);
@@ -249,6 +269,9 @@ export default function App() {
       globalEmail: null,
       warning: null,
     });
+    setGitPanelState(null);
+    setGitWarning(null);
+    setGitHookOutput(null);
     setReports(null);
     setSnapshots([]);
     setGitStatus(emptyGitStatus);
@@ -303,6 +326,14 @@ export default function App() {
     }
   }
 
+  async function handleLedgerFileSaved() {
+    queueGitBackupCommit();
+    if (workspace) {
+      await refreshGitStatus(workspace.rootPath);
+      await refreshGitPanel(workspace.rootPath);
+    }
+  }
+
   async function handleAddSourceAccount(input: {
     kind: SourceAccountKind;
     name: string;
@@ -323,6 +354,8 @@ export default function App() {
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -350,6 +383,8 @@ export default function App() {
       setReports(null);
       setSnapshots(await listSnapshots(workspace.rootPath));
       await refreshGitStatus(workspace.rootPath);
+      await refreshGitPanel(workspace.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -374,6 +409,8 @@ export default function App() {
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
       const approvedEntry = suggestedEntries.find(
         (entry) => entry.statementRowId === input.statementRowId,
       );
@@ -385,6 +422,10 @@ export default function App() {
           matchText: approvedEntry.description,
           ledgerAccount: input.ledgerAccount,
         });
+        await commitGitWorkspaceChanges(
+          `diurnum: approve 1 entry (${approvedEntry.postedDate.slice(0, 7)})`,
+          [monthlyLedgerPath(approvedEntry.postedDate), "main.bean"],
+        );
       }
     } catch (caught) {
       setError(userFacingError(caught));
@@ -411,12 +452,18 @@ export default function App() {
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
       const approvedEntry = suggestedEntries.find(
         (entry) => entry.statementRowId === input.statementRowId,
       );
       if (approvedEntry) {
         setLedgerRequestedFile(monthlyLedgerPath(approvedEntry.postedDate));
         setActiveScreen("ledger");
+        await commitGitWorkspaceChanges(
+          `diurnum: approve 2 entries (${approvedEntry.postedDate.slice(0, 7)})`,
+          [monthlyLedgerPath(approvedEntry.postedDate), "main.bean"],
+        );
       }
     } catch (caught) {
       setError(userFacingError(caught));
@@ -528,6 +575,8 @@ export default function App() {
       setGitIdentity(await getGitIdentity(updated.rootPath));
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
       throw caught;
@@ -543,6 +592,8 @@ export default function App() {
       setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
       throw caught;
@@ -558,6 +609,8 @@ export default function App() {
       setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
       throw caught;
@@ -575,6 +628,8 @@ export default function App() {
       setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
+      await refreshGitPanel(updated.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
       throw caught;
@@ -652,6 +707,8 @@ export default function App() {
       setReports(null);
       setRuleOffer(null);
       await refreshGitStatus(restored.rootPath);
+      await refreshGitPanel(restored.rootPath);
+      queueGitBackupCommit();
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -663,6 +720,59 @@ export default function App() {
     } catch {
       setGitStatus(emptyGitStatus);
     }
+  }
+
+  async function refreshGitPanel(path: string) {
+    try {
+      setGitPanelState(await getGitPanelState(path));
+    } catch {
+      setGitPanelState(null);
+    }
+  }
+
+  function clearGitBackupTimer() {
+    if (gitBackupTimerRef.current !== null) {
+      window.clearTimeout(gitBackupTimerRef.current);
+      gitBackupTimerRef.current = null;
+    }
+  }
+
+  function queueGitBackupCommit() {
+    if (!workspace || !gitStatus.isRepository) return;
+    clearGitBackupTimer();
+    gitBackupTimerRef.current = window.setTimeout(() => {
+      void commitGitWorkspaceChanges(`workspace backup ${new Date().toISOString()}`);
+    }, 60_000);
+  }
+
+  async function commitGitWorkspaceChanges(message: string, paths: string[] = []) {
+    if (!workspace || !gitStatus.isRepository) return;
+    clearGitBackupTimer();
+    setGitWarning(null);
+    setGitHookOutput(null);
+    const commitPaths =
+      paths.length > 0
+        ? paths
+        : gitPanelState?.workingTree
+            .map((entry) => entry.path)
+            .filter((path) => !path.startsWith(".diurnum/")) ?? [];
+    if (commitPaths.length === 0) {
+      return;
+    }
+    const result = await commitGitChanges({
+      workspaceRootPath: workspace.rootPath,
+      message,
+      paths: commitPaths,
+    });
+    if (result.warning) {
+      setGitWarning(result.warning);
+      setGitHookOutput(result.hookOutput);
+    } else {
+      setGitWarning(null);
+      setGitHookOutput(null);
+    }
+    await refreshGitStatus(workspace.rootPath);
+    await refreshGitPanel(workspace.rootPath);
   }
 
   function rememberWorkspace(summary: WorkspaceSummary) {
@@ -779,6 +889,7 @@ export default function App() {
         gitStatus={gitStatus}
         ledgerStatus={workspace.ledgerStatus}
         ledgerErrorCount={workspace.ledgerValidation.errors.length}
+        gitWarning={gitWarning}
         statusContext={activeScreen === "ledger" ? ledgerActiveFile : statusContextFor(activeScreen)}
         switcherOpen={switcherOpen}
         onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
@@ -794,6 +905,7 @@ export default function App() {
             requestedFile={ledgerRequestedFile}
             onActiveFileChange={setLedgerActiveFile}
             onValidationChange={handleLedgerValidationChange}
+            onSaved={handleLedgerFileSaved}
             onError={setError}
           />
         ) : activeScreen === "inbox" ? (
@@ -802,6 +914,20 @@ export default function App() {
             ledgerStatus={workspace.ledgerStatus}
             onApprove={handleApproveSuggestedEntry}
             onApproveTransfer={handleApproveTransferEntry}
+          />
+        ) : activeScreen === "git" ? (
+          <GitPanel
+            workspaceRootPath={workspace.rootPath}
+            state={gitPanelState}
+            warning={gitWarning}
+            hookOutput={gitHookOutput}
+            onWarningChange={setGitWarning}
+            onHookOutputChange={setGitHookOutput}
+            onRefresh={async () => {
+              await refreshGitStatus(workspace.rootPath);
+              await refreshGitPanel(workspace.rootPath);
+            }}
+            onError={setError}
           />
         ) : activeScreen === "documents" ? (
           <DocumentsPanel workspace={workspace} onError={setError} />

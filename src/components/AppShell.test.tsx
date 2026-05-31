@@ -31,6 +31,7 @@ function renderShell(
       branchName: null,
       uncommittedChangesCount: 0,
     },
+    gitWarning: null,
     ledgerStatus: "valid",
     ledgerErrorCount: 0,
     statusContext: "main.bean",
@@ -75,6 +76,7 @@ describe("AppShell", () => {
         branchName: "main",
         uncommittedChangesCount: 2,
       },
+      gitWarning: "Pre-commit hook failed.",
     });
 
     expect(screen.getByRole("button", { name: /Git/ })).toHaveAttribute(
@@ -82,6 +84,9 @@ describe("AppShell", () => {
       "page",
     );
     expect(screen.getByLabelText("Workspace status")).toHaveTextContent("2 uncommitted");
+    expect(screen.getByLabelText("Workspace status")).toHaveTextContent(
+      "Pre-commit hook failed.",
+    );
   });
 
   it("lists recent Workspaces, disables missing folders, removes missing recents, and opens existing", async () => {

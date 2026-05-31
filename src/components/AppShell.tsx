@@ -23,6 +23,7 @@ type AppShellProps = {
   pendingInboxCount: number;
   recentWorkspaces: RecentWorkspace[];
   gitStatus: WorkspaceGitStatus;
+  gitWarning: string | null;
   ledgerStatus: LedgerStatus;
   ledgerErrorCount: number;
   statusContext: string;
@@ -66,6 +67,7 @@ export function AppShell({
   pendingInboxCount,
   recentWorkspaces,
   gitStatus,
+  gitWarning,
   ledgerStatus,
   ledgerErrorCount,
   statusContext,
@@ -199,6 +201,7 @@ export function AppShell({
             <span className={`ledger-status ledger-status--${ledgerStatus}`}>
               {ledgerStatus === "valid" ? "Valid" : `${ledgerErrorCount} errors`}
             </span>
+            {gitWarning ? <span className="status-warning">{gitWarning}</span> : null}
             {gitStatus.isRepository ? (
               <span>
                 {gitStatus.uncommittedChangesCount > 0

@@ -1,3 +1,4 @@
+use crate::workspace::data_integrity::ensure_snapshot_gitignore;
 use crate::workspace::errors::WorkspaceError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -40,6 +41,7 @@ pub fn get_workspace_git_status(
         });
     }
 
+    ensure_snapshot_gitignore(root)?;
     Ok(WorkspaceGitStatus {
         is_repository: true,
         branch_name: git_stdout(root, ["rev-parse", "--abbrev-ref", "HEAD"]).ok(),

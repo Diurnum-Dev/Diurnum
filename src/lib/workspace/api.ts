@@ -7,12 +7,17 @@ import type {
   AiContextDisclosure,
   ApproveSuggestedEntryInput,
   ApproveTransferEntryInput,
+  CommitGitChangesInput,
   CloseSourceAccountInput,
   DetectedAiAdapter,
   BrokenProvenance,
   CategorizationRule,
   CsvImportAnalysis,
   CsvImportAnalysisInput,
+  GitCommitDiff,
+  GitCommitResult,
+  GitCommitSummary,
+  GitPanelState,
   GitIdentitySummary,
   ConfigureAiAdapterInput,
   CreateCategorizationRuleInput,
@@ -83,6 +88,10 @@ type WorkspaceApi = {
   ) => Promise<PredictiveEntryCompletion | null>;
   inspectWorkspacePaths: (paths: string[]) => Promise<WorkspacePathStatus[]>;
   getWorkspaceGitStatus: (path: string) => Promise<WorkspaceGitStatus>;
+  getGitPanelState: (path: string) => Promise<GitPanelState>;
+  listRecentGitCommits: (path: string) => Promise<GitCommitSummary[]>;
+  getGitCommitDiff: (workspaceRootPath: string, commitHash: string) => Promise<GitCommitDiff>;
+  commitGitChanges: (input: CommitGitChangesInput) => Promise<GitCommitResult>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
   importStatementRows: (input: CsvImportInput) => Promise<CsvImportResult>;
   getSuggestedEntries: (path: string) => Promise<SuggestedEntry[]>;
@@ -299,6 +308,43 @@ export async function getWorkspaceGitStatus(
     return window.__DIURNUM_TEST_API__.getWorkspaceGitStatus(path);
   }
   return invoke<WorkspaceGitStatus>("get_workspace_git_status", { path });
+}
+
+export async function getGitPanelState(
+  path: string,
+): Promise<GitPanelState> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getGitPanelState(path);
+  }
+  return invoke<GitPanelState>("get_git_panel_state", { path });
+}
+
+export async function listRecentGitCommits(
+  path: string,
+): Promise<GitCommitSummary[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listRecentGitCommits(path);
+  }
+  return invoke<GitCommitSummary[]>("list_recent_git_commits", { path });
+}
+
+export async function getGitCommitDiff(
+  workspaceRootPath: string,
+  commitHash: string,
+): Promise<GitCommitDiff> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getGitCommitDiff(workspaceRootPath, commitHash);
+  }
+  return invoke<GitCommitDiff>("get_git_commit_diff", { workspaceRootPath, commitHash });
+}
+
+export async function commitGitChanges(
+  input: CommitGitChangesInput,
+): Promise<GitCommitResult> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.commitGitChanges(input);
+  }
+  return invoke<GitCommitResult>("commit_git_changes", { input });
 }
 
 export async function addSourceAccount(
