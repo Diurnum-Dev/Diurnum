@@ -16,6 +16,10 @@ use crate::workspace::documents::{
     DocumentPreview, DocumentFileSummary, DocumentsState, DocumentsStateInput,
     ImportDocumentFileInput, ReadDocumentPreviewInput, RenameDocumentEntryInput,
 };
+use crate::workspace::git::{
+    self, CommitWorkspaceChangesInput, GitCommitDiff, GitCommitResult, GitCommitSummary,
+    GitPanelState,
+};
 use crate::workspace::imports::{
     self, CsvImportAnalysis, CsvImportAnalysisInput, CsvImportInput, CsvImportResult,
 };
@@ -143,6 +147,33 @@ pub fn inspect_workspace_paths(
 #[tauri::command]
 pub fn get_workspace_git_status(path: String) -> Result<WorkspaceGitStatus, WorkspaceError> {
     shell::get_workspace_git_status(path)
+}
+
+#[tauri::command]
+pub fn get_git_panel_state(path: String) -> Result<GitPanelState, WorkspaceError> {
+    git::get_git_panel_state(path)
+}
+
+#[tauri::command]
+pub fn list_recent_git_commits(
+    path: String,
+) -> Result<Vec<GitCommitSummary>, WorkspaceError> {
+    git::list_recent_commits(path, 20)
+}
+
+#[tauri::command]
+pub fn get_git_commit_diff(
+    workspace_root_path: String,
+    commit_hash: String,
+) -> Result<GitCommitDiff, WorkspaceError> {
+    git::get_commit_diff(workspace_root_path, &commit_hash)
+}
+
+#[tauri::command]
+pub fn commit_git_changes(
+    input: CommitWorkspaceChangesInput,
+) -> Result<GitCommitResult, WorkspaceError> {
+    git::commit_workspace_changes(input)
 }
 
 #[tauri::command]

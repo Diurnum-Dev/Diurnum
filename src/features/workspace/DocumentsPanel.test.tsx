@@ -169,6 +169,37 @@ describe("DocumentsPanel", () => {
           uncommittedChangesCount: 0,
         };
       },
+      async getGitPanelState() {
+        return {
+          isRepository: false,
+          branchName: null,
+          uncommittedChangesCount: 0,
+          workingTree: [],
+          recentCommits: [],
+          warning: null,
+          hookOutput: null,
+        };
+      },
+      async listRecentGitCommits() {
+        return [];
+      },
+      async getGitCommitDiff() {
+        return {
+          hash: "abc123",
+          shortHash: "abc123",
+          committedAt: "2026-05-30T18:00:00Z",
+          summary: "Initial commit",
+          diff: "",
+        };
+      },
+      async commitGitChanges() {
+        return {
+          committed: false,
+          commitHash: null,
+          warning: null,
+          hookOutput: null,
+        };
+      },
       async addSourceAccount() {
         return workspace;
       },

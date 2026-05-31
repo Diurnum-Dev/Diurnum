@@ -251,6 +251,49 @@ export type DetectedAiAdapter = {
   commandPath?: string | null;
 };
 
+export type GitWorkingTreeEntry = {
+  path: string;
+  originalPath?: string | null;
+  status: string;
+  statusLabel: string;
+  isStaged: boolean;
+  isUntracked: boolean;
+};
+
+export type GitCommitSummary = {
+  hash: string;
+  shortHash: string;
+  committedAt: string;
+  summary: string;
+};
+
+export type GitCommitDiff = GitCommitSummary & {
+  diff: string;
+};
+
+export type GitPanelState = {
+  isRepository: boolean;
+  branchName: string | null;
+  uncommittedChangesCount: number;
+  workingTree: GitWorkingTreeEntry[];
+  recentCommits: GitCommitSummary[];
+  warning: string | null;
+  hookOutput: string | null;
+};
+
+export type CommitGitChangesInput = {
+  workspaceRootPath: string;
+  message: string;
+  paths: string[];
+};
+
+export type GitCommitResult = {
+  committed: boolean;
+  commitHash: string | null;
+  warning: string | null;
+  hookOutput: string | null;
+};
+
 export type ReportsInput = {
   workspaceRootPath: string;
   periodStart: string;

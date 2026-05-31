@@ -106,7 +106,12 @@ pub fn ensure_snapshot_gitignore(root: impl AsRef<Path>) -> Result<(), Workspace
     };
     let mut lines = existing.lines().map(str::to_string).collect::<Vec<_>>();
 
-    for required in [".diurnum/snapshots/", ".ledgerly/snapshots/"] {
+    for required in [
+        ".diurnum/*",
+        "!.diurnum/workspace.json",
+        ".diurnum/snapshots/",
+        ".ledgerly/snapshots/",
+    ] {
         if !lines.iter().any(|line| line.trim() == required) {
             lines.push(required.to_string());
         }
@@ -448,6 +453,8 @@ mod tests {
         ensure_snapshot_gitignore(tempdir.path()).unwrap();
 
         let gitignore = fs::read_to_string(tempdir.path().join(".gitignore")).unwrap();
+        assert!(gitignore.contains(".diurnum/*"));
+        assert!(gitignore.contains("!.diurnum/workspace.json"));
         assert!(gitignore.contains(".diurnum/snapshots/"));
         assert!(gitignore.contains(".ledgerly/snapshots/"));
         assert!(!gitignore.lines().any(|line| line.trim() == ".diurnum/"));

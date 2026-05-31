@@ -28,6 +28,7 @@ type LedgerEditorProps = {
   requestedFile?: string | null;
   onActiveFileChange: (relativePath: string) => void;
   onValidationChange: (validation: LedgerValidationSummary) => void;
+  onSaved?: (relativePath: string) => void | Promise<void>;
   onError: (message: string | null) => void;
 };
 
@@ -50,6 +51,7 @@ export function LedgerEditor({
   requestedFile,
   onActiveFileChange,
   onValidationChange,
+  onSaved,
   onError,
 }: LedgerEditorProps) {
   const [files, setFiles] = useState<string[]>([]);
@@ -219,6 +221,7 @@ export function LedgerEditor({
       );
       setValidationErrors(validation.errors);
       onValidationChange(validation);
+      await onSaved?.(tab.relativePath);
     } catch (error) {
       const message = errorMessage(error);
       if (message.includes("changed outside Diurnum")) {
@@ -231,7 +234,7 @@ export function LedgerEditor({
     } finally {
       setIsSaving(false);
     }
-  }, [activePath, onError, onValidationChange, tabs, workspace.rootPath]);
+  }, [activePath, onError, onSaved, onValidationChange, tabs, workspace.rootPath]);
 
   useEffect(() => {
     if (!activeTab?.isDirty) return;
