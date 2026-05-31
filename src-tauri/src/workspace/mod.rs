@@ -11,6 +11,7 @@ pub mod ledger_editor;
 pub mod open;
 pub mod paths;
 pub mod reports;
+pub mod settings;
 pub mod shell;
 pub mod source_accounts;
 pub mod types;

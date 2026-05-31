@@ -194,6 +194,95 @@ describe("DocumentsPanel", () => {
       async listCategorizationRules() {
         return [];
       },
+      async disableCategorizationRule() {
+        return {
+          id: "rule-1",
+          sourceAccount: "Assets:Bank:Operating-Checking",
+          matchText: "Software",
+          ledgerAccount: "Expenses:Software",
+          enabled: false,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        };
+      },
+      async enableCategorizationRule() {
+        return {
+          id: "rule-1",
+          sourceAccount: "Assets:Bank:Operating-Checking",
+          matchText: "Software",
+          ledgerAccount: "Expenses:Software",
+          enabled: true,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        };
+      },
+      async deleteCategorizationRule() {},
+      async updateWorkspaceMetadata() {
+        return workspace;
+      },
+      async listSourceAccounts() {
+        return [];
+      },
+      async listSourceMappings() {
+        return [];
+      },
+      async saveSourceMapping() {
+        return {
+          sourceAccount: "Assets:Bank:Operating-Checking",
+          mapping: {
+            postedDateColumn: "Date",
+            descriptionColumn: "Description",
+            amountColumn: "Amount",
+            debitColumn: null,
+            creditColumn: null,
+            transactionTypeColumn: null,
+            debitTypeValue: "Debit",
+            statusColumn: null,
+            checkNumberColumn: null,
+            memoColumn: null,
+            referenceIdColumn: null,
+            payeeColumn: null,
+            categoryColumn: null,
+            dateFormat: null,
+          },
+          updatedAt: "2026-05-30T18:00:00Z",
+        };
+      },
+      async renameSourceAccount() {
+        return workspace;
+      },
+      async closeSourceAccount() {
+        return workspace;
+      },
+      async updateSourceAccountOpeningBalance() {
+        return workspace;
+      },
+      async getGitIdentity() {
+        return {
+          isRepository: false,
+          localName: null,
+          localEmail: null,
+          globalName: null,
+          globalEmail: null,
+          warning: null,
+        };
+      },
+      async updateGitIdentity() {
+        return {
+          isRepository: false,
+          localName: null,
+          localEmail: null,
+          globalName: null,
+          globalEmail: null,
+          warning: null,
+        };
+      },
+      async detectAiAdapters() {
+        return [];
+      },
+      async testAiAdapter() {
+        return null;
+      },
       async createCategorizationRule() {
         throw new Error("not used");
       },

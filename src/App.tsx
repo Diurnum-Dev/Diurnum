@@ -8,9 +8,14 @@ import {
   addSourceAccount,
   approveTransferEntry,
   approveSuggestedEntry,
+  closeSourceAccount,
+  deleteCategorizationRule,
+  disableCategorizationRule,
+  detectAiAdapters,
   configureAiAdapter,
   createCategorizationRule,
   createWorkspace,
+  getGitIdentity,
   getAiAdapterConfig,
   getAiContextDisclosure,
   getBrokenProvenance,
@@ -21,10 +26,18 @@ import {
   inspectWorkspacePaths,
   listSnapshots,
   listCategorizationRules,
+  listSourceAccounts,
+  enableCategorizationRule,
   openWorkspace,
   pickDirectory,
   revealWorkspace,
   restoreSnapshot,
+  renameSourceAccount,
+  saveSourceMapping,
+  testAiAdapter,
+  updateGitIdentity,
+  updateSourceAccountOpeningBalance,
+  updateWorkspaceMetadata,
   updateCategorizationRule,
   validateWorkspace,
 } from "./lib/workspace/api";
@@ -34,18 +47,28 @@ import type {
   CategorizationRule,
   CsvSourceMappingInput,
   BrokenProvenance,
+  CloseSourceAccountInput,
+  DetectedAiAdapter,
+  GitIdentitySummary,
   MvpReports,
   SnapshotSummary,
+  SourceAccountSummary,
   SourceAccountKind,
+  SourceMappingUpdateInput,
   SuggestedEntry,
+  RenameSourceAccountInput,
   WorkspaceGitStatus,
   LedgerValidationSummary,
   WorkspaceCreateInput,
+  UpdateGitIdentityInput,
+  UpdateSourceAccountOpeningBalanceInput,
+  WorkspaceMetadataUpdateInput,
   WorkspaceSummary,
 } from "./lib/workspace/types";
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
 import { InboxPanel } from "./features/workspace/InboxPanel";
 import { DocumentsPanel } from "./features/workspace/DocumentsPanel";
+import { SettingsPanel } from "./features/workspace/SettingsPanel";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { LedgerEditor } from "./features/workspace/LedgerEditor";
 import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
@@ -91,6 +114,16 @@ export default function App() {
     adapterConfigured: false,
     fieldsSent: [],
   });
+  const [sourceAccounts, setSourceAccounts] = useState<SourceAccountSummary[]>([]);
+  const [detectedAdapters, setDetectedAdapters] = useState<DetectedAiAdapter[]>([]);
+  const [gitIdentity, setGitIdentity] = useState<GitIdentitySummary>({
+    isRepository: false,
+    localName: null,
+    localEmail: null,
+    globalName: null,
+    globalEmail: null,
+    warning: null,
+  });
   const [reports, setReports] = useState<MvpReports | null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
@@ -110,6 +143,9 @@ export default function App() {
       setRuleOffer(null);
       setAiAdapterConfig(await getAiAdapterConfig(created.rootPath));
       setAiContextDisclosure(await getAiContextDisclosure(created.rootPath));
+      setSourceAccounts(await listSourceAccounts(created.rootPath));
+      setDetectedAdapters(await detectAiAdapters());
+      setGitIdentity(await getGitIdentity(created.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(created.rootPath));
       rememberWorkspace(created);
@@ -135,6 +171,9 @@ export default function App() {
       setRuleOffer(null);
       setReports(null);
       setSnapshots(await listSnapshots(opened.rootPath));
+      setSourceAccounts(await listSourceAccounts(opened.rootPath));
+      setDetectedAdapters(await detectAiAdapters());
+      setGitIdentity(await getGitIdentity(opened.rootPath));
       rememberWorkspace(opened);
       await refreshGitStatus(opened.rootPath);
       setActiveScreen("ledger");
@@ -200,6 +239,16 @@ export default function App() {
     setRuleOffer(null);
     setAiAdapterConfig({ command: null });
     setAiContextDisclosure({ adapterConfigured: false, fieldsSent: [] });
+    setSourceAccounts([]);
+    setDetectedAdapters([]);
+    setGitIdentity({
+      isRepository: false,
+      localName: null,
+      localEmail: null,
+      globalName: null,
+      globalEmail: null,
+      warning: null,
+    });
     setReports(null);
     setSnapshots([]);
     setGitStatus(emptyGitStatus);
@@ -270,6 +319,7 @@ export default function App() {
       setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
@@ -296,6 +346,7 @@ export default function App() {
       setBrokenProvenance(await getBrokenProvenance(workspace.rootPath));
       setCategorizationRules(await listCategorizationRules(workspace.rootPath));
       setAiContextDisclosure(await getAiContextDisclosure(workspace.rootPath));
+      setSourceAccounts(await listSourceAccounts(workspace.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(workspace.rootPath));
       await refreshGitStatus(workspace.rootPath);
@@ -319,6 +370,7 @@ export default function App() {
       setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
       await refreshGitStatus(updated.rootPath);
@@ -354,6 +406,7 @@ export default function App() {
       setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
       setRuleOffer(null);
       setReports(null);
       setSnapshots(await listSnapshots(updated.rootPath));
@@ -403,6 +456,51 @@ export default function App() {
     }
   }
 
+  async function handleDisableCategorizationRule(input: {
+    workspaceRootPath: string;
+    id: string;
+  }) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      await disableCategorizationRule(input.workspaceRootPath, input.id);
+      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
+      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
+    } catch (caught) {
+      setError(userFacingError(caught));
+    }
+  }
+
+  async function handleEnableCategorizationRule(input: {
+    workspaceRootPath: string;
+    id: string;
+  }) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      await enableCategorizationRule(input.workspaceRootPath, input.id);
+      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
+      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
+    } catch (caught) {
+      setError(userFacingError(caught));
+    }
+  }
+
+  async function handleDeleteCategorizationRule(input: {
+    workspaceRootPath: string;
+    id: string;
+  }) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      await deleteCategorizationRule(input.workspaceRootPath, input.id);
+      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
+      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
+    } catch (caught) {
+      setError(userFacingError(caught));
+    }
+  }
+
   async function handleConfigureAiAdapter(command: string | null) {
     if (!workspace) return;
     setError(null);
@@ -416,6 +514,105 @@ export default function App() {
       setSuggestedEntries(await getSuggestedEntries(workspace.rootPath));
     } catch (caught) {
       setError(userFacingError(caught));
+    }
+  }
+
+  async function handleUpdateWorkspaceMetadata(input: WorkspaceMetadataUpdateInput) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await updateWorkspaceMetadata(input);
+      setWorkspace(updated);
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
+      setDetectedAdapters(await detectAiAdapters());
+      setGitIdentity(await getGitIdentity(updated.rootPath));
+      setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleRenameSourceAccount(input: RenameSourceAccountInput) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await renameSourceAccount(input);
+      setWorkspace(updated);
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
+      setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleCloseSourceAccount(input: CloseSourceAccountInput) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await closeSourceAccount(input);
+      setWorkspace(updated);
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
+      setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleUpdateSourceAccountOpeningBalance(
+    input: UpdateSourceAccountOpeningBalanceInput,
+  ) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await updateSourceAccountOpeningBalance(input);
+      setWorkspace(updated);
+      setSourceAccounts(await listSourceAccounts(updated.rootPath));
+      setSnapshots(await listSnapshots(updated.rootPath));
+      await refreshGitStatus(updated.rootPath);
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleSaveSourceMapping(input: SourceMappingUpdateInput) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      await saveSourceMapping(input);
+      setSourceAccounts(await listSourceAccounts(workspace.rootPath));
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleUpdateGitIdentity(input: UpdateGitIdentityInput) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await updateGitIdentity(input);
+      setGitIdentity(updated);
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
+    }
+  }
+
+  async function handleTestAiAdapter() {
+    if (!workspace) return;
+    setError(null);
+    try {
+      await testAiAdapter({ workspaceRootPath: workspace.rootPath });
+    } catch (caught) {
+      setError(userFacingError(caught));
+      throw caught;
     }
   }
 
@@ -448,6 +645,9 @@ export default function App() {
       setCategorizationRules(await listCategorizationRules(restored.rootPath));
       setAiAdapterConfig(await getAiAdapterConfig(restored.rootPath));
       setAiContextDisclosure(await getAiContextDisclosure(restored.rootPath));
+      setSourceAccounts(await listSourceAccounts(restored.rootPath));
+      setDetectedAdapters(await detectAiAdapters());
+      setGitIdentity(await getGitIdentity(restored.rootPath));
       setSnapshots(await listSnapshots(restored.rootPath));
       setReports(null);
       setRuleOffer(null);
@@ -605,6 +805,40 @@ export default function App() {
           />
         ) : activeScreen === "documents" ? (
           <DocumentsPanel workspace={workspace} onError={setError} />
+        ) : activeScreen === "settings" ? (
+          <SettingsPanel
+            workspace={workspace}
+            sourceAccounts={sourceAccounts}
+            detectedAdapters={detectedAdapters}
+            gitIdentity={gitIdentity}
+            aiAdapterConfig={aiAdapterConfig}
+            aiContextDisclosure={aiContextDisclosure}
+            categorizationRules={categorizationRules}
+            categorizationRuleOffer={ruleOffer}
+            snapshots={snapshots}
+            onReveal={handleReveal}
+            onOpenAnother={() => {
+              setError(null);
+              setView("open");
+            }}
+            onUpdateWorkspaceMetadata={handleUpdateWorkspaceMetadata}
+            onAddSourceAccount={handleAddSourceAccount}
+            onRenameSourceAccount={handleRenameSourceAccount}
+            onCloseSourceAccount={handleCloseSourceAccount}
+            onUpdateSourceAccountOpeningBalance={handleUpdateSourceAccountOpeningBalance}
+            onSaveSourceMapping={handleSaveSourceMapping}
+            onConfigureAiAdapter={handleConfigureAiAdapter}
+            onTestAiAdapter={handleTestAiAdapter}
+            onUpdateGitIdentity={handleUpdateGitIdentity}
+            onRestoreSnapshot={handleRestoreSnapshot}
+            onCreateCategorizationRule={handleCreateCategorizationRule}
+            onUpdateCategorizationRule={handleUpdateCategorizationRule}
+            onDisableCategorizationRule={handleDisableCategorizationRule}
+            onEnableCategorizationRule={handleEnableCategorizationRule}
+            onDeleteCategorizationRule={handleDeleteCategorizationRule}
+            onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
+            onError={setError}
+          />
         ) : (
           <WorkspaceOverview
             activeScreen={activeScreen}
@@ -613,26 +847,26 @@ export default function App() {
             brokenProvenance={brokenProvenance}
             categorizationRules={categorizationRules}
             categorizationRuleOffer={ruleOffer}
-            aiAdapterConfig={aiAdapterConfig}
-            aiContextDisclosure={aiContextDisclosure}
+            onReveal={handleReveal}
+            onOpenAnother={() => {
+              setError(null);
+              setView("open");
+            }}
             reports={reports}
             snapshots={snapshots}
-            onReveal={handleReveal}
             onValidate={handleValidateWorkspace}
             onRestoreSnapshot={handleRestoreSnapshot}
-            onAddSourceAccount={handleAddSourceAccount}
             onImportStatementRows={handleImportStatementRows}
             onApproveSuggestedEntry={handleApproveSuggestedEntry}
             onApproveTransferEntry={handleApproveTransferEntry}
             onCreateCategorizationRule={handleCreateCategorizationRule}
             onUpdateCategorizationRule={handleUpdateCategorizationRule}
+            onDisableCategorizationRule={handleDisableCategorizationRule}
+            onEnableCategorizationRule={handleEnableCategorizationRule}
+            onDeleteCategorizationRule={handleDeleteCategorizationRule}
             onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
             onConfigureAiAdapter={handleConfigureAiAdapter}
             onLoadReports={handleLoadReports}
-            onOpenAnother={() => {
-              setError(null);
-              setView("open");
-            }}
             error={error}
           />
         )}

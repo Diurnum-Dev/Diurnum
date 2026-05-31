@@ -201,12 +201,93 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async listCategorizationRules() {
         return [];
       },
+      async updateWorkspaceMetadata() {
+        return workspace;
+      },
+      async listSourceAccounts() {
+        return [
+          {
+            accountName: "Assets:Bank:Operating-Checking",
+            kind: "bank",
+            status: "open",
+            currency: "USD",
+            openingBalance: "0.00",
+            sourceMapping: null,
+            documentsFolder: "operating-checking",
+          },
+        ];
+      },
+      async listSourceMappings() {
+        return [];
+      },
+      async saveSourceMapping(input: {
+        sourceAccount: string;
+        mapping: {
+          postedDateColumn: string;
+          descriptionColumn: string;
+          amountColumn?: string | null;
+          debitColumn?: string | null;
+          creditColumn?: string | null;
+          transactionTypeColumn?: string | null;
+          debitTypeValue?: string | null;
+          statusColumn?: string | null;
+          checkNumberColumn?: string | null;
+          memoColumn?: string | null;
+          referenceIdColumn?: string | null;
+          payeeColumn?: string | null;
+          categoryColumn?: string | null;
+          dateFormat?: string | null;
+        };
+        workspaceRootPath: string;
+      }) {
+        return {
+          sourceAccount: input.sourceAccount,
+          mapping: input.mapping,
+          updatedAt: "2026-05-30T18:00:00Z",
+        };
+      },
+      async renameSourceAccount() {
+        return workspace;
+      },
+      async closeSourceAccount() {
+        return workspace;
+      },
+      async updateSourceAccountOpeningBalance() {
+        return workspace;
+      },
+      async getGitIdentity() {
+        return {
+          isRepository: true,
+          localName: "Acme Studio",
+          localEmail: "studio@example.com",
+          globalName: "Global Name",
+          globalEmail: "global@example.com",
+          warning: null,
+        };
+      },
+      async updateGitIdentity() {
+        return {
+          isRepository: true,
+          localName: "Acme Studio",
+          localEmail: "studio@example.com",
+          globalName: "Global Name",
+          globalEmail: "global@example.com",
+          warning: null,
+        };
+      },
+      async detectAiAdapters() {
+        return [];
+      },
+      async testAiAdapter() {
+        return null;
+      },
       async createCategorizationRule() {
         return {
           id: "rule-1",
           sourceAccount: "Assets:Bank:Operating-Checking",
           matchText: "Software",
           ledgerAccount: "Expenses:Software",
+          enabled: true,
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         };
@@ -217,10 +298,34 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
           sourceAccount: "Assets:Bank:Operating-Checking",
           matchText: "Software",
           ledgerAccount: "Expenses:Software",
+          enabled: true,
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         };
       },
+      async disableCategorizationRule() {
+        return {
+          id: "rule-1",
+          sourceAccount: "Assets:Bank:Operating-Checking",
+          matchText: "Software",
+          ledgerAccount: "Expenses:Software",
+          enabled: false,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        };
+      },
+      async enableCategorizationRule() {
+        return {
+          id: "rule-1",
+          sourceAccount: "Assets:Bank:Operating-Checking",
+          matchText: "Software",
+          ledgerAccount: "Expenses:Software",
+          enabled: true,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        };
+      },
+      async deleteCategorizationRule() {},
       async getAiAdapterConfig() {
         return { command: null };
       },

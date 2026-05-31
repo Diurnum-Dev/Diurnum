@@ -10,6 +10,7 @@ describe("CategorizationRulesPanel", () => {
 
     render(
       <CategorizationRulesPanel
+        workspaceRootPath="/tmp/Acme Studio"
         rules={[]}
         offer={{
           sourceAccount: "Assets:Bank:Operating-Checking",
@@ -36,12 +37,14 @@ describe("CategorizationRulesPanel", () => {
 
     render(
       <CategorizationRulesPanel
+        workspaceRootPath="/tmp/Acme Studio"
         rules={[
           {
             id: "rule-1",
             sourceAccount: "Assets:Bank:Operating-Checking",
             matchText: "Software",
             ledgerAccount: "Expenses:Software",
+            enabled: true,
             createdAt: "2026-01-01T00:00:00Z",
             updatedAt: "2026-01-01T00:00:00Z",
           },

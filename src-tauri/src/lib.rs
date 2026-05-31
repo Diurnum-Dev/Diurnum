@@ -56,10 +56,24 @@ pub fn run() {
             commands::workspace::list_categorization_rules,
             commands::workspace::create_categorization_rule,
             commands::workspace::update_categorization_rule,
+            commands::workspace::disable_categorization_rule,
+            commands::workspace::enable_categorization_rule,
+            commands::workspace::delete_categorization_rule,
             commands::workspace::get_ai_adapter_config,
             commands::workspace::configure_ai_adapter,
             commands::workspace::get_ai_context_disclosure,
-            commands::workspace::get_mvp_reports
+            commands::workspace::get_mvp_reports,
+            commands::workspace::update_workspace_metadata,
+            commands::workspace::list_source_accounts,
+            commands::workspace::list_source_mappings,
+            commands::workspace::save_source_mapping,
+            commands::workspace::rename_source_account,
+            commands::workspace::close_source_account,
+            commands::workspace::update_source_account_opening_balance,
+            commands::workspace::get_git_identity,
+            commands::workspace::update_git_identity,
+            commands::workspace::detect_ai_adapters,
+            commands::workspace::test_ai_adapter
         ])
         .run(tauri::generate_context!())
         .expect("error while running Diurnum");

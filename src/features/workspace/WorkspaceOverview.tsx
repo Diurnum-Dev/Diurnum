@@ -58,6 +58,15 @@ type WorkspaceOverviewProps = {
   onUpdateCategorizationRule?: (
     input: CategorizationRuleOffer & { id: string },
   ) => Promise<void> | void;
+  onDisableCategorizationRule?: (
+    input: { workspaceRootPath: string; id: string },
+  ) => Promise<void> | void;
+  onEnableCategorizationRule?: (
+    input: { workspaceRootPath: string; id: string },
+  ) => Promise<void> | void;
+  onDeleteCategorizationRule?: (
+    input: { workspaceRootPath: string; id: string },
+  ) => Promise<void> | void;
   onDismissCategorizationRuleOffer?: () => void;
   onConfigureAiAdapter?: (command: string | null) => Promise<void> | void;
   onLoadReports?: (input: {
@@ -96,6 +105,9 @@ export function WorkspaceOverview({
   onApproveTransferEntry,
   onCreateCategorizationRule,
   onUpdateCategorizationRule,
+  onDisableCategorizationRule,
+  onEnableCategorizationRule,
+  onDeleteCategorizationRule,
   onDismissCategorizationRuleOffer,
   onConfigureAiAdapter,
   onLoadReports,
@@ -292,10 +304,14 @@ export function WorkspaceOverview({
 
       {showSettings ? (
         <CategorizationRulesPanel
+          workspaceRootPath={workspace.rootPath}
           rules={categorizationRules}
           offer={categorizationRuleOffer}
           onCreateRule={onCreateCategorizationRule}
           onUpdateRule={onUpdateCategorizationRule}
+          onDisableRule={onDisableCategorizationRule}
+          onEnableRule={onEnableCategorizationRule}
+          onDeleteRule={onDeleteCategorizationRule}
           onDismissOffer={onDismissCategorizationRuleOffer}
         />
       ) : null}

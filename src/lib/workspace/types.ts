@@ -5,7 +5,7 @@ export type WorkspaceCreateInput = {
   parentDirectory: string;
 };
 
-export type SourceAccountKind = "bank" | "creditCard";
+export type SourceAccountKind = "bank" | "creditCard" | "other";
 
 export type AddSourceAccountInput = {
   workspaceRootPath: string;
@@ -147,6 +147,7 @@ export type CategorizationRule = {
   sourceAccount: string;
   matchText: string;
   ledgerAccount: string;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -171,9 +172,83 @@ export type ConfigureAiAdapterInput = {
   command?: string | null;
 };
 
+export type TestAiAdapterInput = {
+  workspaceRootPath: string;
+};
+
 export type AiContextDisclosure = {
   adapterConfigured: boolean;
   fieldsSent: string[];
+};
+
+export type WorkspaceMetadataUpdateInput = {
+  workspaceRootPath: string;
+  businessName: string;
+  booksStartDate: string;
+};
+
+export type SourceAccountStatus = "open" | "closed";
+
+export type SourceAccountSummary = {
+  accountName: string;
+  kind: SourceAccountKind;
+  status: SourceAccountStatus;
+  currency: string;
+  openingBalance: string | null;
+  sourceMapping: CsvSourceMappingInput | null;
+  documentsFolder: string;
+};
+
+export type SourceMappingSummary = {
+  sourceAccount: string;
+  mapping: CsvSourceMappingInput;
+  updatedAt: string;
+};
+
+export type SourceMappingUpdateInput = {
+  workspaceRootPath: string;
+  sourceAccount: string;
+  mapping: CsvSourceMappingInput;
+};
+
+export type RenameSourceAccountInput = {
+  workspaceRootPath: string;
+  sourceAccount: string;
+  newName: string;
+  openingBalance?: string | null;
+};
+
+export type CloseSourceAccountInput = {
+  workspaceRootPath: string;
+  sourceAccount: string;
+};
+
+export type UpdateSourceAccountOpeningBalanceInput = {
+  workspaceRootPath: string;
+  sourceAccount: string;
+  openingBalance?: string | null;
+};
+
+export type GitIdentitySummary = {
+  isRepository: boolean;
+  localName: string | null;
+  localEmail: string | null;
+  globalName: string | null;
+  globalEmail: string | null;
+  warning: string | null;
+};
+
+export type UpdateGitIdentityInput = {
+  workspaceRootPath: string;
+  localName?: string | null;
+  localEmail?: string | null;
+};
+
+export type DetectedAiAdapter = {
+  name: string;
+  command: string;
+  available: boolean;
+  commandPath?: string | null;
 };
 
 export type ReportsInput = {
