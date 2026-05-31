@@ -1,0 +1,52 @@
+name: macOS Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS bundle
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+
+      - name: Locate DMG
+        id: bundle
+        run: |
+          set -euo pipefail
+          DMG_PATH=$(find src-tauri/target -path "*/bundle/dmg/*.dmg" | head -n 1)
+          if [ -z "$DMG_PATH" ]; then
+            echo "No DMG was produced."
+            exit 1
+          fi
+          echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.bundle.outputs.dmg_path }}
+          body: |
+            Diurnum ${{ github.ref_name }}
+
+            Install by opening the `.dmg`, dragging Diurnum to `/Applications`, and launching the app from there.
+
+            If Gatekeeper shows a warning on first launch, right-click Diurnum.app and choose Open.
+            If macOS still blocks the app, open System Settings -> Privacy & Security and choose Open Anyway.

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { openPath } from "@tauri-apps/plugin-opener";
 import {
   AppShell,
   type RecentWorkspace,
@@ -84,11 +85,18 @@ import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
 import { WorkspaceOverview } from "./features/workspace/WorkspaceOverview";
 import { WorkspaceStart } from "./features/workspace/WorkspaceStart";
 import type { CategorizationRuleOffer } from "./features/workspace/CategorizationRulesPanel";
+import { checkGitHubReleaseUpdate, type GitHubReleaseUpdate } from "./lib/githubReleases";
+import {
+  loadUpdatePrefs,
+  saveUpdatePrefs,
+  type UpdatePrefs,
+} from "./lib/updatePreferences";
 
 type View = "start" | "create" | "open" | "workspace";
 
 const RECENT_WORKSPACES_KEY = "diurnum.workspaceRecents.v1";
 const RECENT_COMMANDS_KEY = "diurnum.commandPaletteRecents.v1";
+const APP_VERSION = "0.1.0";
 
 const emptyGitStatus: WorkspaceGitStatus = {
   isRepository: false,
@@ -144,6 +152,9 @@ export default function App() {
   const [commandPaletteMode, setCommandPaletteMode] =
     useState<CommandPaletteMode>("commands");
   const [recentCommands, setRecentCommands] = useState<string[]>(loadRecentCommands);
+  const [updatePrefs, setUpdatePrefs] = useState<UpdatePrefs>(loadUpdatePrefs);
+  const [updateNotice, setUpdateNotice] = useState<GitHubReleaseUpdate | null>(null);
+  const [updateCheckInProgress, setUpdateCheckInProgress] = useState(false);
   const [reports, setReports] = useState<MvpReports | null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
@@ -152,6 +163,36 @@ export default function App() {
   const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
   const [error, setError] = useState<string | null>(null);
   const gitBackupTimerRef = useRef<number | null>(null);
+  const autoUpdateCheckRef = useRef(false);
+
+  const checkForAppUpdate = useCallback(async (): Promise<boolean> => {
+    setUpdateCheckInProgress(true);
+    try {
+      const update = await checkGitHubReleaseUpdate(APP_VERSION);
+      setUpdateNotice(update);
+      return Boolean(update);
+    } finally {
+      setUpdatePrefs((current) => ({
+        ...current,
+        lastCheckedAt: new Date().toISOString(),
+      }));
+      setUpdateCheckInProgress(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    saveUpdatePrefs(updatePrefs);
+  }, [updatePrefs]);
+
+  useEffect(() => {
+    if (!updatePrefs.checkOnLaunch) {
+      autoUpdateCheckRef.current = false;
+      return;
+    }
+    if (autoUpdateCheckRef.current) return;
+    autoUpdateCheckRef.current = true;
+    void checkForAppUpdate();
+  }, [checkForAppUpdate, updatePrefs.checkOnLaunch]);
 
   async function handleCreate(input: WorkspaceCreateInput) {
     setError(null);
@@ -283,6 +324,30 @@ export default function App() {
       return next;
     });
   }
+
+  const updateBanner = updateNotice ? (
+    <div className="update-banner" role="status" aria-live="polite">
+      <div className="update-banner-copy">
+        <p className="eyebrow">Updates</p>
+        <strong>Version {updateNotice.version} is available</strong>
+        <span>Open the GitHub release to download the latest macOS build.</span>
+      </div>
+      <div className="update-banner-actions">
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => {
+            void openPath(updateNotice.releaseUrl);
+          }}
+        >
+          Open release
+        </button>
+        <button className="ghost-button" type="button" onClick={() => setUpdateNotice(null)}>
+          Later
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   function buildCommandPaletteItems(): CommandPaletteItem[] {
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -1093,49 +1158,58 @@ export default function App() {
 
   if (view === "start") {
     return (
-      <main className="main-pane standalone-pane">
-        <WorkspaceStart
-          recentWorkspaces={recentWorkspaces}
-          onCreateBlank={handleCreateBlankWorkspace}
-          onCreateExample={handleCreateExampleWorkspace}
-          onOpenExisting={handleWelcomeOpenExistingWorkspace}
-          onOpenRecentWorkspace={handleOpenRecentWorkspace}
-          error={error}
-        />
-      </main>
+      <>
+        {updateBanner}
+        <main className="main-pane standalone-pane">
+          <WorkspaceStart
+            recentWorkspaces={recentWorkspaces}
+            onCreateBlank={handleCreateBlankWorkspace}
+            onCreateExample={handleCreateExampleWorkspace}
+            onOpenExisting={handleWelcomeOpenExistingWorkspace}
+            onOpenRecentWorkspace={handleOpenRecentWorkspace}
+            error={error}
+          />
+        </main>
+      </>
     );
   }
 
   if (view === "create") {
     return (
-      <main className="main-pane standalone-pane">
-        <CreateWorkspaceForm
-          initialTemplate={createTemplate}
-          onCancel={() => {
-            setError(null);
-            setView("start");
-          }}
-          onChooseDirectory={pickDirectory}
-          onCreate={handleCreate}
-          error={error}
-        />
-      </main>
+      <>
+        {updateBanner}
+        <main className="main-pane standalone-pane">
+          <CreateWorkspaceForm
+            initialTemplate={createTemplate}
+            onCancel={() => {
+              setError(null);
+              setView("start");
+            }}
+            onChooseDirectory={pickDirectory}
+            onCreate={handleCreate}
+            error={error}
+          />
+        </main>
+      </>
     );
   }
 
   if (view === "open") {
     return (
-      <main className="main-pane standalone-pane">
-        <OpenWorkspaceForm
-          onCancel={() => {
-            setError(null);
-            setView("start");
-          }}
-          onChooseDirectory={pickDirectory}
-          onOpen={handleOpenWorkspace}
-          error={error}
-        />
-      </main>
+      <>
+        {updateBanner}
+        <main className="main-pane standalone-pane">
+          <OpenWorkspaceForm
+            onCancel={() => {
+              setError(null);
+              setView("start");
+            }}
+            onChooseDirectory={pickDirectory}
+            onOpen={handleOpenWorkspace}
+            error={error}
+          />
+        </main>
+      </>
     );
   }
 
@@ -1159,6 +1233,7 @@ export default function App() {
         onOpenExistingWorkspace={handleOpenExistingWorkspace}
         onCloseWorkspace={handleCloseWorkspace}
       >
+        {updateBanner}
         {activeScreen === "ledger" ? (
           <LedgerEditor
             workspace={workspace}
@@ -1205,6 +1280,8 @@ export default function App() {
             categorizationRules={categorizationRules}
             categorizationRuleOffer={ruleOffer}
             snapshots={snapshots}
+            updatePrefs={updatePrefs}
+            updateCheckInProgress={updateCheckInProgress}
             onReveal={handleReveal}
             onOpenAnother={() => {
               setError(null);
@@ -1226,6 +1303,8 @@ export default function App() {
             onEnableCategorizationRule={handleEnableCategorizationRule}
             onDeleteCategorizationRule={handleDeleteCategorizationRule}
             onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
+            onUpdatePrefsChange={setUpdatePrefs}
+            onCheckForUpdates={checkForAppUpdate}
             onError={setError}
           />
         ) : (

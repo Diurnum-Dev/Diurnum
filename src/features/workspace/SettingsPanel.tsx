@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import {
-  AiAdapterPanel,
-} from "./AiAdapterPanel";
+import { AiAdapterPanel } from "./AiAdapterPanel";
 import { CategorizationRulesPanel } from "./CategorizationRulesPanel";
 import { SourceAccountSetup } from "./SourceAccountSetup";
 import type {
@@ -22,6 +20,7 @@ import type {
   WorkspaceMetadataUpdateInput,
   WorkspaceSummary,
 } from "../../lib/workspace/types";
+import type { UpdatePrefs } from "../../lib/updatePreferences";
 import type { CategorizationRuleOffer } from "./CategorizationRulesPanel";
 
 type SettingsPanelProps = {
@@ -34,6 +33,8 @@ type SettingsPanelProps = {
   categorizationRules: CategorizationRule[];
   categorizationRuleOffer?: CategorizationRuleOffer | null;
   snapshots: SnapshotSummary[];
+  updatePrefs: UpdatePrefs;
+  updateCheckInProgress: boolean;
   onReveal: () => void;
   onOpenAnother: () => void;
   onUpdateWorkspaceMetadata: (input: WorkspaceMetadataUpdateInput) => Promise<void> | void;
@@ -66,6 +67,8 @@ type SettingsPanelProps = {
     input: { workspaceRootPath: string; id: string },
   ) => Promise<void> | void;
   onDismissCategorizationRuleOffer?: () => void;
+  onUpdatePrefsChange: (prefs: UpdatePrefs) => void;
+  onCheckForUpdates: () => Promise<boolean>;
   onError?: (message: string | null) => void;
 };
 
@@ -90,8 +93,6 @@ const settingsSections: Array<{ id: SettingsSection; label: string }> = [
   { id: "privacy", label: "Privacy" },
 ];
 
-const SETTINGS_PREFS_KEY = "diurnum.settings.v1";
-
 export function SettingsPanel(props: SettingsPanelProps) {
   const {
     workspace,
@@ -103,6 +104,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
     categorizationRules,
     categorizationRuleOffer,
     snapshots,
+    updatePrefs,
+    updateCheckInProgress,
     onReveal,
     onOpenAnother,
     onUpdateWorkspaceMetadata,
@@ -121,11 +124,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
     onEnableCategorizationRule,
     onDeleteCategorizationRule,
     onDismissCategorizationRuleOffer,
+    onUpdatePrefsChange,
+    onCheckForUpdates,
     onError,
   } = props;
 
   const [activeSection, setActiveSection] = useState<SettingsSection>("ai-adapter");
-  const [updatePrefs, setUpdatePrefs] = useState(loadUpdatePrefs);
   const [workspaceName, setWorkspaceName] = useState(workspace.businessName);
   const [booksStartDate, setBooksStartDate] = useState(workspace.booksStartDate);
   const [gitName, setGitName] = useState(gitIdentity.localName ?? "");
@@ -151,10 +155,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
   useEffect(() => {
     setCustomAdapterCommand(aiAdapterConfig.command ?? "");
   }, [aiAdapterConfig.command]);
-
-  useEffect(() => {
-    saveUpdatePrefs(updatePrefs);
-  }, [updatePrefs]);
 
   async function handleWorkspaceSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -311,7 +311,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                         type="checkbox"
                         checked={updatePrefs.checkOnLaunch}
                         onChange={(event) =>
-                          setUpdatePrefs({ ...updatePrefs, checkOnLaunch: event.target.checked })
+                          onUpdatePrefsChange({ ...updatePrefs, checkOnLaunch: event.target.checked })
                         }
                       />
                       <span>Enabled</span>
@@ -323,14 +323,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={() =>
-                    setUpdatePrefs({
-                      ...updatePrefs,
-                      lastCheckedAt: new Date().toISOString(),
-                    })
-                  }
+                  disabled={updateCheckInProgress}
+                  onClick={async () => {
+                    setLocalError(null);
+                    try {
+                      const updateAvailable = await onCheckForUpdates();
+                      setStatusNote(
+                        updateAvailable
+                          ? "An update is available in the shell banner."
+                          : "No update is available right now.",
+                      );
+                    } catch (error) {
+                      setLocalError(messageFromError(error));
+                    }
+                  }}
                 >
-                  Check now
+                  {updateCheckInProgress ? "Checking..." : "Check now"}
                 </button>
                 {updatePrefs.lastCheckedAt ? (
                   <span className="settings-note">
@@ -715,26 +723,6 @@ function SourceMappingEditor({
       </button>
     </div>
   );
-}
-
-function loadUpdatePrefs(): { checkOnLaunch: boolean; lastCheckedAt: string | null } {
-  try {
-    const raw = window.localStorage.getItem(SETTINGS_PREFS_KEY);
-    if (!raw) {
-      return { checkOnLaunch: false, lastCheckedAt: null };
-    }
-    const parsed = JSON.parse(raw) as { checkOnLaunch?: boolean; lastCheckedAt?: string | null };
-    return {
-      checkOnLaunch: Boolean(parsed.checkOnLaunch),
-      lastCheckedAt: typeof parsed.lastCheckedAt === "string" ? parsed.lastCheckedAt : null,
-    };
-  } catch {
-    return { checkOnLaunch: false, lastCheckedAt: null };
-  }
-}
-
-function saveUpdatePrefs(prefs: { checkOnLaunch: boolean; lastCheckedAt: string | null }) {
-  window.localStorage.setItem(SETTINGS_PREFS_KEY, JSON.stringify(prefs));
 }
 
 function messageFromError(error: unknown): string {
