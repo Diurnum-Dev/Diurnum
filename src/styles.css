@@ -544,6 +544,40 @@ h2 {
   padding: 12px 14px;
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 0 0;
+  border: 1px solid #b7cfc1;
+  border-radius: 8px;
+  background: #edf6f0;
+  color: #214335;
+  padding: 12px 14px;
+}
+
+.update-banner-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.update-banner-copy strong {
+  font-size: 0.98rem;
+}
+
+.update-banner-copy span {
+  color: #4a6158;
+  line-height: 1.45;
+}
+
+.update-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ledger-alert,
 .provenance-alert {
   display: grid;
