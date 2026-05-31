@@ -9,6 +9,8 @@ import type {
   ApproveTransferEntryInput,
   BrokenProvenance,
   CategorizationRule,
+  CsvImportAnalysis,
+  CsvImportAnalysisInput,
   ConfigureAiAdapterInput,
   CreateCategorizationRuleInput,
   CreateDocumentFolderInput,
@@ -56,6 +58,7 @@ type WorkspaceApi = {
   saveLedgerEditorSession: (
     input: SaveLedgerEditorSessionInput,
   ) => Promise<LedgerEditorSession>;
+  analyzeCsvImport: (input: CsvImportAnalysisInput) => Promise<CsvImportAnalysis>;
   getDocumentsState: (input: DocumentsStateInput) => Promise<DocumentsState>;
   createDocumentFolder: (
     input: CreateDocumentFolderInput,
@@ -172,6 +175,15 @@ export async function saveLedgerEditorSession(
     return window.__DIURNUM_TEST_API__.saveLedgerEditorSession(input);
   }
   return invoke<LedgerEditorSession>("save_ledger_editor_session", { input });
+}
+
+export async function analyzeCsvImport(
+  input: CsvImportAnalysisInput,
+): Promise<CsvImportAnalysis> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.analyzeCsvImport(input);
+  }
+  return invoke<CsvImportAnalysis>("analyze_csv_import", { input });
 }
 
 export async function getDocumentsState(input: DocumentsStateInput): Promise<DocumentsState> {

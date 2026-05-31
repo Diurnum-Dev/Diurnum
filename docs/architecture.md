@@ -226,8 +226,10 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - The Workspace overview currently exposes recent Snapshots and restore actions, and shows them as a recovery affordance when opening a Workspace in Invalid Ledger State. The full V1 Settings navigation will host the same Snapshot surface when issue #41 lands.
 - Source Account setup appends valid Beancount directives to the readable ledger files rather than storing canonical account setup only in SQLite.
 - Adding a Source Account also creates a matching slugged subfolder under `documents/`. CSV Import copies the original CSV into that folder with a date-prefixed filename so the import artifact stays committable with the Workspace.
-- CSV Import stores normalized Statement Rows in SQLite Staging Area tables without writing to Beancount.
+- CSV Import now runs a native analysis pass before import, infers likely source mappings from headers and sample rows, and shows a preview of importable rows, likely duplicates, and blocked reasons when a file cannot be imported as-is.
+- CSV Import stores normalized Statement Rows in SQLite Staging Area tables without writing to Beancount and persists the selected source mapping for future imports.
 - Import deduplication is scoped to `(source_account, import_fingerprint)` and skips duplicates even when prior rows are already accounted.
+- Imported statement rows carry a `pending_at_import` flag so approval metadata can distinguish rows that were still awaiting review when they entered the staging area.
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
 - After approving a Suggested Entry or Transfer Match, the UI returns to the Ledger Editor and requests the monthly transaction file that received the new Beancount entry.
 - Categorization Rules are user-confirmed SQLite records scoped to Source Account by default, visible/editable in the Workspace overview, and used to prefill future Standard Suggested Entries before any AI suggestion layer.

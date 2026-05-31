@@ -279,7 +279,10 @@ export function WorkspaceOverview({
       ) : null}
 
       {showImport && onImportStatementRows ? (
-        <CsvImportSetup onImportStatementRows={onImportStatementRows} />
+        <CsvImportSetup
+          workspaceRootPath={workspace.rootPath}
+          onImportStatementRows={onImportStatementRows}
+        />
       ) : null}
 
       {showSettings && onConfigureAiAdapter ? (

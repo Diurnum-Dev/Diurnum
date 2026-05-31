@@ -24,10 +24,13 @@ export type CsvSourceMappingInput = {
   transactionTypeColumn?: string | null;
   /** Value in `transactionTypeColumn` that marks a debit row (default: "Debit"). */
   debitTypeValue?: string | null;
+  statusColumn?: string | null;
+  checkNumberColumn?: string | null;
   memoColumn?: string | null;
   referenceIdColumn?: string | null;
   payeeColumn?: string | null;
   categoryColumn?: string | null;
+  dateFormat?: string | null;
 };
 
 export type CsvImportInput = {
@@ -42,6 +45,46 @@ export type CsvImportResult = {
   sourceAccount: string;
   importedCount: number;
   skippedDuplicateCount: number;
+};
+
+export type CsvImportAnalysisInput = {
+  workspaceRootPath: string;
+  sourceAccount?: string | null;
+  sourceFileName: string;
+  csvContents: string;
+};
+
+export type CsvImportColumnAnalysis = {
+  header: string;
+  sampleValue: string;
+  diurnumField?: string | null;
+  status: string;
+  required: boolean;
+};
+
+export type CsvImportPreviewRow = {
+  postedDate: string;
+  description: string;
+  signedAmount: string;
+  status?: string | null;
+  duplicate: boolean;
+};
+
+export type CsvImportAnalysis = {
+  fileName: string;
+  rowCount: number;
+  delimiter: string;
+  encoding: string;
+  autoDetected: boolean;
+  requiredFieldCount: number;
+  requiredMappedCount: number;
+  likelyDuplicateCount: number;
+  importableRowCount: number;
+  skippedRowCount: number;
+  columns: CsvImportColumnAnalysis[];
+  previewRows: CsvImportPreviewRow[];
+  mapping: CsvSourceMappingInput;
+  blockedReason?: string | null;
 };
 
 export type SuggestedEntry = {

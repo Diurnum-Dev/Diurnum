@@ -1,8 +1,13 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import type { CsvSourceMappingInput } from "../../lib/workspace/types";
+import { analyzeCsvImport } from "../../lib/workspace/api";
+import type {
+  CsvImportAnalysis,
+  CsvSourceMappingInput,
+} from "../../lib/workspace/types";
 
 type CsvImportSetupProps = {
+  workspaceRootPath: string;
   onImportStatementRows: (input: {
     sourceAccount: string;
     sourceFileName: string;
@@ -11,92 +16,158 @@ type CsvImportSetupProps = {
   }) => Promise<void> | void;
 };
 
-export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
+const emptyMapping = {
+  postedDateColumn: "Date",
+  descriptionColumn: "Description",
+  amountColumn: "Amount",
+  debitColumn: "",
+  creditColumn: "",
+  transactionTypeColumn: "",
+  debitTypeValue: "Debit",
+  statusColumn: "",
+  checkNumberColumn: "",
+  memoColumn: "",
+  referenceIdColumn: "",
+  payeeColumn: "",
+  categoryColumn: "",
+  dateFormat: "",
+};
+
+export function CsvImportSetup({
+  workspaceRootPath,
+  onImportStatementRows,
+}: CsvImportSetupProps) {
   const [sourceAccount, setSourceAccount] = useState("");
   const [sourceFileName, setSourceFileName] = useState("");
   const [csvContents, setCsvContents] = useState("");
-  const [postedDateColumn, setPostedDateColumn] = useState("Date");
-  const [descriptionColumn, setDescriptionColumn] = useState("Description");
-  const [amountColumn, setAmountColumn] = useState("Amount");
-  const [debitColumn, setDebitColumn] = useState("");
-  const [creditColumn, setCreditColumn] = useState("");
-  const [transactionTypeColumn, setTransactionTypeColumn] = useState("");
-  const [debitTypeValue, setDebitTypeValue] = useState("Debit");
-  const [memoColumn, setMemoColumn] = useState("");
-  const [referenceIdColumn, setReferenceIdColumn] = useState("");
-  const [payeeColumn, setPayeeColumn] = useState("");
-  const [categoryColumn, setCategoryColumn] = useState("");
+  const [postedDateColumn, setPostedDateColumn] = useState(emptyMapping.postedDateColumn);
+  const [descriptionColumn, setDescriptionColumn] = useState(emptyMapping.descriptionColumn);
+  const [amountColumn, setAmountColumn] = useState(emptyMapping.amountColumn);
+  const [debitColumn, setDebitColumn] = useState(emptyMapping.debitColumn);
+  const [creditColumn, setCreditColumn] = useState(emptyMapping.creditColumn);
+  const [transactionTypeColumn, setTransactionTypeColumn] = useState(
+    emptyMapping.transactionTypeColumn,
+  );
+  const [debitTypeValue, setDebitTypeValue] = useState(emptyMapping.debitTypeValue);
+  const [statusColumn, setStatusColumn] = useState(emptyMapping.statusColumn);
+  const [checkNumberColumn, setCheckNumberColumn] = useState(emptyMapping.checkNumberColumn);
+  const [memoColumn, setMemoColumn] = useState(emptyMapping.memoColumn);
+  const [referenceIdColumn, setReferenceIdColumn] = useState(emptyMapping.referenceIdColumn);
+  const [payeeColumn, setPayeeColumn] = useState(emptyMapping.payeeColumn);
+  const [categoryColumn, setCategoryColumn] = useState(emptyMapping.categoryColumn);
+  const [dateFormat, setDateFormat] = useState(emptyMapping.dateFormat);
+  const [analysis, setAnalysis] = useState<CsvImportAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const analysisRequestId = useRef(0);
+
+  useEffect(() => {
+    if (!sourceFileName.trim() || !csvContents.trim()) {
+      setAnalysis(null);
+      setAnalysisError(null);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void refreshAnalysis(false);
+    }, 180);
+    return () => window.clearTimeout(timeout);
+    // Mapping fields intentionally drive the live preview.
+  }, [
+    workspaceRootPath,
+    sourceAccount,
+    sourceFileName,
+    csvContents,
+    postedDateColumn,
+    descriptionColumn,
+    amountColumn,
+    debitColumn,
+    creditColumn,
+    transactionTypeColumn,
+    debitTypeValue,
+    statusColumn,
+    checkNumberColumn,
+    memoColumn,
+    referenceIdColumn,
+    payeeColumn,
+    categoryColumn,
+    dateFormat,
+  ]);
+
+  async function refreshAnalysis(
+    applyMapping: boolean,
+    overrides?: { sourceFileName?: string; csvContents?: string; sourceAccount?: string },
+  ) {
+    const requestId = ++analysisRequestId.current;
+    const sourceFileNameValue = overrides?.sourceFileName ?? sourceFileName;
+    const csvContentsValue = overrides?.csvContents ?? csvContents;
+    const sourceAccountValue = overrides?.sourceAccount ?? sourceAccount;
+    try {
+      const result = await analyzeCsvImport({
+        workspaceRootPath,
+        sourceAccount: sourceAccountValue.trim() || null,
+        sourceFileName: sourceFileNameValue.trim(),
+        csvContents: csvContentsValue,
+      });
+      if (requestId !== analysisRequestId.current) return;
+      setAnalysis(result);
+      setAnalysisError(result.blockedReason ?? null);
+      if (applyMapping) {
+        applyDetectedMapping(result.mapping);
+      }
+    } catch (caught) {
+      if (requestId !== analysisRequestId.current) return;
+      setAnalysis(null);
+      setAnalysisError(messageFromError(caught));
+    }
+  }
+
+  function applyDetectedMapping(mapping: CsvSourceMappingInput) {
+    setPostedDateColumn(mapping.postedDateColumn || emptyMapping.postedDateColumn);
+    setDescriptionColumn(mapping.descriptionColumn || emptyMapping.descriptionColumn);
+    setAmountColumn(mapping.amountColumn || "");
+    setDebitColumn(mapping.debitColumn || "");
+    setCreditColumn(mapping.creditColumn || "");
+    setTransactionTypeColumn(mapping.transactionTypeColumn || "");
+    setDebitTypeValue(mapping.debitTypeValue || emptyMapping.debitTypeValue);
+    setStatusColumn(mapping.statusColumn || "");
+    setCheckNumberColumn(mapping.checkNumberColumn || "");
+    setMemoColumn(mapping.memoColumn || "");
+    setReferenceIdColumn(mapping.referenceIdColumn || "");
+    setPayeeColumn(mapping.payeeColumn || "");
+    setCategoryColumn(mapping.categoryColumn || "");
+    setDateFormat(mapping.dateFormat || "");
+  }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setSourceFileName(file.name);
     const text = await readFileAsText(file);
+    setSourceFileName(file.name);
     setCsvContents(text);
-    applyAutoDetectedColumns(text);
-    // Reset so the same file can be re-selected if needed
     event.target.value = "";
+    await refreshAnalysis(true, { sourceFileName: file.name, csvContents: text });
   }
 
-  function applyAutoDetectedColumns(csvText: string) {
-    const headers = parseCsvHeaders(csvText);
-    if (headers.length === 0) return;
-
-    const find = (...candidates: string[]): string => {
-      for (const c of candidates) {
-        const match = headers.find((h) => h.toLowerCase() === c.toLowerCase());
-        if (match) return match;
-      }
-      // Partial match fallback
-      for (const c of candidates) {
-        const match = headers.find((h) => h.toLowerCase().includes(c.toLowerCase()));
-        if (match) return match;
-      }
-      return "";
-    };
-
-    const detectedDate = find("Date", "Transaction Date", "Posted Date", "Posting Date", "Post Date");
-    const detectedDesc = find("Description", "Transaction Description", "Memo", "Narrative", "Details");
-    const detectedAmount = find("Amount", "Transaction Amount");
-    const detectedDebit = find("Debit Amount", "Debit");
-    const detectedCredit = find("Credit Amount", "Credit");
-    const detectedType = find("Transaction Type", "Type");
-    const detectedMemo = find("Memo", "Note", "Notes");
-    const detectedRef = find("Reference", "Reference ID", "Reference Number", "Check Number");
-    const detectedPayee = find("Payee", "Merchant", "Vendor");
-    const detectedCategory = find("Category", "Spending Category");
-
-    if (detectedDate) setPostedDateColumn(detectedDate);
-    if (detectedDesc) setDescriptionColumn(detectedDesc);
-
-    // Prefer separate debit/credit columns if both found; otherwise use amount.
-    // Clear whichever pair isn't being used to avoid confusing the backend.
-    if (detectedDebit && detectedCredit) {
-      setDebitColumn(detectedDebit);
-      setCreditColumn(detectedCredit);
-      setAmountColumn("");
-      setTransactionTypeColumn("");
-      setDebitTypeValue("Debit");
-    } else if (detectedAmount) {
-      setAmountColumn(detectedAmount);
-      setDebitColumn("");
-      setCreditColumn("");
-      // Wire up the type column when found alongside a single amount column
-      if (detectedType) {
-        setTransactionTypeColumn(detectedType);
-        setDebitTypeValue("Debit");
-      } else {
-        setTransactionTypeColumn("");
-      }
-    }
-
-    if (detectedMemo) setMemoColumn(detectedMemo);
-    if (detectedRef) setReferenceIdColumn(detectedRef);
-    if (detectedPayee) setPayeeColumn(detectedPayee);
-    if (detectedCategory) setCategoryColumn(detectedCategory);
+  function handleReset() {
+    applyDetectedMapping(analysis?.mapping ?? {
+      postedDateColumn: emptyMapping.postedDateColumn,
+      descriptionColumn: emptyMapping.descriptionColumn,
+      amountColumn: emptyMapping.amountColumn,
+      debitColumn: null,
+      creditColumn: null,
+      transactionTypeColumn: null,
+      debitTypeValue: emptyMapping.debitTypeValue,
+      statusColumn: null,
+      checkNumberColumn: null,
+      memoColumn: null,
+      referenceIdColumn: null,
+      payeeColumn: null,
+      categoryColumn: null,
+      dateFormat: null,
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -115,18 +186,30 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
           creditColumn: optionalColumn(creditColumn),
           transactionTypeColumn: optionalColumn(transactionTypeColumn),
           debitTypeValue: optionalColumn(debitTypeValue),
+          statusColumn: optionalColumn(statusColumn),
+          checkNumberColumn: optionalColumn(checkNumberColumn),
           memoColumn: optionalColumn(memoColumn),
           referenceIdColumn: optionalColumn(referenceIdColumn),
           payeeColumn: optionalColumn(payeeColumn),
           categoryColumn: optionalColumn(categoryColumn),
+          dateFormat: optionalColumn(dateFormat),
         },
       });
       setCsvContents("");
       setSourceFileName("");
+      setAnalysis(null);
+      setAnalysisError(null);
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const importableCount = analysis?.importableRowCount ?? 0;
+  const footerStatus = analysis?.blockedReason
+    ? analysis.blockedReason
+    : analysis
+      ? `Mapping valid · ${analysis.requiredMappedCount} of ${analysis.requiredFieldCount} required fields mapped · ${analysis.likelyDuplicateCount} likely duplicates flagged`
+      : "Select a CSV to start analysis.";
 
   return (
     <section className="csv-import-setup" aria-labelledby="csv-import-setup-title">
@@ -134,6 +217,26 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
         <p className="eyebrow">CSV Import</p>
         <h2 id="csv-import-setup-title">Import Statement Rows</h2>
       </div>
+
+      {analysis ? (
+        <div className="csv-import-meta">
+          <div>
+            <strong>{analysis.fileName}</strong>
+            <span>
+              {analysis.rowCount} rows · {analysis.delimiter}-separated · {analysis.encoding}
+            </span>
+          </div>
+          <div className="csv-import-meta-badge">
+            {analysis.autoDetected && !analysis.blockedReason ? "Auto-detected" : "Manual mapping"}
+          </div>
+        </div>
+      ) : null}
+
+      {analysisError ? (
+        <div className="error-banner" role="alert">
+          {analysisError}
+        </div>
+      ) : null}
 
       <form className="workspace-form" onSubmit={handleSubmit}>
         <label>
@@ -162,9 +265,6 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
             Choose CSV
           </button>
         </div>
-        {/* Hidden file input — triggered by the Choose CSV button above.
-            Selecting a file auto-populates the filename, CSV contents, and
-            column mapping fields. */}
         <input
           ref={fileInputRef}
           type="file"
@@ -184,70 +284,149 @@ export function CsvImportSetup({ onImportStatementRows }: CsvImportSetupProps) {
           />
         </label>
 
-        <div className="mapping-grid">
-          <label>
-            Posted date column
-            <input value={postedDateColumn} onChange={(event) => setPostedDateColumn(event.target.value)} />
-          </label>
-          <label>
-            Description column
-            <input value={descriptionColumn} onChange={(event) => setDescriptionColumn(event.target.value)} />
-          </label>
-          <label>
-            Amount column
-            <input value={amountColumn} onChange={(event) => setAmountColumn(event.target.value)} />
-          </label>
-          <label>
-            Debit column
-            <input value={debitColumn} onChange={(event) => setDebitColumn(event.target.value)} />
-          </label>
-          <label>
-            Credit column
-            <input value={creditColumn} onChange={(event) => setCreditColumn(event.target.value)} />
-          </label>
-          <label>
-            Transaction type column
-            <input value={transactionTypeColumn} onChange={(event) => setTransactionTypeColumn(event.target.value)} />
-          </label>
-          <label>
-            Debit type value
-            <input value={debitTypeValue} onChange={(event) => setDebitTypeValue(event.target.value)} />
-          </label>
-          <label>
-            Memo column
-            <input value={memoColumn} onChange={(event) => setMemoColumn(event.target.value)} />
-          </label>
-          <label>
-            Reference id column
-            <input value={referenceIdColumn} onChange={(event) => setReferenceIdColumn(event.target.value)} />
-          </label>
-          <label>
-            Payee column
-            <input value={payeeColumn} onChange={(event) => setPayeeColumn(event.target.value)} />
-          </label>
-          <label>
-            Category column
-            <input value={categoryColumn} onChange={(event) => setCategoryColumn(event.target.value)} />
-          </label>
+        {analysis ? (
+          <div className="csv-import-stats">
+            <div>{analysis.rowCount} rows in file</div>
+            <div>{analysis.skippedRowCount} skipped</div>
+            <div>{analysis.importableRowCount} to import</div>
+          </div>
+        ) : null}
+
+        <div className="mapping-toolbar">
+          <button type="button" className="secondary-button" onClick={handleReset}>
+            Reset
+          </button>
         </div>
 
-        <button
-          className="primary-button"
-          type="submit"
-          disabled={
-            !sourceAccount.trim() ||
-            !sourceFileName.trim() ||
-            !csvContents.trim() ||
-            !postedDateColumn.trim() ||
-            !descriptionColumn.trim() ||
-            (!amountColumn.trim() && (!debitColumn.trim() || !creditColumn.trim())) ||
-            isSubmitting
-          }
-        >
-          Import Statement Rows
-        </button>
+        <div className="mapping-grid">
+          <MappingField
+            label="Posted date column"
+            value={postedDateColumn}
+            onChange={setPostedDateColumn}
+            required
+          />
+          <MappingField
+            label="Description column"
+            value={descriptionColumn}
+            onChange={setDescriptionColumn}
+            required
+          />
+          <MappingField label="Amount column" value={amountColumn} onChange={setAmountColumn} />
+          <MappingField label="Debit column" value={debitColumn} onChange={setDebitColumn} />
+          <MappingField label="Credit column" value={creditColumn} onChange={setCreditColumn} />
+          <MappingField
+            label="Transaction type column"
+            value={transactionTypeColumn}
+            onChange={setTransactionTypeColumn}
+          />
+          <MappingField label="Debit type value" value={debitTypeValue} onChange={setDebitTypeValue} />
+          <MappingField label="Status column" value={statusColumn} onChange={setStatusColumn} />
+          <MappingField
+            label="Check number column"
+            value={checkNumberColumn}
+            onChange={setCheckNumberColumn}
+          />
+          <MappingField label="Memo column" value={memoColumn} onChange={setMemoColumn} />
+          <MappingField
+            label="Reference id column"
+            value={referenceIdColumn}
+            onChange={setReferenceIdColumn}
+          />
+          <MappingField label="Payee column" value={payeeColumn} onChange={setPayeeColumn} />
+          <MappingField label="Category column" value={categoryColumn} onChange={setCategoryColumn} />
+          <MappingField label="Date format" value={dateFormat} onChange={setDateFormat} />
+        </div>
+
+        {analysis ? (
+          <section className="csv-import-preview" aria-labelledby="csv-import-preview-title">
+            <div className="section-heading">
+              <p className="eyebrow">Preview</p>
+              <h3 id="csv-import-preview-title">Statement Rows</h3>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Flag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.previewRows.map((row, index) => (
+                  <tr key={`${row.postedDate}-${row.description}-${index}`}>
+                    <td>{row.postedDate}</td>
+                    <td>{row.description}</td>
+                    <td>{row.signedAmount}</td>
+                    <td>{row.status || "Posted"}</td>
+                    <td>{row.duplicate ? "Duplicate" : "+ New"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
+        {analysis ? (
+          <section className="csv-import-columns" aria-labelledby="csv-import-columns-title">
+            <div className="section-heading">
+              <p className="eyebrow">Columns</p>
+              <h3 id="csv-import-columns-title">Detected Fields</h3>
+            </div>
+            <ul>
+              {analysis.columns.map((column) => (
+                <li key={column.header} className={column.status === "unknown" ? "unknown-column" : ""}>
+                  <strong>{column.header}</strong>
+                  <span>{column.sampleValue || "No sample value"}</span>
+                  <span>{column.diurnumField || "Choose diurnum field"}</span>
+                  <span>{column.required ? "required" : "optional"}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <div className="csv-import-footer">
+          <span>{footerStatus}</span>
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={
+              !sourceAccount.trim() ||
+              !sourceFileName.trim() ||
+              !csvContents.trim() ||
+              !postedDateColumn.trim() ||
+              !descriptionColumn.trim() ||
+              (!amountColumn.trim() && (!debitColumn.trim() || !creditColumn.trim())) ||
+              Boolean(analysis?.blockedReason) ||
+              isSubmitting
+            }
+          >
+            Import {importableCount} rows
+          </button>
+        </div>
       </form>
     </section>
+  );
+}
+
+function MappingField({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <label className={required ? "required-field" : ""}>
+      {label}
+      <input value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
   );
 }
 
@@ -264,9 +443,9 @@ function readFileAsText(file: File): Promise<string> {
   });
 }
 
-/** Extract header names from the first non-empty CSV line. */
-function parseCsvHeaders(csvText: string): string[] {
-  const firstLine = csvText.split(/\r?\n/).find((line) => line.trim().length > 0);
-  if (!firstLine) return [];
-  return firstLine.split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+function messageFromError(error: unknown): string {
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return "CSV Import could not complete that action.";
 }

@@ -44,6 +44,7 @@ pub fn run() {
             commands::workspace::delete_document_entry,
             commands::workspace::read_document_preview,
             commands::workspace::get_predictive_entry_completion,
+            commands::workspace::analyze_csv_import,
             commands::workspace::inspect_workspace_paths,
             commands::workspace::get_workspace_git_status,
             commands::workspace::add_source_account,

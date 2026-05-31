@@ -65,6 +65,39 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       }) {
         return input.session;
       },
+      async analyzeCsvImport() {
+        return {
+          fileName: "checking.csv",
+          rowCount: 0,
+          delimiter: "Comma",
+          encoding: "UTF-8",
+          autoDetected: true,
+          requiredFieldCount: 3,
+          requiredMappedCount: 3,
+          likelyDuplicateCount: 0,
+          importableRowCount: 0,
+          skippedRowCount: 0,
+          columns: [],
+          previewRows: [],
+          mapping: {
+            postedDateColumn: "Date",
+            descriptionColumn: "Description",
+            amountColumn: "Amount",
+            debitColumn: null,
+            creditColumn: null,
+            transactionTypeColumn: null,
+            debitTypeValue: "Debit",
+            statusColumn: null,
+            checkNumberColumn: null,
+            memoColumn: null,
+            referenceIdColumn: null,
+            payeeColumn: null,
+            categoryColumn: null,
+            dateFormat: null,
+          },
+          blockedReason: null,
+        };
+      },
       async getDocumentsState() {
         return {
           folders: [
