@@ -454,6 +454,21 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await expect(page.getByLabel("Workspace status")).toContainText("Git clean - main");
   await expect(page.getByRole("button", { name: /Inbox 1/ })).toBeVisible();
 
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
+  await page.keyboard.press("Control+K");
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+  await page.getByLabel("Search commands").fill("reports");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
+
+  await page.keyboard.press("Control+K");
+  await page.getByLabel("Search commands").fill("open file");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("option", { name: /accounts.bean/i })).toBeVisible();
+  await page.getByLabel("Search commands").fill("accounts");
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Workspace status")).toContainText("accounts.bean");
+
   await page.getByRole("button", { name: /Inbox/ }).click();
   await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
   await expect(page.locator(".pending-at-import-badge").first()).toBeVisible();

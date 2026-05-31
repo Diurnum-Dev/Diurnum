@@ -26,7 +26,10 @@ import {
 type LedgerEditorProps = {
   workspace: WorkspaceSummary;
   requestedFile?: string | null;
+  requestedCursor?: number | null;
+  requestedFileVersion?: number;
   onActiveFileChange: (relativePath: string) => void;
+  onFilesChange?: (files: string[]) => void;
   onValidationChange: (validation: LedgerValidationSummary) => void;
   onSaved?: (relativePath: string) => void | Promise<void>;
   onError: (message: string | null) => void;
@@ -49,7 +52,10 @@ const MAIN_FILE = "main.bean";
 export function LedgerEditor({
   workspace,
   requestedFile,
+  requestedCursor,
+  requestedFileVersion,
   onActiveFileChange,
+  onFilesChange,
   onValidationChange,
   onSaved,
   onError,
@@ -87,7 +93,7 @@ export function LedgerEditor({
         });
         setTabs((current) => [
           ...current,
-          snapshotToTab(snapshot, preferredCursor, 0),
+          snapshotToTab(snapshot, Math.min(preferredCursor, snapshot.contents.length), 0),
         ]);
         setActivePath(relativePath);
       } catch (error) {
@@ -104,6 +110,7 @@ export function LedgerEditor({
       .then(async (state) => {
         if (cancelled) return;
         setFiles(state.files);
+        onFilesChange?.(state.files);
         setRecentlyClosedTabs(state.session.recentlyClosedTabs);
         const snapshots = await Promise.all(
           state.session.openTabs.map((tab) =>
@@ -127,12 +134,12 @@ export function LedgerEditor({
     return () => {
       cancelled = true;
     };
-  }, [onError, workspace.rootPath]);
+  }, [onError, onFilesChange, workspace.rootPath]);
 
   useEffect(() => {
     if (!requestedFile) return;
-    void openFile(requestedFile);
-  }, [openFile, requestedFile]);
+    void openFile(requestedFile, requestedCursor ?? 0);
+  }, [openFile, requestedCursor, requestedFile, requestedFileVersion]);
 
   useEffect(() => {
     onActiveFileChange(activePath);
