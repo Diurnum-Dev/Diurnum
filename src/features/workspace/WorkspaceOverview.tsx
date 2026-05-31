@@ -19,7 +19,6 @@ import { CsvImportSetup } from "./CsvImportSetup";
 import { MvpReportsPanel } from "./MvpReportsPanel";
 import { SourceAccountSetup } from "./SourceAccountSetup";
 import type { SourceAccountKind } from "../../lib/workspace/types";
-import { SuggestedEntryReview } from "./SuggestedEntryReview";
 
 type WorkspaceOverviewProps = {
   activeScreen?: WorkspaceScreen;
@@ -103,14 +102,12 @@ export function WorkspaceOverview({
   error,
 }: WorkspaceOverviewProps) {
   const showLedger = activeScreen === "ledger";
-  const showInbox = activeScreen === "inbox";
   const showReports = activeScreen === "reports";
   const showDocuments = activeScreen === "documents";
   const showImport = activeScreen === "import";
   const showGit = activeScreen === "git";
   const showSettings = activeScreen === "settings";
-  const showLedgerSafety =
-    showLedger || showInbox || showReports || showImport || showSettings;
+  const showLedgerSafety = showLedger || showReports || showImport || showSettings;
 
   return (
     <section className="overview" aria-labelledby="workspace-overview-title">
@@ -290,15 +287,6 @@ export function WorkspaceOverview({
           config={aiAdapterConfig}
           disclosure={aiContextDisclosure}
           onConfigure={onConfigureAiAdapter}
-        />
-      ) : null}
-
-      {showInbox && onApproveSuggestedEntry ? (
-        <SuggestedEntryReview
-          suggestedEntries={suggestedEntries}
-          ledgerStatus={workspace.ledgerStatus}
-          onApprove={onApproveSuggestedEntry}
-          onApproveTransfer={onApproveTransferEntry}
         />
       ) : null}
 

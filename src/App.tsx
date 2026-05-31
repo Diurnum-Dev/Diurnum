@@ -44,6 +44,7 @@ import type {
   WorkspaceSummary,
 } from "./lib/workspace/types";
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
+import { InboxPanel } from "./features/workspace/InboxPanel";
 import { DocumentsPanel } from "./features/workspace/DocumentsPanel";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { LedgerEditor } from "./features/workspace/LedgerEditor";
@@ -103,11 +104,11 @@ export default function App() {
     try {
       const created = await createWorkspace(input);
       setWorkspace(created);
-      setSuggestedEntries([]);
-      setBrokenProvenance([]);
-      setCategorizationRules([]);
+      setSuggestedEntries(await getSuggestedEntries(created.rootPath));
+      setBrokenProvenance(await getBrokenProvenance(created.rootPath));
+      setCategorizationRules(await listCategorizationRules(created.rootPath));
       setRuleOffer(null);
-      setAiAdapterConfig({ command: null });
+      setAiAdapterConfig(await getAiAdapterConfig(created.rootPath));
       setAiContextDisclosure(await getAiContextDisclosure(created.rootPath));
       setReports(null);
       setSnapshots(await listSnapshots(created.rootPath));
@@ -594,6 +595,13 @@ export default function App() {
             onActiveFileChange={setLedgerActiveFile}
             onValidationChange={handleLedgerValidationChange}
             onError={setError}
+          />
+        ) : activeScreen === "inbox" ? (
+          <InboxPanel
+            suggestedEntries={suggestedEntries}
+            ledgerStatus={workspace.ledgerStatus}
+            onApprove={handleApproveSuggestedEntry}
+            onApproveTransfer={handleApproveTransferEntry}
           />
         ) : activeScreen === "documents" ? (
           <DocumentsPanel workspace={workspace} onError={setError} />

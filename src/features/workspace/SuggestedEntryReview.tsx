@@ -34,7 +34,7 @@ export function SuggestedEntryReview({
 
       <div className="suggested-entry-list">
         {suggestedEntries.map((entry) => (
-          <SuggestedEntryCard
+          <SuggestedEntryDetail
             key={entry.statementRowId}
             entry={entry}
             ledgerStatus={ledgerStatus}
@@ -47,7 +47,7 @@ export function SuggestedEntryReview({
   );
 }
 
-function SuggestedEntryCard({
+export function SuggestedEntryDetail({
   entry,
   ledgerStatus,
   onApprove,
@@ -110,7 +110,12 @@ function SuggestedEntryCard({
   return (
     <article className="suggested-entry-card">
       <div>
-        <p className="eyebrow">{isTransfer ? "Transfer Match" : "Entry Preview"}</p>
+        <div className="suggested-entry-heading">
+          <p className="eyebrow">{isTransfer ? "Transfer Match" : "Entry Preview"}</p>
+          {entry.pendingAtImport ? (
+            <span className="pending-at-import-badge">Pending at import</span>
+          ) : null}
+        </div>
         <h3>{entry.description}</h3>
         <p>{entry.postedDate}</p>
         {entry.suggestedLedgerAccount ? (
