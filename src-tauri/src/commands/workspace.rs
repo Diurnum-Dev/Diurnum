@@ -11,6 +11,11 @@ use crate::workspace::create;
 use crate::workspace::data_integrity::{
     self, RestoreSnapshotInput, SaveLedgerFileInput, SnapshotSummary,
 };
+use crate::workspace::documents::{
+    self, CreateDocumentFolderInput, DeleteDocumentEntryInput, DocumentFolderSummary,
+    DocumentPreview, DocumentFileSummary, DocumentsState, DocumentsStateInput,
+    ImportDocumentFileInput, ReadDocumentPreviewInput, RenameDocumentEntryInput,
+};
 use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
 use crate::workspace::ledger_editor::{
     self, LedgerEditorState, LedgerFileSnapshot, PredictiveEntryCompletion,
@@ -71,6 +76,46 @@ pub fn save_ledger_editor_session(
     input: SaveLedgerEditorSessionInput,
 ) -> Result<crate::workspace::LedgerEditorSession, WorkspaceError> {
     ledger_editor::save_ledger_editor_session(input)
+}
+
+#[tauri::command]
+pub fn get_documents_state(input: DocumentsStateInput) -> Result<DocumentsState, WorkspaceError> {
+    documents::get_documents_state(input)
+}
+
+#[tauri::command]
+pub fn create_document_folder(
+    input: CreateDocumentFolderInput,
+) -> Result<DocumentFolderSummary, WorkspaceError> {
+    documents::create_document_folder(input)
+}
+
+#[tauri::command]
+pub fn import_document_file(
+    input: ImportDocumentFileInput,
+) -> Result<DocumentFileSummary, WorkspaceError> {
+    documents::import_document_file(input)
+}
+
+#[tauri::command]
+pub fn rename_document_entry(
+    input: RenameDocumentEntryInput,
+) -> Result<(), WorkspaceError> {
+    documents::rename_document_entry(input)
+}
+
+#[tauri::command]
+pub fn delete_document_entry(
+    input: DeleteDocumentEntryInput,
+) -> Result<(), WorkspaceError> {
+    documents::delete_document_entry(input)
+}
+
+#[tauri::command]
+pub fn read_document_preview(
+    input: ReadDocumentPreviewInput,
+) -> Result<DocumentPreview, WorkspaceError> {
+    documents::read_document_preview(input)
 }
 
 #[tauri::command]

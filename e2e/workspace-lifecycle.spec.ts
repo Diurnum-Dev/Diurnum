@@ -65,6 +65,53 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       }) {
         return input.session;
       },
+      async getDocumentsState() {
+        return {
+          folders: [
+            {
+              relativePath: "",
+              name: "documents",
+              depth: 0,
+              isSourceAccountFolder: false,
+              absolutePath: "/tmp/Acme Studio/documents",
+            },
+          ],
+          selectedFolder: "",
+          files: [],
+        };
+      },
+      async createDocumentFolder() {
+        return {
+          relativePath: "receipts",
+          name: "receipts",
+          depth: 1,
+          isSourceAccountFolder: false,
+          absolutePath: "/tmp/Acme Studio/documents/receipts",
+        };
+      },
+      async importDocumentFile() {
+        return {
+          relativePath: "note.txt",
+          name: "note.txt",
+          modifiedAt: "2026-05-30T18:00:00Z",
+          sizeBytes: 5,
+          kind: "text",
+          absolutePath: "/tmp/Acme Studio/documents/note.txt",
+        };
+      },
+      async renameDocumentEntry() {},
+      async deleteDocumentEntry() {},
+      async readDocumentPreview() {
+        return {
+          relativePath: "note.txt",
+          fileName: "note.txt",
+          kind: "text",
+          mimeType: "text/plain",
+          textContent: "hello",
+          bytes: null,
+          absolutePath: "/tmp/Acme Studio/documents/note.txt",
+        };
+      },
       async getPredictiveEntryCompletion() {
         return null;
       },
@@ -164,6 +211,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
           .__nextPickedDirectory ?? "/tmp";
       },
       async revealWorkspace() {},
+      async openExternalPath() {},
     };
   });
 

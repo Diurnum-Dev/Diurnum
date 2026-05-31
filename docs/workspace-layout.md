@@ -10,6 +10,8 @@ Acme Studio/
   transactions/
     .gitkeep
   documents/
+    operating-checking/
+      .gitkeep
     .gitkeep
   imports/
     .gitkeep
@@ -44,6 +46,8 @@ Source Accounts are added as normal Beancount accounts under the Starter Chart:
 - credit-card Source Accounts are appended under `Liabilities:CreditCards`
 
 When the Founder-Operator records a known Opening Balance, Diurnum appends a Beancount `balance` directive to `opening-balances.bean` using the Workspace books start date.
+
+Each Source Account also gets a slugged folder under `documents/`, for example `documents/operating-checking/`. CSV imports copy the original CSV into that folder with a date-prefixed filename, and the Documents screen can add more files there or inside custom subfolders.
 
 ## Diurnum-Managed Local Data
 
