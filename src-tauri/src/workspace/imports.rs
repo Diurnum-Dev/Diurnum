@@ -1,4 +1,5 @@
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
+use crate::workspace::source_accounts::documents_slug_for_account;
 use crate::workspace::types::WorkspaceManifest;
 use chrono::{NaiveDate, Utc};
 use rusqlite::{params, Connection};
@@ -135,11 +136,49 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
         imported_count += 1;
     }
 
+    auto_file_import_csv(root, &input.source_account, &input.source_file_name, &input.csv_contents)?;
+
     Ok(CsvImportResult {
         source_account: input.source_account,
         imported_count,
         skipped_duplicate_count,
     })
+}
+
+fn auto_file_import_csv(
+    root: &Path,
+    source_account: &str,
+    source_file_name: &str,
+    csv_contents: &str,
+) -> Result<(), WorkspaceError> {
+    let folder = root
+        .join("documents")
+        .join(documents_slug_for_account(source_account));
+    fs::create_dir_all(&folder)?;
+    let safe_name = sanitize_file_name(source_file_name, "import.csv");
+    let dated_name = format!("{}_{}", Utc::now().format("%Y-%m-%d"), safe_name);
+    fs::write(folder.join(dated_name), csv_contents)?;
+    Ok(())
+}
+
+fn sanitize_file_name(file_name: &str, fallback: &str) -> String {
+    let trimmed = Path::new(file_name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(fallback)
+        .trim();
+    let safe = trimmed
+        .chars()
+        .map(|character| match character {
+            '/' | '\\' | ':' | '\0' => '-',
+            _ => character,
+        })
+        .collect::<String>();
+    if safe.is_empty() {
+        fallback.to_string()
+    } else {
+        safe
+    }
 }
 
 fn ensure_app_created_workspace(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
@@ -530,6 +569,22 @@ mod tests {
             )
             .unwrap();
         assert_eq!(source_amount, "-29.99");
+        let autofiled_csv = std::fs::read_dir(
+            std::path::Path::new(&created.root_path).join("documents/operating-checking"),
+        )
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .find(|name| name.ends_with("_checking.csv"))
+        .unwrap();
+        assert!(autofiled_csv.starts_with("20"));
+        let autofiled_contents = std::fs::read_to_string(
+            std::path::Path::new(&created.root_path)
+                .join("documents/operating-checking")
+                .join(autofiled_csv),
+        )
+        .unwrap();
+        assert!(autofiled_contents.contains("Client payment"));
 
         let reused = import_statement_rows(CsvImportInput {
             workspace_root_path: created.root_path.clone(),

@@ -49,6 +49,7 @@ pub fn add_source_account(
             manifest.business.books_start_date, account_name, manifest.business.base_currency
         ),
     )?;
+    ensure_documents_folder(root, &account_name)?;
 
     if let Some(opening_balance) = normalized_opening_balance(input.opening_balance.as_deref())? {
         append_line(
@@ -85,7 +86,7 @@ fn build_account_name(kind: &SourceAccountKind, raw_name: &str) -> Result<String
     Ok(format!("{prefix}:{segment}"))
 }
 
-fn sanitize_account_segment(raw_name: &str) -> Result<String, WorkspaceError> {
+pub(crate) fn sanitize_account_segment(raw_name: &str) -> Result<String, WorkspaceError> {
     let mut output = String::new();
     let mut previous_was_separator = true;
 
@@ -111,6 +112,27 @@ fn sanitize_account_segment(raw_name: &str) -> Result<String, WorkspaceError> {
     }
 
     Ok(output)
+}
+
+pub(crate) fn documents_slug_for_account(account_name: &str) -> String {
+    account_name
+        .split(':')
+        .next_back()
+        .unwrap_or(account_name)
+        .trim()
+        .to_ascii_lowercase()
+}
+
+fn ensure_documents_folder(root: &Path, account_name: &str) -> Result<(), WorkspaceError> {
+    let documents_path = root
+        .join("documents")
+        .join(documents_slug_for_account(account_name));
+    fs::create_dir_all(&documents_path)?;
+    let gitkeep = documents_path.join(".gitkeep");
+    if !gitkeep.exists() {
+        fs::write(gitkeep, "")?;
+    }
+    Ok(())
 }
 
 fn normalized_opening_balance(value: Option<&str>) -> Result<Option<String>, WorkspaceError> {
@@ -166,6 +188,7 @@ mod tests {
         let root = Path::new(&created.root_path);
         let accounts = fs::read_to_string(root.join("accounts.bean")).unwrap();
         assert!(accounts.contains("2026-01-01 open Assets:Bank:Operating-Checking USD"));
+        assert!(root.join("documents/operating-checking/.gitkeep").exists());
 
         let opening_balances = fs::read_to_string(root.join("opening-balances.bean")).unwrap();
         assert!(opening_balances

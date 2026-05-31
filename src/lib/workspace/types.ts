@@ -208,6 +208,75 @@ export type PredictiveEntryCompletion = {
   sourceAmount?: string | null;
 };
 
+export type DocumentsStateInput = {
+  workspaceRootPath: string;
+  selectedFolder?: string | null;
+};
+
+export type DocumentPreviewKind = "pdf" | "image" | "text" | "unsupported";
+
+export type DocumentFolderSummary = {
+  relativePath: string;
+  name: string;
+  depth: number;
+  isSourceAccountFolder: boolean;
+  absolutePath: string;
+};
+
+export type DocumentFileSummary = {
+  relativePath: string;
+  name: string;
+  modifiedAt: string;
+  sizeBytes: number;
+  kind: DocumentPreviewKind;
+  absolutePath: string;
+};
+
+export type DocumentsState = {
+  folders: DocumentFolderSummary[];
+  selectedFolder: string;
+  files: DocumentFileSummary[];
+};
+
+export type CreateDocumentFolderInput = {
+  workspaceRootPath: string;
+  parentRelativePath?: string | null;
+  name: string;
+};
+
+export type ImportDocumentFileInput = {
+  workspaceRootPath: string;
+  targetFolder: string;
+  fileName: string;
+  bytes: number[];
+};
+
+export type RenameDocumentEntryInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+  newName: string;
+};
+
+export type DeleteDocumentEntryInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+};
+
+export type ReadDocumentPreviewInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+};
+
+export type DocumentPreview = {
+  relativePath: string;
+  fileName: string;
+  kind: DocumentPreviewKind;
+  mimeType?: string | null;
+  textContent?: string | null;
+  bytes?: number[] | null;
+  absolutePath: string;
+};
+
 export type WorkspacePathStatus = {
   path: string;
   exists: boolean;

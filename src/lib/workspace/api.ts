@@ -11,16 +11,26 @@ import type {
   CategorizationRule,
   ConfigureAiAdapterInput,
   CreateCategorizationRuleInput,
+  CreateDocumentFolderInput,
   CsvImportInput,
   CsvImportResult,
+  DeleteDocumentEntryInput,
+  DocumentFileSummary,
+  DocumentFolderSummary,
+  DocumentPreview,
+  DocumentsState,
+  DocumentsStateInput,
   LedgerValidationSummary,
   LedgerEditorSession,
   LedgerEditorState,
   LedgerFileSnapshot,
+  ImportDocumentFileInput,
   MvpReports,
   PredictiveEntryCompletion,
   PredictiveEntryCompletionInput,
   ReadLedgerFileInput,
+  ReadDocumentPreviewInput,
+  RenameDocumentEntryInput,
   ReportsInput,
   RestoreSnapshotInput,
   SaveLedgerFileInput,
@@ -46,6 +56,14 @@ type WorkspaceApi = {
   saveLedgerEditorSession: (
     input: SaveLedgerEditorSessionInput,
   ) => Promise<LedgerEditorSession>;
+  getDocumentsState: (input: DocumentsStateInput) => Promise<DocumentsState>;
+  createDocumentFolder: (
+    input: CreateDocumentFolderInput,
+  ) => Promise<DocumentFolderSummary>;
+  importDocumentFile: (input: ImportDocumentFileInput) => Promise<DocumentFileSummary>;
+  renameDocumentEntry: (input: RenameDocumentEntryInput) => Promise<void>;
+  deleteDocumentEntry: (input: DeleteDocumentEntryInput) => Promise<void>;
+  readDocumentPreview: (input: ReadDocumentPreviewInput) => Promise<DocumentPreview>;
   getPredictiveEntryCompletion: (
     input: PredictiveEntryCompletionInput,
   ) => Promise<PredictiveEntryCompletion | null>;
@@ -70,6 +88,7 @@ type WorkspaceApi = {
   getMvpReports: (input: ReportsInput) => Promise<MvpReports>;
   pickDirectory: () => Promise<string | null>;
   revealWorkspace: (path: string) => Promise<void>;
+  openExternalPath: (path: string) => Promise<void>;
 };
 
 declare global {
@@ -153,6 +172,58 @@ export async function saveLedgerEditorSession(
     return window.__DIURNUM_TEST_API__.saveLedgerEditorSession(input);
   }
   return invoke<LedgerEditorSession>("save_ledger_editor_session", { input });
+}
+
+export async function getDocumentsState(input: DocumentsStateInput): Promise<DocumentsState> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getDocumentsState(input);
+  }
+  return invoke<DocumentsState>("get_documents_state", { input });
+}
+
+export async function createDocumentFolder(
+  input: CreateDocumentFolderInput,
+): Promise<DocumentFolderSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.createDocumentFolder(input);
+  }
+  return invoke<DocumentFolderSummary>("create_document_folder", { input });
+}
+
+export async function importDocumentFile(
+  input: ImportDocumentFileInput,
+): Promise<DocumentFileSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.importDocumentFile(input);
+  }
+  return invoke<DocumentFileSummary>("import_document_file", { input });
+}
+
+export async function renameDocumentEntry(
+  input: RenameDocumentEntryInput,
+): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.renameDocumentEntry(input);
+  }
+  await invoke("rename_document_entry", { input });
+}
+
+export async function deleteDocumentEntry(
+  input: DeleteDocumentEntryInput,
+): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.deleteDocumentEntry(input);
+  }
+  await invoke("delete_document_entry", { input });
+}
+
+export async function readDocumentPreview(
+  input: ReadDocumentPreviewInput,
+): Promise<DocumentPreview> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.readDocumentPreview(input);
+  }
+  return invoke<DocumentPreview>("read_document_preview", { input });
 }
 
 export async function getPredictiveEntryCompletion(
@@ -313,6 +384,13 @@ export async function pickDirectory(): Promise<string | null> {
 export async function revealWorkspace(path: string): Promise<void> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.revealWorkspace(path);
+  }
+  await openPath(path);
+}
+
+export async function openExternalPath(path: string): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.openExternalPath(path);
   }
   await openPath(path);
 }

@@ -44,6 +44,7 @@ import type {
   WorkspaceSummary,
 } from "./lib/workspace/types";
 import { CreateWorkspaceForm } from "./features/workspace/CreateWorkspaceForm";
+import { DocumentsPanel } from "./features/workspace/DocumentsPanel";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { LedgerEditor } from "./features/workspace/LedgerEditor";
 import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
@@ -594,6 +595,8 @@ export default function App() {
             onValidationChange={handleLedgerValidationChange}
             onError={setError}
           />
+        ) : activeScreen === "documents" ? (
+          <DocumentsPanel workspace={workspace} onError={setError} />
         ) : (
           <WorkspaceOverview
             activeScreen={activeScreen}

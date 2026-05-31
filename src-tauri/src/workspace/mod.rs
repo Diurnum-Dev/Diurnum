@@ -4,6 +4,7 @@ pub mod beancount;
 pub mod categorization_rules;
 pub mod create;
 pub mod data_integrity;
+pub mod documents;
 pub mod errors;
 pub mod imports;
 pub mod ledger_editor;

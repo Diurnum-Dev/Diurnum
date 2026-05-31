@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CsvImportSetup } from "./CsvImportSetup";
@@ -12,9 +12,15 @@ describe("CsvImportSetup", () => {
 
     render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
 
-    await user.type(screen.getByLabelText("Source Account"), "Assets:Bank:Operating-Checking");
-    await user.type(screen.getByLabelText("Source file name"), "checking.csv");
-    await user.type(screen.getByLabelText("CSV contents"), CSV_CONTENTS);
+    fireEvent.change(screen.getByLabelText("Source Account"), {
+      target: { value: "Assets:Bank:Operating-Checking" },
+    });
+    fireEvent.change(screen.getByLabelText("Source file name"), {
+      target: { value: "checking.csv" },
+    });
+    fireEvent.change(screen.getByLabelText("CSV contents"), {
+      target: { value: CSV_CONTENTS },
+    });
     await user.click(screen.getByRole("button", { name: "Import Statement Rows" }));
 
     expect(onImportStatementRows).toHaveBeenCalledWith({
@@ -43,15 +49,26 @@ describe("CsvImportSetup", () => {
 
     render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
 
-    await user.type(screen.getByLabelText("Source Account"), "Assets:Bank:Operating-Checking");
-    await user.type(screen.getByLabelText("Source file name"), "checking.csv");
-    await user.type(
-      screen.getByLabelText("CSV contents"),
-      "Date,Description,Debit,Credit\n2026-01-03,Client payment,,1500.00",
-    );
-    await user.clear(screen.getByLabelText("Amount column"));
-    await user.type(screen.getByLabelText("Debit column"), "Debit");
-    await user.type(screen.getByLabelText("Credit column"), "Credit");
+    fireEvent.change(screen.getByLabelText("Source Account"), {
+      target: { value: "Assets:Bank:Operating-Checking" },
+    });
+    fireEvent.change(screen.getByLabelText("Source file name"), {
+      target: { value: "checking.csv" },
+    });
+    fireEvent.change(screen.getByLabelText("CSV contents"), {
+      target: {
+        value: "Date,Description,Debit,Credit\n2026-01-03,Client payment,,1500.00",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Amount column"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("Debit column"), {
+      target: { value: "Debit" },
+    });
+    fireEvent.change(screen.getByLabelText("Credit column"), {
+      target: { value: "Credit" },
+    });
     await user.click(screen.getByRole("button", { name: "Import Statement Rows" }));
 
     expect(onImportStatementRows).toHaveBeenCalledWith({

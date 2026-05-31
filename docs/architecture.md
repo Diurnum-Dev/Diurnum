@@ -78,8 +78,14 @@ sequenceDiagram
   User->>UI: Add source accounts and import CSV rows
   UI->>Core: Source account / import commands
   Core->>Ledger: Append account and opening-balance directives
+  Core->>Ledger: Create Source Account document folders and copy imported CSVs
   Core->>State: Store source mappings and normalized statement rows
   Core-->>UI: Imported, skipped, and pending-review counts
+
+  User->>UI: Browse or drop files in Documents
+  UI->>Core: List folders/files, import files, or read previews
+  Core->>Ledger: Read/write Workspace documents folder
+  Core-->>UI: Folder tree, file metadata, and inline preview data
 
   User->>UI: Review suggestions, rules, AI hints, or transfer matches
   UI->>Core: Review and approval commands
@@ -123,6 +129,7 @@ flowchart LR
     Shell[App Shell navigation]
     Editor[Ledger Editor]
     Completion[Predictive completion]
+    Documents[Documents browser]
     Validation[Ledger validation]
     Approval[Approval and transfer matching]
     Provenance[Broken provenance check]
@@ -141,10 +148,12 @@ flowchart LR
   SQLite --> Provenance
   Recents --> Shell
   Shell --> Editor
+  Shell --> Documents
   Editor --> Completion
   Editor --> LedgerFiles
   Rules --> Completion
   Rows --> Completion
+  Documents --> LedgerFiles
   Shell --> Validation
   Shell --> Reports
   Atomic --> LedgerFiles
@@ -180,10 +189,10 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 | Area                 | Primary files                                                                                                                                                                | Responsibility                                                                                                                                                                                                 |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, no-workspace Welcome flow, two-column Workspace shell, Ledger Editor home routing, active screen state, Workspace Switcher recents, conditional Git nav, Close Workspace, and shared status bar. |
-| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, CodeMirror Ledger Editor, and shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
+| Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, CodeMirror Ledger Editor, Documents browser, and shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, suggested-entry review, categorization rules, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
-| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `ledger_editor.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Ledger Editor file/session/completion state, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
+| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `documents.rs`, `ledger_editor.rs`, `shell.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Documents folder browsing and previews, Ledger Editor file/session/completion state, snapshots, restore, App Shell path/git inspection, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, and MVP reporting. |
 | Core support         | `src-tauri/src/workspace/beancount.rs`, `paths.rs`, `types.rs`, `errors.rs`                                                                                                  | Beancount rendering/parsing helpers, workspace paths, shared DTOs, and error handling.                                                                                                                         |
 | Golden path test     | `src-tauri/src/workspace/golden_path_validation.rs`                                                                                                                          | End-to-end native workflow coverage from workspace creation through CSV import, approval, transfer approval, validation, provenance checks, invalid-ledger blocking, and MVP reports.                          |
 | Local agent workflow | `.agents/skills/work-ready-issues/SKILL.md`                                                                                                                                  | Sequential ready-for-agent issue selection, branch work, review, PR, merge, and continuation workflow.                                                                                                         |
@@ -202,6 +211,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - The App Shell asks native helpers to inspect recent Workspace path existence and current Workspace Git state. Missing recent paths are disabled in the switcher until removed, and the Git nav item appears only when the current Workspace is inside a Git work tree.
 - The shared status bar is scoped to the main pane and combines active screen context, Ledger Validation state, and Git dirty-state context when Git is available.
 - The Ledger Editor is the Workspace home screen. It opens `main.bean` by default, restores saved tabs/cursor/scroll from `.diurnum/workspace.json`, and can open `.bean` files from the tree, command palette, or include directives.
+- The Documents screen is a native-backed browser over the Workspace `documents/` tree. It lists source-account folders and custom folders, shows file metadata, accepts drag/drop file imports into the selected folder, and returns preview bytes or text for supported inline formats.
 - Predictive Entry Completion is requested from the Ledger Editor when the cursor is at the end of a valid `YYYY-MM-DD ` date-trigger line. The Rust workspace core returns only insert text whose accounts exist in the Workspace chart of accounts.
 - Predictive Entry Completion source priority is Categorization Rules, approved entry history, then BYO AI Adapter. Rule completions may omit amounts; history completions reuse approved Statement Row amounts and approved ledger postings; adapter completions require structured `sourceAccount`, `sourceAmount`, and `ledgerAccount` fields before any amount is inserted.
 - Accepted predictive completions only enter the editor buffer. Persistence still depends on the existing autosave, Data Integrity atomic write path, and Ledger Validation.
@@ -215,6 +225,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - The Workspace overview renders Invalid Ledger State details from `WorkspaceSummary.ledgerValidation` and blocks unsafe Approval and MVP Report affordances while validation is invalid.
 - The Workspace overview currently exposes recent Snapshots and restore actions, and shows them as a recovery affordance when opening a Workspace in Invalid Ledger State. The full V1 Settings navigation will host the same Snapshot surface when issue #41 lands.
 - Source Account setup appends valid Beancount directives to the readable ledger files rather than storing canonical account setup only in SQLite.
+- Adding a Source Account also creates a matching slugged subfolder under `documents/`. CSV Import copies the original CSV into that folder with a date-prefixed filename so the import artifact stays committable with the Workspace.
 - CSV Import stores normalized Statement Rows in SQLite Staging Area tables without writing to Beancount.
 - Import deduplication is scoped to `(source_account, import_fingerprint)` and skips duplicates even when prior rows are already accounted.
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
