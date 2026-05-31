@@ -14,6 +14,7 @@ const suggestedEntries: SuggestedEntry[] = [
     sourceAmount: "-29.99",
     sourceFileName: "checking.csv",
     importFingerprint: "fingerprint-1",
+    pendingAtImport: false,
   },
 ];
 
@@ -117,6 +118,7 @@ describe("SuggestedEntryReview", () => {
             sourceAmount: "-100.00",
             sourceFileName: "checking.csv",
             importFingerprint: "checking-fingerprint",
+            pendingAtImport: false,
             linkedStatementRow: {
               statementRowId: "row-2",
               postedDate: "2026-01-04",
@@ -157,6 +159,7 @@ describe("SuggestedEntryReview", () => {
             sourceAmount: "-100.00",
             sourceFileName: "checking.csv",
             importFingerprint: "checking-fingerprint",
+            pendingAtImport: false,
             linkedStatementRow: null,
           },
         ]}

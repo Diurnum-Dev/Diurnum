@@ -42,6 +42,7 @@ pub struct SuggestedEntry {
     pub source_amount: String,
     pub source_file_name: String,
     pub import_fingerprint: String,
+    pub pending_at_import: bool,
     pub linked_statement_row: Option<LinkedStatementRow>,
     pub suggested_ledger_account: Option<String>,
     pub categorization_rule_id: Option<String>,
@@ -251,7 +252,7 @@ fn load_pending_statement_rows(
 ) -> Result<Vec<SuggestedEntry>, WorkspaceError> {
     let mut statement = connection.prepare(
         "
-        select id, posted_date, description, source_account, source_amount, source_file_name, import_fingerprint
+        select id, posted_date, description, source_account, source_amount, source_file_name, import_fingerprint, pending_at_import
         from statement_rows
         where status = 'pending'
         order by posted_date, description
@@ -268,6 +269,7 @@ fn load_pending_statement_rows(
                 source_amount: row.get(4)?,
                 source_file_name: row.get(5)?,
                 import_fingerprint: row.get(6)?,
+                pending_at_import: row.get::<_, i64>(7)? != 0,
                 linked_statement_row: None,
                 suggested_ledger_account: None,
                 categorization_rule_id: None,
@@ -367,7 +369,7 @@ fn load_pending_suggested_entry(
     connection
         .query_row(
             "
-            select id, posted_date, description, source_account, source_amount, source_file_name, import_fingerprint
+            select id, posted_date, description, source_account, source_amount, source_file_name, import_fingerprint, pending_at_import
             from statement_rows
             where id = ?1 and status = 'pending'
             ",
@@ -382,6 +384,7 @@ fn load_pending_suggested_entry(
                     source_amount: row.get(4)?,
                     source_file_name: row.get(5)?,
                     import_fingerprint: row.get(6)?,
+                    pending_at_import: row.get::<_, i64>(7)? != 0,
                     linked_statement_row: None,
                     suggested_ledger_account: None,
                     categorization_rule_id: None,

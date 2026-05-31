@@ -96,6 +96,7 @@ export type SuggestedEntry = {
   sourceAmount: string;
   sourceFileName: string;
   importFingerprint: string;
+  pendingAtImport: boolean;
   linkedStatementRow?: LinkedStatementRow | null;
   suggestedLedgerAccount?: string | null;
   categorizationRuleId?: string | null;

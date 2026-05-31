@@ -1441,6 +1441,211 @@ dd {
   color: #526057;
 }
 
+.inbox-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.inbox-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 0;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dce1d9;
+}
+
+.inbox-summary {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  color: #526057;
+  font-size: 0.9rem;
+}
+
+.inbox-empty-state {
+  display: grid;
+  gap: 12px;
+  max-width: 56ch;
+  border: 1px solid #d9dfd7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.inbox-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.inbox-list-col,
+.inbox-inspector {
+  min-width: 0;
+  min-height: 0;
+}
+
+.inbox-list-col {
+  display: grid;
+  gap: 12px;
+}
+
+.inbox-list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: #526057;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.inbox-list {
+  display: grid;
+  gap: 10px;
+}
+
+.inbox-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "date desc amount"
+    "date source badges";
+  gap: 6px 12px;
+  width: 100%;
+  border: 1px solid #d9dfd7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 14px;
+  color: #17201c;
+  text-align: left;
+}
+
+.inbox-row:hover {
+  background: #f7faf7;
+}
+
+.inbox-row.selected {
+  border-color: #9fc6ad;
+  background: #eef6ef;
+  box-shadow: inset 0 0 0 1px #c9ddcf;
+}
+
+.inbox-row-date {
+  grid-area: date;
+  color: #68706a;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.inbox-row-desc {
+  grid-area: desc;
+  font-weight: 750;
+}
+
+.inbox-row-amount {
+  grid-area: amount;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  font-weight: 750;
+}
+
+.inbox-row-source {
+  grid-area: source;
+  color: #526057;
+  font-size: 0.9rem;
+}
+
+.inbox-row-badges {
+  grid-area: badges;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.inbox-chip,
+.pending-at-import-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pending-at-import-badge {
+  border: 1px solid #d6b25b;
+  background: #fff6de;
+  color: #7a5a00;
+}
+
+.inbox-chip--transfer {
+  background: #e4eef7;
+  color: #264a71;
+}
+
+.inbox-chip--rule {
+  background: #dbeee1;
+  color: #17562d;
+}
+
+.inbox-chip--ai {
+  background: #ece8ff;
+  color: #4a2f86;
+}
+
+.inbox-chip--plain {
+  background: #eff2ef;
+  color: #526057;
+}
+
+.inbox-inspector {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.inbox-inspector-head {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d9dfd7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px 16px;
+}
+
+.inbox-inspector-amount {
+  color: #17201c;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.inbox-inspector-title {
+  color: #17201c;
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.inbox-inspector-meta {
+  color: #68706a;
+  font-size: 0.88rem;
+}
+
+.suggested-entry-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .report-period-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
@@ -1551,10 +1756,30 @@ dd {
   .documents-layout,
   .documents-content,
   .ledger-editor-layout,
+  .inbox-header,
+  .inbox-layout,
   .mapping-grid,
   .report-period-form,
   .reports-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inbox-summary {
+    justify-items: start;
+  }
+
+  .inbox-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "date"
+      "desc"
+      "amount"
+      "source"
+      "badges";
+  }
+
+  .inbox-row-badges {
+    justify-content: flex-start;
   }
 
   .documents-file-header,

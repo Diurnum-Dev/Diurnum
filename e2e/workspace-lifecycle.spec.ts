@@ -13,6 +13,23 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         errors: [],
       },
     };
+    let suggestedEntries = [
+      {
+        kind: "standard" as const,
+        statementRowId: "row-1",
+        postedDate: "2026-05-08",
+        description: "OPENAI *CHATGPT",
+        sourceAccount: "Assets:Bank:Chase Checking",
+        sourceAmount: "-20.00",
+        sourceFileName: "checking.csv",
+        importFingerprint: "checking-1",
+        pendingAtImport: true,
+        linkedStatementRow: null,
+        suggestedLedgerAccount: "Expenses:Software",
+        categorizationRuleId: "rule-1",
+        aiSuggestion: null,
+      },
+    ];
 
     window.__DIURNUM_TEST_API__ = {
       async createWorkspace() {
@@ -169,12 +186,13 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         };
       },
       async getSuggestedEntries() {
-        return [];
+        return suggestedEntries;
       },
       async getBrokenProvenance() {
         return [];
       },
       async approveSuggestedEntry() {
+        suggestedEntries = [];
         return workspace;
       },
       async approveTransferEntry() {
@@ -294,10 +312,19 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await expect(page.getByLabel("Ledger Editor")).toBeVisible();
   await expect(page.getByRole("button", { name: "main.bean", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: /main.bean/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Inbox", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Inbox/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Git", exact: true })).toBeVisible();
   await expect(page.getByLabel("Workspace status")).toContainText("Valid");
   await expect(page.getByLabel("Workspace status")).toContainText("Git clean - main");
+  await expect(page.getByRole("button", { name: /Inbox 1/ })).toBeVisible();
+
+  await page.getByRole("button", { name: /Inbox/ }).click();
+  await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
+  await expect(page.locator(".pending-at-import-badge").first()).toBeVisible();
+  await page.getByLabel("Ledger Account").fill("Expenses:Software");
+  await page.getByRole("button", { name: "Approve Entry" }).click();
+  await expect(page.getByLabel("Ledger Editor")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /2026-05.bean/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Import Statement Rows" })).toBeVisible();

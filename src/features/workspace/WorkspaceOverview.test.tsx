@@ -280,32 +280,4 @@ describe("WorkspaceOverview", () => {
     expect(screen.queryByText("Workspace files")).not.toBeInTheDocument();
   });
 
-  it("shows suggested entries only on the Inbox screen", () => {
-    render(
-      <WorkspaceOverview
-        activeScreen="inbox"
-        workspace={workspace}
-        suggestedEntries={[
-          {
-            kind: "standard",
-            statementRowId: "row-1",
-            postedDate: "2026-01-02",
-            description: "Coffee Shop",
-            sourceAccount: "Assets:Bank:Checking",
-            sourceAmount: "-4.50",
-            sourceFileName: "checking.csv",
-            importFingerprint: "fingerprint-1",
-            suggestedLedgerAccount: "Expenses:Meals",
-          },
-        ]}
-        onReveal={vi.fn()}
-        onOpenAnother={vi.fn()}
-        onApproveSuggestedEntry={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("heading", { name: "Review and Approve" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Coffee Shop" })).toBeInTheDocument();
-    expect(screen.queryByText("Workspace files")).not.toBeInTheDocument();
-  });
 });
