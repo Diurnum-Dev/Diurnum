@@ -1,11 +1,11 @@
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::source_accounts::documents_slug_for_account;
 use crate::workspace::types::WorkspaceManifest;
-use chrono::{NaiveDate, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -36,10 +36,13 @@ pub struct CsvSourceMappingInput {
     /// The value in `transaction_type_column` that marks a row as a debit
     /// (money leaving the account).  Defaults to `"Debit"` when not specified.
     pub debit_type_value: Option<String>,
+    pub status_column: Option<String>,
+    pub check_number_column: Option<String>,
     pub memo_column: Option<String>,
     pub reference_id_column: Option<String>,
     pub payee_column: Option<String>,
     pub category_column: Option<String>,
+    pub date_format: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -50,13 +53,69 @@ pub struct CsvImportResult {
     pub skipped_duplicate_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvImportAnalysisInput {
+    pub workspace_root_path: String,
+    pub source_account: Option<String>,
+    pub source_file_name: String,
+    pub csv_contents: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvImportAnalysis {
+    pub file_name: String,
+    pub row_count: usize,
+    pub delimiter: String,
+    pub encoding: String,
+    pub auto_detected: bool,
+    pub required_field_count: usize,
+    pub required_mapped_count: usize,
+    pub likely_duplicate_count: usize,
+    pub importable_row_count: usize,
+    pub skipped_row_count: usize,
+    pub columns: Vec<CsvImportColumnAnalysis>,
+    pub preview_rows: Vec<CsvImportPreviewRow>,
+    pub mapping: CsvSourceMappingInput,
+    pub blocked_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvImportColumnAnalysis {
+    pub header: String,
+    pub sample_value: String,
+    pub diurnum_field: Option<String>,
+    pub status: String,
+    pub required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvImportPreviewRow {
+    pub posted_date: String,
+    pub description: String,
+    pub signed_amount: String,
+    pub status: Option<String>,
+    pub duplicate: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedCsv {
+    delimiter: char,
+    encoding: String,
+    headers: Vec<String>,
+    rows: Vec<HashMap<String, String>>,
+}
+
 pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, WorkspaceError> {
     let root = Path::new(&input.workspace_root_path);
     ensure_app_created_workspace(root)?;
     ensure_source_account_exists(root, &input.source_account)?;
 
-    let rows = parse_csv(&input.csv_contents)?;
-    if rows.is_empty() {
+    let parsed = parse_csv_document(&input.source_file_name, &input.csv_contents)?;
+    if parsed.rows.is_empty() {
         return Ok(CsvImportResult {
             source_account: input.source_account,
             imported_count: 0,
@@ -67,40 +126,33 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
     let sqlite_path = root.join(".diurnum").join("diurnum.sqlite");
     let connection = Connection::open(sqlite_path)?;
     ensure_import_tables(&connection)?;
-    let mapping = match input.mapping {
-        Some(mapping) => {
-            save_source_mapping(&connection, &input.source_account, &mapping)?;
-            mapping
-        }
-        None => load_source_mapping(&connection, &input.source_account)?,
-    };
+    let mapping = mapping_for_import(&connection, &input.source_account, input.mapping, &parsed)?;
+    save_source_mapping(&connection, &input.source_account, &mapping)?;
 
     let mut imported_count = 0;
     let mut skipped_duplicate_count = 0;
     let now = Utc::now().to_rfc3339();
+    let importable_rows = importable_rows_for_mapping(&parsed.rows, &mapping)?;
 
-    for row in rows {
-        let posted_date_raw = required_value(&row, &mapping.posted_date_column)?;
-        let posted_date = normalize_posted_date(&posted_date_raw)?;
-        let description = required_value(&row, &mapping.description_column)?;
-        let source_amount = required_source_amount(&row, &mapping)?;
+    for row in importable_rows {
         let import_fingerprint = import_fingerprint(
             &input.source_account,
-            &posted_date,
-            &description,
-            &source_amount,
+            &row.posted_date,
+            &row.description,
+            &row.source_amount,
         );
         if statement_row_exists(&connection, &input.source_account, &import_fingerprint)? {
             skipped_duplicate_count += 1;
             continue;
         }
-        let raw_row_json =
-            serde_json::to_string(&row).map_err(|error| WorkspaceError::io(error.to_string()))?;
+        let raw_row_json = serde_json::to_string(&row.raw_row)
+            .map_err(|error| WorkspaceError::io(error.to_string()))?;
         let supporting_fields_json = serde_json::to_string(&json!({
-            "memo": optional_value(&row, mapping.memo_column.as_deref()),
-            "referenceId": optional_value(&row, mapping.reference_id_column.as_deref()),
-            "payee": optional_value(&row, mapping.payee_column.as_deref()),
-            "category": optional_value(&row, mapping.category_column.as_deref()),
+            "memo": optional_value(&row.raw_row, mapping.memo_column.as_deref()),
+            "referenceId": optional_value(&row.raw_row, mapping.reference_id_column.as_deref()),
+            "payee": optional_value(&row.raw_row, mapping.payee_column.as_deref()),
+            "category": optional_value(&row.raw_row, mapping.category_column.as_deref()),
+            "checkNumber": optional_value(&row.raw_row, mapping.check_number_column.as_deref()),
         }))
         .map_err(|error| WorkspaceError::io(error.to_string()))?;
 
@@ -117,20 +169,22 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
               supporting_fields_json,
               raw_row_json,
               status,
-              imported_at
-            ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'pending', ?10)
+              imported_at,
+              pending_at_import
+            ) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'pending', ?10, ?11)
             ",
             params![
                 Uuid::new_v4().to_string(),
                 input.source_account,
                 input.source_file_name,
-                posted_date,
-                description,
-                source_amount,
+                row.posted_date,
+                row.description,
+                row.source_amount,
                 import_fingerprint,
                 supporting_fields_json,
                 raw_row_json,
-                now
+                now,
+                row.pending_at_import
             ],
         )?;
         imported_count += 1;
@@ -142,6 +196,74 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
         source_account: input.source_account,
         imported_count,
         skipped_duplicate_count,
+    })
+}
+
+pub fn analyze_csv_import(input: CsvImportAnalysisInput) -> Result<CsvImportAnalysis, WorkspaceError> {
+    let root = Path::new(&input.workspace_root_path);
+    ensure_app_created_workspace(root)?;
+    let parsed = parse_csv_document(&input.source_file_name, &input.csv_contents)?;
+    let sqlite_path = root.join(".diurnum").join("diurnum.sqlite");
+    let connection = Connection::open(sqlite_path)?;
+    ensure_import_tables(&connection)?;
+
+    let source_account = input.source_account.as_deref().unwrap_or("").trim();
+    let saved_mapping = if source_account.is_empty() {
+        None
+    } else {
+        load_source_mapping(&connection, source_account).ok()
+    };
+    let inferred_mapping = infer_source_mapping(&parsed)?;
+    let mapping = saved_mapping.clone().unwrap_or_else(|| inferred_mapping.clone());
+    let duplicate_fingerprints = if source_account.is_empty() {
+        HashSet::new()
+    } else {
+        duplicate_fingerprints_for_account(&connection, source_account)?
+    };
+    let importable_rows = importable_rows_for_mapping(&parsed.rows, &mapping)?;
+    let preview_rows = importable_rows
+        .iter()
+        .take(3)
+        .map(|row| CsvImportPreviewRow {
+            posted_date: row.posted_date.clone(),
+            description: row.description.clone(),
+            signed_amount: row.source_amount.clone(),
+            status: row.status.clone(),
+            duplicate: duplicate_fingerprints.contains(&import_fingerprint(
+                source_account,
+                &row.posted_date,
+                &row.description,
+                &row.source_amount,
+            )),
+        })
+        .collect::<Vec<_>>();
+    let likely_duplicate_count = importable_rows
+        .iter()
+        .filter(|row| {
+            duplicate_fingerprints.contains(&import_fingerprint(
+                source_account,
+                &row.posted_date,
+                &row.description,
+                &row.source_amount,
+            ))
+        })
+        .count();
+
+    Ok(CsvImportAnalysis {
+        file_name: input.source_file_name,
+        row_count: parsed.rows.len(),
+        delimiter: display_delimiter_name(parsed.delimiter),
+        encoding: parsed.encoding.clone(),
+        auto_detected: saved_mapping.is_none(),
+        required_field_count: 3,
+        required_mapped_count: required_mapped_field_count(&mapping),
+        likely_duplicate_count,
+        importable_row_count: importable_rows.len(),
+        skipped_row_count: parsed.rows.len().saturating_sub(importable_rows.len()),
+        columns: build_column_analysis(&parsed, &mapping),
+        preview_rows,
+        mapping: mapping.clone(),
+        blocked_reason: blocked_reason_for_mapping(&parsed, &mapping),
     })
 }
 
@@ -235,13 +357,29 @@ pub(crate) fn ensure_import_tables(connection: &Connection) -> Result<(), Worksp
           raw_row_json text not null,
           status text not null,
           imported_at text not null,
+          pending_at_import integer not null default 0,
           diurnum_entry_id text,
           ledger_entry_file text,
           unique(source_account, import_fingerprint)
         );
         ",
     )?;
+    let columns = table_columns(connection, "statement_rows")?;
+    if !columns.iter().any(|column| column == "pending_at_import") {
+        connection.execute(
+            "alter table statement_rows add column pending_at_import integer not null default 0",
+            [],
+        )?;
+    }
     Ok(())
+}
+
+fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>, WorkspaceError> {
+    let mut statement = connection.prepare(&format!("pragma table_info({table})"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
 }
 
 fn statement_row_exists(
@@ -296,33 +434,340 @@ fn load_source_mapping(
     serde_json::from_str(&mapping_json).map_err(|error| WorkspaceError::io(error.to_string()))
 }
 
-fn parse_csv(contents: &str) -> Result<Vec<HashMap<String, String>>, WorkspaceError> {
-    let mut lines = contents.lines().filter(|line| !line.trim().is_empty());
-    let Some(header_line) = lines.next() else {
-        return Ok(Vec::new());
-    };
-    let headers = parse_csv_line(header_line);
-    let mut rows = Vec::new();
-
-    for line in lines {
-        let values = parse_csv_line(line);
-        let mut row = HashMap::new();
-        for (index, header) in headers.iter().enumerate() {
-            row.insert(
-                header.clone(),
-                values.get(index).cloned().unwrap_or_default(),
-            );
-        }
-        rows.push(row);
-    }
-
-    Ok(rows)
+#[derive(Debug, Clone)]
+struct ImportableRow {
+    raw_row: HashMap<String, String>,
+    posted_date: String,
+    description: String,
+    source_amount: String,
+    status: Option<String>,
+    pending_at_import: bool,
 }
 
-fn parse_csv_line(line: &str) -> Vec<String> {
-    line.split(',')
-        .map(|value| value.trim().trim_matches('"').to_string())
+fn mapping_for_import(
+    connection: &Connection,
+    source_account: &str,
+    mapping: Option<CsvSourceMappingInput>,
+    parsed: &ParsedCsv,
+) -> Result<CsvSourceMappingInput, WorkspaceError> {
+    let mut resolved = if let Some(mapping) = mapping {
+        mapping
+    } else if let Ok(mapping) = load_source_mapping(connection, source_account) {
+        mapping
+    } else {
+        infer_source_mapping(parsed)?
+    };
+    if resolved.date_format.is_none() {
+        resolved.date_format =
+            detect_date_format_for_column(&parsed.rows, &resolved.posted_date_column).ok();
+    }
+    if resolved.debit_type_value.is_none() {
+        resolved.debit_type_value = Some("Debit".to_string());
+    }
+    Ok(resolved)
+}
+
+fn parse_csv_document(file_name: &str, contents: &str) -> Result<ParsedCsv, WorkspaceError> {
+    if !file_name.to_ascii_lowercase().ends_with(".csv") {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "Diurnum V1 supports CSV files only. Choose a .csv file.",
+        ));
+    }
+
+    let (encoding, text) = strip_utf8_bom(contents);
+    let delimiter = detect_delimiter(text);
+    let records = parse_csv_records(text, delimiter)?;
+    let Some(header_record) = records.first() else {
+        return Ok(ParsedCsv {
+            delimiter,
+            encoding,
+            headers: Vec::new(),
+            rows: Vec::new(),
+        });
+    };
+
+    let headers = header_record
+        .iter()
+        .map(|value| value.trim().to_string())
+        .collect::<Vec<_>>();
+    let rows = records
+        .into_iter()
+        .skip(1)
+        .map(|record| {
+            let mut row = HashMap::new();
+            for (index, header) in headers.iter().enumerate() {
+                row.insert(header.clone(), record.get(index).cloned().unwrap_or_default());
+            }
+            row
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ParsedCsv {
+        delimiter,
+        encoding,
+        headers,
+        rows,
+    })
+}
+
+fn strip_utf8_bom(contents: &str) -> (String, &str) {
+    if let Some(stripped) = contents.strip_prefix('\u{feff}') {
+        ("UTF-8 BOM".to_string(), stripped)
+    } else {
+        ("UTF-8".to_string(), contents)
+    }
+}
+
+fn detect_delimiter(contents: &str) -> char {
+    let mut comma_count = 0usize;
+    let mut semicolon_count = 0usize;
+    let mut tab_count = 0usize;
+    let mut in_quotes = false;
+    for character in contents.chars() {
+        match character {
+            '"' => in_quotes = !in_quotes,
+            '\n' | '\r' if !in_quotes => break,
+            ',' if !in_quotes => comma_count += 1,
+            ';' if !in_quotes => semicolon_count += 1,
+            '\t' if !in_quotes => tab_count += 1,
+            _ => {}
+        }
+    }
+    if tab_count >= comma_count && tab_count >= semicolon_count && tab_count > 0 {
+        '\t'
+    } else if semicolon_count >= comma_count && semicolon_count > 0 {
+        ';'
+    } else {
+        ','
+    }
+}
+
+fn parse_csv_records(contents: &str, delimiter: char) -> Result<Vec<Vec<String>>, WorkspaceError> {
+    let mut records = Vec::new();
+    let mut record = Vec::new();
+    let mut field = String::new();
+    let mut chars = contents.chars().peekable();
+    let mut in_quotes = false;
+
+    while let Some(character) = chars.next() {
+        if in_quotes {
+            match character {
+                '"' => {
+                    if chars.peek() == Some(&'"') {
+                        field.push('"');
+                        chars.next();
+                    } else {
+                        in_quotes = false;
+                    }
+                }
+                _ => field.push(character),
+            }
+            continue;
+        }
+
+        match character {
+            '"' => in_quotes = true,
+            '\r' => {
+                record.push(std::mem::take(&mut field));
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                records.push(std::mem::take(&mut record));
+            }
+            '\n' => {
+                record.push(std::mem::take(&mut field));
+                records.push(std::mem::take(&mut record));
+            }
+            value if value == delimiter => record.push(std::mem::take(&mut field)),
+            _ => field.push(character),
+        }
+    }
+
+    if in_quotes {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "CSV Import could not parse the file because it has an unclosed quoted field.",
+        ));
+    }
+
+    if !field.is_empty() || !record.is_empty() {
+        record.push(field);
+        records.push(record);
+    }
+
+    Ok(records
+        .into_iter()
+        .filter(|record| !record.iter().all(|value| value.trim().is_empty()))
+        .collect())
+}
+
+fn infer_source_mapping(parsed: &ParsedCsv) -> Result<CsvSourceMappingInput, WorkspaceError> {
+    let posted_date_column = find_header(
+        &parsed.headers,
+        &["posted date", "post date", "transaction date", "trans date", "date"],
+    )
+    .ok_or_else(|| {
+        WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "CSV Import could not infer a Posted Date column.",
+        )
+    })?;
+    let description_column = find_header(
+        &parsed.headers,
+        &[
+            "description",
+            "transaction description",
+            "payee",
+            "memo",
+            "merchant",
+            "details",
+            "narration",
+        ],
+    )
+    .or_else(|| longest_free_text_column(parsed))
+    .ok_or_else(|| {
+        WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "CSV Import could not infer a Description column.",
+        )
+    })?;
+
+    let amount_column = find_header(
+        &parsed.headers,
+        &["transaction amount", "signed amount", "amount", "value"],
+    );
+    let transaction_type_column =
+        find_header(&parsed.headers, &["transaction type", "type"]);
+    let debit_column = find_header(&parsed.headers, &["withdrawal", "debit", "out"]);
+    let credit_column = find_header(&parsed.headers, &["deposit", "credit", "in"]);
+
+    let (amount_column, debit_column, credit_column, transaction_type_column) =
+        if let (Some(debit), Some(credit)) = (debit_column.clone(), credit_column.clone()) {
+            (None, Some(debit), Some(credit), None)
+        } else if amount_column.is_some() {
+            (amount_column, None, None, transaction_type_column)
+        } else {
+            (None, debit_column, credit_column, transaction_type_column)
+        };
+
+    Ok(CsvSourceMappingInput {
+        posted_date_column: posted_date_column.clone(),
+        description_column,
+        amount_column,
+        debit_column,
+        credit_column,
+        transaction_type_column,
+        debit_type_value: Some("Debit".to_string()),
+        status_column: find_header(&parsed.headers, &["status"]),
+        check_number_column: find_header(
+            &parsed.headers,
+            &["check number", "check no", "check #", "check"],
+        ),
+        memo_column: find_header(&parsed.headers, &["memo", "note", "notes"]),
+        reference_id_column: find_header(
+            &parsed.headers,
+            &["reference id", "reference number", "reference"],
+        ),
+        payee_column: find_header(&parsed.headers, &["payee", "merchant"]),
+        category_column: find_header(&parsed.headers, &["category"]),
+        date_format: detect_date_format_for_column(&parsed.rows, &posted_date_column).ok(),
+    })
+}
+
+fn find_header(headers: &[String], patterns: &[&str]) -> Option<String> {
+    let normalised_headers = headers
+        .iter()
+        .map(|header| (header, normalise_header(header)))
+        .collect::<Vec<_>>();
+
+    for pattern in patterns {
+        let pattern = normalise_header(pattern);
+        if let Some((header, _)) = normalised_headers
+            .iter()
+            .find(|(_, normalised)| *normalised == pattern)
+        {
+            return Some((*header).clone());
+        }
+    }
+
+    for pattern in patterns {
+        let pattern = normalise_header(pattern);
+        if let Some((header, _)) = normalised_headers
+            .iter()
+            .find(|(_, normalised)| normalised.contains(&pattern))
+        {
+            return Some((*header).clone());
+        }
+    }
+
+    None
+}
+
+fn normalise_header(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(|character| character.to_lowercase())
         .collect()
+}
+
+fn longest_free_text_column(parsed: &ParsedCsv) -> Option<String> {
+    parsed
+        .headers
+        .iter()
+        .max_by_key(|header| {
+            parsed
+                .rows
+                .iter()
+                .take(5)
+                .filter_map(|row| row.get(*header))
+                .map(|value| value.trim().len())
+                .sum::<usize>()
+        })
+        .cloned()
+}
+
+fn importable_rows_for_mapping(
+    rows: &[HashMap<String, String>],
+    mapping: &CsvSourceMappingInput,
+) -> Result<Vec<ImportableRow>, WorkspaceError> {
+    let mut importable_rows = Vec::new();
+    for row in rows {
+        if row.values().all(|value| value.trim().is_empty()) {
+            continue;
+        }
+        let Some(posted_date_raw) = row.get(&mapping.posted_date_column).map(|value| value.trim()) else {
+            continue;
+        };
+        if posted_date_raw.is_empty() {
+            continue;
+        }
+        let posted_date = match normalize_posted_date(
+            posted_date_raw,
+            mapping.date_format.as_deref(),
+        ) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        let description = required_value(row, &mapping.description_column)?;
+        let source_amount = required_source_amount(row, mapping)?;
+        let status = optional_value(row, mapping.status_column.as_deref());
+        let pending_at_import = status
+            .as_deref()
+            .map(|value| value.eq_ignore_ascii_case("pending"))
+            .unwrap_or(false);
+
+        importable_rows.push(ImportableRow {
+            raw_row: row.clone(),
+            posted_date,
+            description,
+            source_amount,
+            status,
+            pending_at_import,
+        });
+    }
+    Ok(importable_rows)
 }
 
 fn required_value(row: &HashMap<String, String>, column: &str) -> Result<String, WorkspaceError> {
@@ -343,12 +788,7 @@ fn required_source_amount(
 ) -> Result<String, WorkspaceError> {
     if let Some(amount_column) = mapping.amount_column.as_deref() {
         let raw = required_value(row, amount_column)?;
-        let amount: f64 = raw.parse().map_err(|_| {
-            WorkspaceError::new(
-                WorkspaceErrorCode::InvalidLedger,
-                format!("CSV Import amount column {amount_column} must contain numeric values."),
-            )
-        })?;
+        let amount = parse_amount_cell(&raw, amount_column)?;
 
         // If a transaction type column is configured, use it to determine the
         // sign.  "Debit" rows (money leaving the account) become negative.
@@ -412,12 +852,44 @@ fn optional_amount(
     if value.is_empty() {
         return Ok(None);
     }
-    value.parse::<f64>().map(Some).map_err(|_| {
+    parse_amount_cell(value, column).map(Some)
+}
+
+fn parse_amount_cell(value: &str, column: &str) -> Result<f64, WorkspaceError> {
+    let trimmed = value.trim();
+    if contains_non_usd_currency(trimmed) {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "This CSV appears to contain non-USD amounts. Diurnum V1 supports USD only.",
+        ));
+    }
+
+    let negative = trimmed.starts_with('(') && trimmed.ends_with(')');
+    let cleaned = trimmed
+        .trim_matches(|character| character == '(' || character == ')')
+        .replace('$', "")
+        .replace(',', "")
+        .replace("USD", "")
+        .trim()
+        .to_string();
+
+    let parsed = cleaned.parse::<f64>().map_err(|_| {
         WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
             format!("CSV Import amount column {column} must contain numeric values."),
         )
-    })
+    })?;
+    Ok(if negative { -parsed } else { parsed })
+}
+
+fn contains_non_usd_currency(value: &str) -> bool {
+    let upper = value.to_ascii_uppercase();
+    ["EUR", "GBP", "CAD", "AUD", "JPY", "CHF"]
+        .iter()
+        .any(|marker| upper.contains(marker))
+        || value.contains('€')
+        || value.contains('£')
+        || value.contains('¥')
 }
 
 fn format_source_amount(amount: f64) -> String {
@@ -439,39 +911,229 @@ fn optional_value(row: &HashMap<String, String>, column: Option<&str>) -> Option
 /// trial-and-error format list because `chrono`'s `%Y` directive greedily
 /// parses any number of digits — `05/05/26` with `%m/%d/%Y` would be
 /// interpreted as May 5th of year 26 CE, not 2026.
-fn normalize_posted_date(raw: &str) -> Result<String, WorkspaceError> {
+fn normalize_posted_date(raw: &str, format_hint: Option<&str>) -> Result<String, WorkspaceError> {
     let s = raw.trim();
     let unsupported = || {
         WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
-            format!("CSV Import date '{s}' is not in a recognised format (expected MM/DD/YY, MM/DD/YYYY, or YYYY-MM-DD)."),
+            format!("CSV Import date '{s}' is not in a recognised format."),
         )
     };
 
-    let parsed: NaiveDate = if s.contains('/') {
-        let parts: Vec<&str> = s.splitn(3, '/').collect();
-        match parts.as_slice() {
-            [_m, _d, y] if y.len() == 4 => {
-                NaiveDate::parse_from_str(s, "%m/%d/%Y").map_err(|_| unsupported())?
-            }
-            [_m, _d, y] if y.len() == 2 => {
-                NaiveDate::parse_from_str(s, "%m/%d/%y").map_err(|_| unsupported())?
-            }
-            _ => return Err(unsupported()),
-        }
-    } else if s.contains('-') {
-        let parts: Vec<&str> = s.splitn(3, '-').collect();
-        match parts.as_slice() {
-            [y, _m, _d] if y.len() == 4 => {
-                NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| unsupported())?
-            }
-            _ => return Err(unsupported()),
-        }
+    let formats = if let Some(format_hint) = format_hint {
+        vec![format_hint.to_string()]
     } else {
-        return Err(unsupported());
+        vec![
+            "YYYY-MM-DD".to_string(),
+            "MM/DD/YYYY".to_string(),
+            "M/D/YYYY".to_string(),
+            "MM/DD/YY".to_string(),
+            "M/D/YY".to_string(),
+            "DD/MM/YYYY".to_string(),
+        ]
     };
 
-    Ok(parsed.format("%Y-%m-%d").to_string())
+    for format in formats {
+        let parsed = match format.as_str() {
+            "YYYY-MM-DD" if s.split('-').next().map(|part| part.len()) == Some(4) => {
+                NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            }
+            "MM/DD/YYYY" | "M/D/YYYY"
+                if s.split('/').nth(2).map(|part| part.len()) == Some(4) =>
+            {
+                NaiveDate::parse_from_str(s, "%m/%d/%Y")
+            }
+            "MM/DD/YY" | "M/D/YY"
+                if s.split('/').nth(2).map(|part| part.len()) == Some(2) =>
+            {
+                NaiveDate::parse_from_str(s, "%m/%d/%y")
+            }
+            "DD/MM/YYYY" if s.split('/').nth(2).map(|part| part.len()) == Some(4) => {
+                NaiveDate::parse_from_str(s, "%d/%m/%Y")
+            }
+            _ => continue,
+        };
+        if let Ok(parsed) = parsed {
+            return Ok(parsed.format("%Y-%m-%d").to_string());
+        }
+    }
+
+    Err(unsupported())
+}
+
+fn detect_date_format_for_column(
+    rows: &[HashMap<String, String>],
+    column: &str,
+) -> Result<String, WorkspaceError> {
+    let samples = rows
+        .iter()
+        .filter_map(|row| row.get(column))
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .take(5)
+        .collect::<Vec<_>>();
+    for format in [
+        "YYYY-MM-DD",
+        "MM/DD/YYYY",
+        "M/D/YYYY",
+        "MM/DD/YY",
+        "M/D/YY",
+        "DD/MM/YYYY",
+    ] {
+        if samples
+            .iter()
+            .all(|sample| normalize_posted_date(sample, Some(format)).is_ok())
+        {
+            return Ok(format.to_string());
+        }
+    }
+    Err(WorkspaceError::new(
+        WorkspaceErrorCode::InvalidLedger,
+        "CSV Import could not detect a supported date format.",
+    ))
+}
+
+fn duplicate_fingerprints_for_account(
+    connection: &Connection,
+    source_account: &str,
+) -> Result<HashSet<String>, WorkspaceError> {
+    let threshold = (Utc::now() - Duration::days(90))
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
+    let mut statement = connection.prepare(
+        "
+        select import_fingerprint
+        from statement_rows
+        where source_account = ?1 and posted_date >= ?2
+        ",
+    )?;
+    let fingerprints = statement
+        .query_map(params![source_account, threshold], |row| row.get::<_, String>(0))?
+        .collect::<Result<HashSet<_>, _>>()?;
+    Ok(fingerprints)
+}
+
+fn required_mapped_field_count(mapping: &CsvSourceMappingInput) -> usize {
+    let amount_count = if mapping.amount_column.is_some()
+        || (mapping.debit_column.is_some() && mapping.credit_column.is_some())
+    {
+        1
+    } else {
+        0
+    };
+    usize::from(!mapping.posted_date_column.trim().is_empty())
+        + usize::from(!mapping.description_column.trim().is_empty())
+        + amount_count
+}
+
+fn build_column_analysis(
+    parsed: &ParsedCsv,
+    mapping: &CsvSourceMappingInput,
+) -> Vec<CsvImportColumnAnalysis> {
+    parsed
+        .headers
+        .iter()
+        .map(|header| {
+            let diurnum_field = mapped_field_name(mapping, header);
+            let required = matches!(
+                diurnum_field.as_deref(),
+                Some("postedDate")
+                    | Some("description")
+                    | Some("amount")
+                    | Some("debit")
+                    | Some("credit")
+            );
+            let status = if diurnum_field.is_some() {
+                if required { "required" } else { "optional" }
+            } else if ignored_header(header) {
+                "ignored"
+            } else {
+                "unknown"
+            };
+
+            CsvImportColumnAnalysis {
+                header: header.clone(),
+                sample_value: first_sample_value(&parsed.rows, header),
+                diurnum_field,
+                status: status.to_string(),
+                required,
+            }
+        })
+        .collect()
+}
+
+fn first_sample_value(rows: &[HashMap<String, String>], header: &str) -> String {
+    rows.iter()
+        .filter_map(|row| row.get(header))
+        .map(|value| value.trim())
+        .find(|value| !value.is_empty())
+        .unwrap_or("")
+        .to_string()
+}
+
+fn mapped_field_name(mapping: &CsvSourceMappingInput, header: &str) -> Option<String> {
+    let checks = vec![
+        (mapping.posted_date_column.as_str(), "postedDate"),
+        (mapping.description_column.as_str(), "description"),
+        (mapping.amount_column.as_deref().unwrap_or(""), "amount"),
+        (mapping.debit_column.as_deref().unwrap_or(""), "debit"),
+        (mapping.credit_column.as_deref().unwrap_or(""), "credit"),
+        (
+            mapping.transaction_type_column.as_deref().unwrap_or(""),
+            "transactionType",
+        ),
+        (mapping.status_column.as_deref().unwrap_or(""), "status"),
+        (
+            mapping.check_number_column.as_deref().unwrap_or(""),
+            "checkNumber",
+        ),
+        (mapping.memo_column.as_deref().unwrap_or(""), "memo"),
+        (
+            mapping.reference_id_column.as_deref().unwrap_or(""),
+            "referenceId",
+        ),
+        (mapping.payee_column.as_deref().unwrap_or(""), "payee"),
+        (mapping.category_column.as_deref().unwrap_or(""), "category"),
+    ];
+    checks
+        .into_iter()
+        .find(|(column, _)| *column == header)
+        .map(|(_, field)| field.to_string())
+}
+
+fn ignored_header(header: &str) -> bool {
+    matches!(
+        normalise_header(header).as_str(),
+        "accountnumber" | "balance" | "cardno" | "cardnumber"
+    )
+}
+
+fn blocked_reason_for_mapping(
+    parsed: &ParsedCsv,
+    mapping: &CsvSourceMappingInput,
+) -> Option<String> {
+    if required_mapped_field_count(mapping) < 3 {
+        return Some("Map the required Posted Date, Description, and Amount fields.".to_string());
+    }
+    if parsed
+        .headers
+        .iter()
+        .any(|header| mapped_field_name(mapping, header).is_none() && !ignored_header(header))
+    {
+        return Some("Unknown column: Choose diurnum field".to_string());
+    }
+    importable_rows_for_mapping(&parsed.rows, mapping)
+        .err()
+        .map(|error| error.message)
+}
+
+fn display_delimiter_name(delimiter: char) -> String {
+    match delimiter {
+        '\t' => "Tab".to_string(),
+        ';' => "Semicolon".to_string(),
+        _ => "Comma".to_string(),
+    }
 }
 
 fn import_fingerprint(
@@ -532,6 +1194,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: Some("Memo".to_string()),
                 reference_id_column: None,
                 payee_column: None,
@@ -628,6 +1293,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -706,6 +1374,9 @@ mod tests {
                 amount_column: None,
                 debit_column: Some("Debit".to_string()),
                 credit_column: Some("Credit".to_string()),
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -779,6 +1450,9 @@ mod tests {
                 debit_type_value: Some("Debit".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -852,6 +1526,9 @@ mod tests {
                 credit_column: None,
                 transaction_type_column: None,
                 debit_type_value: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,

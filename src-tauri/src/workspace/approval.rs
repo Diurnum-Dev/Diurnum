@@ -151,6 +151,7 @@ pub fn approve_suggested_entry(
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     let suggested_entry = load_pending_suggested_entry(&connection, &input.statement_row_id)?;
+    let pending_at_import = pending_at_import(&connection, &input.statement_row_id)?;
     let source_amount = parse_amount(&suggested_entry.source_amount)?;
     let balancing_amount = -source_amount;
     let diurnum_entry_id = Uuid::new_v4().to_string();
@@ -168,6 +169,7 @@ pub fn approve_suggested_entry(
         &input.ledger_account,
         balancing_amount,
         &diurnum_entry_id,
+        pending_at_import,
     )?;
 
     connection.execute(
@@ -205,6 +207,8 @@ pub fn approve_transfer_entry(
     ensure_provenance_columns(&connection)?;
     let first = load_pending_suggested_entry(&connection, &input.statement_row_id)?;
     let second = load_pending_suggested_entry(&connection, &input.linked_statement_row_id)?;
+    let first_pending_at_import = pending_at_import(&connection, &input.statement_row_id)?;
+    let second_pending_at_import = pending_at_import(&connection, &input.linked_statement_row_id)?;
     ensure_transfer_match(&first, &second)?;
     let diurnum_entry_id = Uuid::new_v4().to_string();
 
@@ -215,7 +219,13 @@ pub fn approve_transfer_entry(
     }
     create_snapshot(root, SnapshotReason::Approval)?;
     ensure_main_includes(root, &monthly_relative_path)?;
-    append_transfer_entry(&monthly_path, &first, &second, &diurnum_entry_id)?;
+    append_transfer_entry(
+        &monthly_path,
+        &first,
+        &second,
+        &diurnum_entry_id,
+        first_pending_at_import || second_pending_at_import,
+    )?;
 
     connection.execute(
         "
@@ -493,20 +503,28 @@ fn append_approved_entry(
     ledger_account: &str,
     balancing_amount: f64,
     diurnum_entry_id: &str,
+    pending_at_import: bool,
 ) -> Result<(), WorkspaceError> {
-    let entry = format!(
-        "\n{} * \"{}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  {}  {} USD\n  {}  {:.2} USD\n",
+    let pending_metadata = if pending_at_import {
+        "  pending_at_import: TRUE\n"
+    } else {
+        ""
+    };
+    let mut entry = format!(
+        "\n{} * \"{}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n",
         suggested_entry.posted_date,
         suggested_entry.description,
         diurnum_entry_id,
         suggested_entry.import_fingerprint,
         suggested_entry.source_account,
         suggested_entry.source_file_name,
-        suggested_entry.source_account,
-        suggested_entry.source_amount,
-        ledger_account,
-        balancing_amount
     );
+    entry.push_str(pending_metadata);
+    entry.push_str(&format!(
+        "  {}  {} USD\n",
+        suggested_entry.source_account, suggested_entry.source_amount
+    ));
+    entry.push_str(&format!("  {}  {:.2} USD\n", ledger_account, balancing_amount));
     atomic_append(monthly_path, &entry)
 }
 
@@ -515,9 +533,15 @@ fn append_transfer_entry(
     first: &SuggestedEntry,
     second: &SuggestedEntry,
     diurnum_entry_id: &str,
+    pending_at_import: bool,
 ) -> Result<(), WorkspaceError> {
-    let entry = format!(
-        "\n{} * \"Transfer: {} / {}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n  {}  {} USD\n  {}  {} USD\n",
+    let pending_metadata = if pending_at_import {
+        "  pending_at_import: TRUE\n"
+    } else {
+        ""
+    };
+    let mut entry = format!(
+        "\n{} * \"Transfer: {} / {}\"\n  diurnum_entry_id: \"{}\"\n  import_fingerprint: \"{}\"\n  source_account: \"{}\"\n  source_file_name: \"{}\"\n  linked_import_fingerprint: \"{}\"\n  linked_source_account: \"{}\"\n  linked_source_file_name: \"{}\"\n",
         first.posted_date,
         first.description,
         second.description,
@@ -528,11 +552,16 @@ fn append_transfer_entry(
         second.import_fingerprint,
         second.source_account,
         second.source_file_name,
-        first.source_account,
-        first.source_amount,
-        second.source_account,
-        second.source_amount
     );
+    entry.push_str(pending_metadata);
+    entry.push_str(&format!(
+        "  {}  {} USD\n",
+        first.source_account, first.source_amount
+    ));
+    entry.push_str(&format!(
+        "  {}  {} USD\n",
+        second.source_account, second.source_amount
+    ));
     atomic_append(monthly_path, &entry)
 }
 
@@ -553,7 +582,24 @@ fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceErr
             [],
         )?;
     }
+    if !columns.iter().any(|column| column == "pending_at_import") {
+        connection.execute(
+            "alter table statement_rows add column pending_at_import integer not null default 0",
+            [],
+        )?;
+    }
     Ok(())
+}
+
+fn pending_at_import(connection: &Connection, statement_row_id: &str) -> Result<bool, WorkspaceError> {
+    let value: i64 = connection
+        .query_row(
+            "select pending_at_import from statement_rows where id = ?1",
+            [statement_row_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    Ok(value != 0)
 }
 
 #[derive(Debug)]
@@ -684,6 +730,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -799,6 +848,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -820,6 +872,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -904,6 +959,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -956,6 +1014,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -1025,6 +1086,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -1097,6 +1161,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,
@@ -1164,6 +1231,9 @@ mod tests {
                 amount_column: Some("Amount".to_string()),
                 debit_column: None,
                 credit_column: None,
+                status_column: None,
+                check_number_column: None,
+                date_format: None,
                 memo_column: None,
                 reference_id_column: None,
                 payee_column: None,

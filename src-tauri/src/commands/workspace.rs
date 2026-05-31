@@ -16,7 +16,9 @@ use crate::workspace::documents::{
     DocumentPreview, DocumentFileSummary, DocumentsState, DocumentsStateInput,
     ImportDocumentFileInput, ReadDocumentPreviewInput, RenameDocumentEntryInput,
 };
-use crate::workspace::imports::{self, CsvImportInput, CsvImportResult};
+use crate::workspace::imports::{
+    self, CsvImportAnalysis, CsvImportAnalysisInput, CsvImportInput, CsvImportResult,
+};
 use crate::workspace::ledger_editor::{
     self, LedgerEditorState, LedgerFileSnapshot, PredictiveEntryCompletion,
     PredictiveEntryCompletionInput, ReadLedgerFileInput, SaveLedgerEditorSessionInput,
@@ -147,6 +149,13 @@ pub fn add_source_account(
 #[tauri::command]
 pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, WorkspaceError> {
     imports::import_statement_rows(input)
+}
+
+#[tauri::command]
+pub fn analyze_csv_import(
+    input: CsvImportAnalysisInput,
+) -> Result<CsvImportAnalysis, WorkspaceError> {
+    imports::analyze_csv_import(input)
 }
 
 #[tauri::command]

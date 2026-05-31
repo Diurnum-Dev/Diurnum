@@ -1,16 +1,100 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CsvImportSetup } from "./CsvImportSetup";
 
 const CSV_CONTENTS = "Date,Description,Amount\n2026-01-03,Client payment,1500.00";
+const workspaceRootPath = "/tmp/Acme Studio";
+
+function installTestApi() {
+  window.__DIURNUM_TEST_API__ = {
+    async analyzeCsvImport(input: { sourceFileName: string; csvContents: string }) {
+      return {
+        fileName: input.sourceFileName,
+        rowCount: 1,
+        delimiter: "Comma",
+        encoding: "UTF-8",
+        autoDetected: true,
+        requiredFieldCount: 3,
+        requiredMappedCount: 3,
+        likelyDuplicateCount: 0,
+        importableRowCount: 1,
+        skippedRowCount: 0,
+        columns: [],
+        previewRows: [
+          {
+            postedDate: "2026-01-03",
+            description: "Client payment",
+            signedAmount: "1500.00",
+            status: "Posted",
+            duplicate: false,
+          },
+        ],
+        mapping: input.csvContents.includes("Transaction Date")
+          ? {
+              postedDateColumn: "Transaction Date",
+              descriptionColumn: "Transaction Description",
+              amountColumn: "Transaction Amount",
+              debitColumn: null,
+              creditColumn: null,
+              transactionTypeColumn: "Transaction Type",
+              debitTypeValue: "Debit",
+              statusColumn: null,
+              checkNumberColumn: null,
+              memoColumn: null,
+              referenceIdColumn: null,
+              payeeColumn: null,
+              categoryColumn: null,
+              dateFormat: null,
+            }
+          : {
+              postedDateColumn: "Date",
+              descriptionColumn: "Description",
+              amountColumn: "Amount",
+              debitColumn: null,
+              creditColumn: null,
+              transactionTypeColumn: null,
+              debitTypeValue: "Debit",
+              statusColumn: null,
+              checkNumberColumn: null,
+              memoColumn: null,
+              referenceIdColumn: null,
+              payeeColumn: null,
+              categoryColumn: null,
+              dateFormat: null,
+            },
+        blockedReason: null,
+      };
+    },
+    async importStatementRows(input: unknown) {
+      return input;
+    },
+  } as any;
+}
+
+function uninstallTestApi() {
+  delete window.__DIURNUM_TEST_API__;
+}
 
 describe("CsvImportSetup", () => {
+  beforeEach(() => {
+    installTestApi();
+  });
+
+  afterEach(() => {
+    uninstallTestApi();
+  });
+
   it("submits CSV import mapping details", async () => {
     const user = userEvent.setup();
     const onImportStatementRows = vi.fn().mockResolvedValue(undefined);
 
-    render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
+    render(
+      <CsvImportSetup
+        workspaceRootPath={workspaceRootPath}
+        onImportStatementRows={onImportStatementRows}
+      />,
+    );
 
     fireEvent.change(screen.getByLabelText("Source Account"), {
       target: { value: "Assets:Bank:Operating-Checking" },
@@ -21,33 +105,42 @@ describe("CsvImportSetup", () => {
     fireEvent.change(screen.getByLabelText("CSV contents"), {
       target: { value: CSV_CONTENTS },
     });
-    await user.click(screen.getByRole("button", { name: "Import Statement Rows" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Import 1 rows" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Import 1 rows" }));
 
     expect(onImportStatementRows).toHaveBeenCalledWith({
       sourceAccount: "Assets:Bank:Operating-Checking",
       sourceFileName: "checking.csv",
       csvContents: CSV_CONTENTS,
-      mapping: {
-        postedDateColumn: "Date",
-        descriptionColumn: "Description",
-        amountColumn: "Amount",
-        debitColumn: null,
-        creditColumn: null,
-        transactionTypeColumn: null,
-        debitTypeValue: "Debit",
-        memoColumn: null,
-        referenceIdColumn: null,
-        payeeColumn: null,
-        categoryColumn: null,
-      },
-    });
+        mapping: {
+          postedDateColumn: "Date",
+          descriptionColumn: "Description",
+          amountColumn: "Amount",
+          debitColumn: null,
+          creditColumn: null,
+          transactionTypeColumn: null,
+          debitTypeValue: "Debit",
+          statusColumn: null,
+          checkNumberColumn: null,
+          memoColumn: null,
+          referenceIdColumn: null,
+          payeeColumn: null,
+          categoryColumn: null,
+          dateFormat: null,
+        },
+      });
   });
 
   it("submits debit and credit columns when no amount column is mapped", async () => {
     const user = userEvent.setup();
     const onImportStatementRows = vi.fn().mockResolvedValue(undefined);
 
-    render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
+    render(
+      <CsvImportSetup
+        workspaceRootPath={workspaceRootPath}
+        onImportStatementRows={onImportStatementRows}
+      />,
+    );
 
     fireEvent.change(screen.getByLabelText("Source Account"), {
       target: { value: "Assets:Bank:Operating-Checking" },
@@ -69,33 +162,42 @@ describe("CsvImportSetup", () => {
     fireEvent.change(screen.getByLabelText("Credit column"), {
       target: { value: "Credit" },
     });
-    await user.click(screen.getByRole("button", { name: "Import Statement Rows" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Import 1 rows" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Import 1 rows" }));
 
     expect(onImportStatementRows).toHaveBeenCalledWith({
       sourceAccount: "Assets:Bank:Operating-Checking",
       sourceFileName: "checking.csv",
       csvContents: "Date,Description,Debit,Credit\n2026-01-03,Client payment,,1500.00",
-      mapping: {
-        postedDateColumn: "Date",
-        descriptionColumn: "Description",
-        amountColumn: null,
-        debitColumn: "Debit",
-        creditColumn: "Credit",
-        transactionTypeColumn: null,
-        debitTypeValue: "Debit",
-        memoColumn: null,
-        referenceIdColumn: null,
-        payeeColumn: null,
-        categoryColumn: null,
-      },
-    });
+        mapping: {
+          postedDateColumn: "Date",
+          descriptionColumn: "Description",
+          amountColumn: null,
+          debitColumn: "Debit",
+          creditColumn: "Credit",
+          transactionTypeColumn: null,
+          debitTypeValue: "Debit",
+          statusColumn: null,
+          checkNumberColumn: null,
+          memoColumn: null,
+          referenceIdColumn: null,
+          payeeColumn: null,
+          categoryColumn: null,
+          dateFormat: null,
+        },
+      });
   });
 
   it("loads filename and CSV contents when a file is chosen", async () => {
     const user = userEvent.setup();
     const onImportStatementRows = vi.fn().mockResolvedValue(undefined);
 
-    render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
+    render(
+      <CsvImportSetup
+        workspaceRootPath={workspaceRootPath}
+        onImportStatementRows={onImportStatementRows}
+      />,
+    );
 
     const csvFile = new File([CSV_CONTENTS], "checking.csv", { type: "text/csv" });
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -109,7 +211,12 @@ describe("CsvImportSetup", () => {
     const user = userEvent.setup();
     const onImportStatementRows = vi.fn().mockResolvedValue(undefined);
 
-    render(<CsvImportSetup onImportStatementRows={onImportStatementRows} />);
+    render(
+      <CsvImportSetup
+        workspaceRootPath={workspaceRootPath}
+        onImportStatementRows={onImportStatementRows}
+      />,
+    );
 
     const capitalOneCsv =
       '"Account Number","Transaction Description","Transaction Date","Transaction Type","Transaction Amount","Balance"\n' +
@@ -120,7 +227,9 @@ describe("CsvImportSetup", () => {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(fileInput, csvFile);
 
-    expect(screen.getByLabelText("Posted date column")).toHaveValue("Transaction Date");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Posted date column")).toHaveValue("Transaction Date"),
+    );
     expect(screen.getByLabelText("Description column")).toHaveValue("Transaction Description");
     expect(screen.getByLabelText("Amount column")).toHaveValue("Transaction Amount");
     expect(screen.getByLabelText("Transaction type column")).toHaveValue("Transaction Type");
