@@ -9,20 +9,28 @@ export type CategorizationRuleOffer = {
 };
 
 type CategorizationRulesPanelProps = {
+  workspaceRootPath: string;
   rules: CategorizationRule[];
   offer?: CategorizationRuleOffer | null;
   onCreateRule?: (input: CategorizationRuleOffer) => Promise<void> | void;
   onUpdateRule?: (
     input: CategorizationRuleOffer & { id: string },
   ) => Promise<void> | void;
+  onDisableRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
+  onEnableRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
+  onDeleteRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
   onDismissOffer?: () => void;
 };
 
 export function CategorizationRulesPanel({
+  workspaceRootPath,
   rules,
   offer,
   onCreateRule,
   onUpdateRule,
+  onDisableRule,
+  onEnableRule,
+  onDeleteRule,
   onDismissOffer,
 }: CategorizationRulesPanelProps) {
   return (
@@ -68,8 +76,12 @@ export function CategorizationRulesPanel({
           {rules.map((rule) => (
             <CategorizationRuleEditor
               key={rule.id}
+              workspaceRootPath={workspaceRootPath}
               rule={rule}
               onUpdateRule={onUpdateRule}
+              onDisableRule={onDisableRule}
+              onEnableRule={onEnableRule}
+              onDeleteRule={onDeleteRule}
             />
           ))}
         </div>
@@ -82,12 +94,20 @@ export function CategorizationRulesPanel({
 
 function CategorizationRuleEditor({
   rule,
+  workspaceRootPath,
   onUpdateRule,
+  onDisableRule,
+  onEnableRule,
+  onDeleteRule,
 }: {
+  workspaceRootPath: string;
   rule: CategorizationRule;
   onUpdateRule?: (
     input: CategorizationRuleOffer & { id: string },
   ) => Promise<void> | void;
+  onDisableRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
+  onEnableRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
+  onDeleteRule?: (input: { workspaceRootPath: string; id: string }) => Promise<void> | void;
 }) {
   const [sourceAccount, setSourceAccount] = useState(rule.sourceAccount);
   const [matchText, setMatchText] = useState(rule.matchText);
@@ -113,6 +133,15 @@ function CategorizationRuleEditor({
 
   return (
     <form className="rule-card" onSubmit={handleSubmit}>
+      <div className="rule-card-header">
+        <div>
+          <strong>{rule.matchText}</strong>
+          <small>{rule.enabled ? "Enabled" : "Disabled"}</small>
+        </div>
+        <span className={`rule-status ${rule.enabled ? "enabled" : "disabled"}`}>
+          {rule.enabled ? "Enabled" : "Disabled"}
+        </span>
+      </div>
       <label>
         Source Account
         <input
@@ -131,15 +160,41 @@ function CategorizationRuleEditor({
           onChange={(event) => setLedgerAccount(event.target.value)}
         />
       </label>
-      <button
-        className="secondary-button"
-        type="submit"
-        disabled={
-          isSubmitting || !sourceAccount.trim() || !matchText.trim() || !ledgerAccount.trim()
-        }
-      >
-        Save Rule
-      </button>
+      <div className="action-row">
+        <button
+          className="secondary-button"
+          type="submit"
+          disabled={
+            isSubmitting || !sourceAccount.trim() || !matchText.trim() || !ledgerAccount.trim()
+          }
+        >
+          Save Rule
+        </button>
+        {rule.enabled ? (
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => void onDisableRule?.({ workspaceRootPath, id: rule.id })}
+          >
+            Disable
+          </button>
+        ) : (
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => void onEnableRule?.({ workspaceRootPath, id: rule.id })}
+          >
+            Enable
+          </button>
+        )}
+        <button
+          className="ghost-button"
+          type="button"
+          onClick={() => void onDeleteRule?.({ workspaceRootPath, id: rule.id })}
+        >
+          Delete
+        </button>
+      </div>
     </form>
   );
 }

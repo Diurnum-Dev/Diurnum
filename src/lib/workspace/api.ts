@@ -7,10 +7,13 @@ import type {
   AiContextDisclosure,
   ApproveSuggestedEntryInput,
   ApproveTransferEntryInput,
+  CloseSourceAccountInput,
+  DetectedAiAdapter,
   BrokenProvenance,
   CategorizationRule,
   CsvImportAnalysis,
   CsvImportAnalysisInput,
+  GitIdentitySummary,
   ConfigureAiAdapterInput,
   CreateCategorizationRuleInput,
   CreateDocumentFolderInput,
@@ -33,13 +36,21 @@ import type {
   ReadLedgerFileInput,
   ReadDocumentPreviewInput,
   RenameDocumentEntryInput,
+  RenameSourceAccountInput,
   ReportsInput,
   RestoreSnapshotInput,
   SaveLedgerFileInput,
   SaveLedgerEditorSessionInput,
+  SourceAccountSummary,
+  SourceMappingSummary,
+  SourceMappingUpdateInput,
   SnapshotSummary,
   SuggestedEntry,
+  TestAiAdapterInput,
   UpdateCategorizationRuleInput,
+  UpdateGitIdentityInput,
+  UpdateSourceAccountOpeningBalanceInput,
+  WorkspaceMetadataUpdateInput,
   WorkspaceCreateInput,
   WorkspaceGitStatus,
   WorkspacePathStatus,
@@ -85,10 +96,35 @@ type WorkspaceApi = {
   updateCategorizationRule: (
     input: UpdateCategorizationRuleInput,
   ) => Promise<CategorizationRule>;
+  disableCategorizationRule: (
+    workspaceRootPath: string,
+    id: string,
+  ) => Promise<CategorizationRule>;
+  enableCategorizationRule: (
+    workspaceRootPath: string,
+    id: string,
+  ) => Promise<CategorizationRule>;
+  deleteCategorizationRule: (
+    workspaceRootPath: string,
+    id: string,
+  ) => Promise<void>;
   getAiAdapterConfig: (path: string) => Promise<AiAdapterConfig>;
   configureAiAdapter: (input: ConfigureAiAdapterInput) => Promise<AiAdapterConfig>;
   getAiContextDisclosure: (path: string) => Promise<AiContextDisclosure>;
   getMvpReports: (input: ReportsInput) => Promise<MvpReports>;
+  updateWorkspaceMetadata: (input: WorkspaceMetadataUpdateInput) => Promise<WorkspaceSummary>;
+  listSourceAccounts: (workspaceRootPath: string) => Promise<SourceAccountSummary[]>;
+  listSourceMappings: (workspaceRootPath: string) => Promise<SourceMappingSummary[]>;
+  saveSourceMapping: (input: SourceMappingUpdateInput) => Promise<SourceMappingSummary>;
+  renameSourceAccount: (input: RenameSourceAccountInput) => Promise<WorkspaceSummary>;
+  closeSourceAccount: (input: CloseSourceAccountInput) => Promise<WorkspaceSummary>;
+  updateSourceAccountOpeningBalance: (
+    input: UpdateSourceAccountOpeningBalanceInput,
+  ) => Promise<WorkspaceSummary>;
+  getGitIdentity: (workspaceRootPath: string) => Promise<GitIdentitySummary>;
+  updateGitIdentity: (input: UpdateGitIdentityInput) => Promise<GitIdentitySummary>;
+  detectAiAdapters: () => Promise<DetectedAiAdapter[]>;
+  testAiAdapter: (input: TestAiAdapterInput) => Promise<unknown>;
   pickDirectory: () => Promise<string | null>;
   revealWorkspace: (path: string) => Promise<void>;
   openExternalPath: (path: string) => Promise<void>;
@@ -274,6 +310,103 @@ export async function addSourceAccount(
   return invoke<WorkspaceSummary>("add_source_account", { input });
 }
 
+export async function updateWorkspaceMetadata(
+  input: WorkspaceMetadataUpdateInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.updateWorkspaceMetadata(input);
+  }
+  return invoke<WorkspaceSummary>("update_workspace_metadata", { input });
+}
+
+export async function listSourceAccounts(
+  workspaceRootPath: string,
+): Promise<SourceAccountSummary[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listSourceAccounts(workspaceRootPath);
+  }
+  return invoke<SourceAccountSummary[]>("list_source_accounts", { workspaceRootPath });
+}
+
+export async function listSourceMappings(
+  workspaceRootPath: string,
+): Promise<SourceMappingSummary[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listSourceMappings(workspaceRootPath);
+  }
+  return invoke<SourceMappingSummary[]>("list_source_mappings", { workspaceRootPath });
+}
+
+export async function saveSourceMapping(
+  input: SourceMappingUpdateInput,
+): Promise<SourceMappingSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.saveSourceMapping(input);
+  }
+  return invoke<SourceMappingSummary>("save_source_mapping", { input });
+}
+
+export async function renameSourceAccount(
+  input: RenameSourceAccountInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.renameSourceAccount(input);
+  }
+  return invoke<WorkspaceSummary>("rename_source_account", { input });
+}
+
+export async function closeSourceAccount(
+  input: CloseSourceAccountInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.closeSourceAccount(input);
+  }
+  return invoke<WorkspaceSummary>("close_source_account", { input });
+}
+
+export async function updateSourceAccountOpeningBalance(
+  input: UpdateSourceAccountOpeningBalanceInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.updateSourceAccountOpeningBalance(input);
+  }
+  return invoke<WorkspaceSummary>("update_source_account_opening_balance", { input });
+}
+
+export async function getGitIdentity(
+  workspaceRootPath: string,
+): Promise<GitIdentitySummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getGitIdentity(workspaceRootPath);
+  }
+  return invoke<GitIdentitySummary>("get_git_identity", { workspaceRootPath });
+}
+
+export async function updateGitIdentity(
+  input: UpdateGitIdentityInput,
+): Promise<GitIdentitySummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.updateGitIdentity(input);
+  }
+  return invoke<GitIdentitySummary>("update_git_identity", { input });
+}
+
+export async function detectAiAdapters(): Promise<DetectedAiAdapter[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.detectAiAdapters();
+  }
+  return invoke<DetectedAiAdapter[]>("detect_ai_adapters");
+}
+
+export async function testAiAdapter(
+  input: TestAiAdapterInput,
+): Promise<unknown> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.testAiAdapter(input);
+  }
+  return invoke<unknown>("test_ai_adapter", { input });
+}
+
 export async function importStatementRows(
   input: CsvImportInput,
 ): Promise<CsvImportResult> {
@@ -342,6 +475,36 @@ export async function updateCategorizationRule(
     return window.__DIURNUM_TEST_API__.updateCategorizationRule(input);
   }
   return invoke<CategorizationRule>("update_categorization_rule", { input });
+}
+
+export async function disableCategorizationRule(
+  workspaceRootPath: string,
+  id: string,
+): Promise<CategorizationRule> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.disableCategorizationRule(workspaceRootPath, id);
+  }
+  return invoke<CategorizationRule>("disable_categorization_rule", { workspaceRootPath, id });
+}
+
+export async function enableCategorizationRule(
+  workspaceRootPath: string,
+  id: string,
+): Promise<CategorizationRule> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.enableCategorizationRule(workspaceRootPath, id);
+  }
+  return invoke<CategorizationRule>("enable_categorization_rule", { workspaceRootPath, id });
+}
+
+export async function deleteCategorizationRule(
+  workspaceRootPath: string,
+  id: string,
+): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.deleteCategorizationRule(workspaceRootPath, id);
+  }
+  await invoke("delete_categorization_rule", { workspaceRootPath, id });
 }
 
 export async function getAiAdapterConfig(path: string): Promise<AiAdapterConfig> {
