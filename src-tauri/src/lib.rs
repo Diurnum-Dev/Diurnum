@@ -13,6 +13,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder};
+                let app_menu = SubmenuBuilder::new(app, "Diurnum")
+                    .quit()
+                    .build()?;
                 let edit = SubmenuBuilder::new(app, "Edit")
                     .undo()
                     .redo()
@@ -22,7 +25,7 @@ pub fn run() {
                     .paste()
                     .select_all()
                     .build()?;
-                let menu = MenuBuilder::new(app).item(&edit).build()?;
+                let menu = MenuBuilder::new(app).item(&app_menu).item(&edit).build()?;
                 app.set_menu(menu)?;
             }
             Ok(())
