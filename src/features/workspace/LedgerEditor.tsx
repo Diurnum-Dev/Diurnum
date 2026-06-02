@@ -136,10 +136,21 @@ export function LedgerEditor({
     };
   }, [onError, onFilesChange, workspace.rootPath]);
 
+  // Keep a ref to the latest openFile so the effect below doesn't re-run every
+  // time a new tab is opened (which recreates openFile due to `tabs` in its deps).
+  // The effect should only fire when the *request* changes, not when openFile changes.
+  const openFileRef = useRef(openFile);
+  useEffect(() => {
+    openFileRef.current = openFile;
+  });
+
   useEffect(() => {
     if (!requestedFile) return;
-    void openFile(requestedFile, requestedCursor ?? 0);
-  }, [openFile, requestedCursor, requestedFile, requestedFileVersion]);
+    void openFileRef.current(requestedFile, requestedCursor ?? 0);
+    // Intentionally omit openFile — we use openFileRef so this only re-runs
+    // when a new file is actually requested by the parent, not on every tab open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedCursor, requestedFile, requestedFileVersion]);
 
   useEffect(() => {
     onActiveFileChange(activePath);
