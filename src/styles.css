@@ -285,8 +285,19 @@ select {
   min-height: 100vh;
 }
 
+.shell-main--fill {
+  height: 100vh;
+  overflow: hidden;
+}
+
 .shell-main .main-pane {
   padding: 34px 44px 72px;
+}
+
+.main-pane--fill {
+  height: 100%;
+  overflow: hidden;
+  padding: 34px 44px 0;
 }
 
 .sidebar-note,
@@ -940,6 +951,14 @@ h2 {
   display: grid;
   gap: 18px;
   max-width: 620px;
+}
+
+.new-account-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #7A6A3A;
+  font-style: italic;
 }
 
 .template-picker {
@@ -1786,7 +1805,10 @@ dd {
 }
 
 .inbox-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
   gap: 18px;
 }
 
@@ -1822,6 +1844,7 @@ dd {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
   gap: 16px;
+  flex: 1;
   min-height: 0;
 }
 
@@ -1834,6 +1857,7 @@ dd {
 .inbox-list-col {
   display: grid;
   gap: 12px;
+  overflow-y: auto;
 }
 
 .inbox-list-head {

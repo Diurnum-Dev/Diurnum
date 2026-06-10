@@ -193,8 +193,8 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="shell-main">
-        <div className="main-pane">{children}</div>
+      <main className={`shell-main${activeScreen === "inbox" ? " shell-main--fill" : ""}`}>
+        <div className={`main-pane${activeScreen === "inbox" ? " main-pane--fill" : ""}`}>{children}</div>
         <footer className="status-bar" aria-label="Workspace status">
           <span>{statusContext}</span>
           <span className="status-bar-right">

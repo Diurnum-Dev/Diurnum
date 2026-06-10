@@ -9,6 +9,8 @@ import {
   addSourceAccount,
   approveTransferEntry,
   approveSuggestedEntry,
+  revertTransferToStandard,
+  getKnownLedgerAccounts,
   closeSourceAccount,
   commitGitChanges,
   deleteCategorizationRule,
@@ -125,6 +127,7 @@ export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [ledgerFiles, setLedgerFiles] = useState<string[]>([]);
   const [suggestedEntries, setSuggestedEntries] = useState<SuggestedEntry[]>([]);
+  const [knownAccounts, setKnownAccounts] = useState<string[]>([]);
   const [brokenProvenance, setBrokenProvenance] = useState<BrokenProvenance[]>([]);
   const [categorizationRules, setCategorizationRules] = useState<CategorizationRule[]>([]);
   const [ruleOffer, setRuleOffer] = useState<CategorizationRuleOffer | null>(null);
@@ -201,6 +204,7 @@ export default function App() {
       const created = await createWorkspace(input);
       setWorkspace(created);
       setSuggestedEntries(await getSuggestedEntries(created.rootPath));
+      setKnownAccounts(await getKnownLedgerAccounts(created.rootPath));
       setBrokenProvenance(await getBrokenProvenance(created.rootPath));
       setCategorizationRules(await listCategorizationRules(created.rootPath));
       setRuleOffer(null);
@@ -228,6 +232,7 @@ export default function App() {
       const opened = await openWorkspace(path);
       setWorkspace(opened);
       setSuggestedEntries(await getSuggestedEntries(opened.rootPath));
+      setKnownAccounts(await getKnownLedgerAccounts(opened.rootPath));
       setBrokenProvenance(await getBrokenProvenance(opened.rootPath));
       setCategorizationRules(await listCategorizationRules(opened.rootPath));
       setAiAdapterConfig(await getAiAdapterConfig(opened.rootPath));
@@ -714,6 +719,7 @@ export default function App() {
       });
       setWorkspace(updated);
       setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
+      setKnownAccounts(await getKnownLedgerAccounts(updated.rootPath));
       setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
       setCategorizationRules(await listCategorizationRules(updated.rootPath));
       setSourceAccounts(await listSourceAccounts(updated.rootPath));
@@ -738,6 +744,21 @@ export default function App() {
           [monthlyLedgerPath(approvedEntry.postedDate), "main.bean"],
         );
       }
+    } catch (caught) {
+      setError(userFacingError(caught));
+    }
+  }
+
+  async function handleRevertTransferToStandard(input: { statementRowId: string }) {
+    if (!workspace) return;
+    setError(null);
+    try {
+      const updated = await revertTransferToStandard({
+        workspaceRootPath: workspace.rootPath,
+        ...input,
+      });
+      setWorkspace(updated);
+      setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
     } catch (caught) {
       setError(userFacingError(caught));
     }
@@ -1250,8 +1271,10 @@ export default function App() {
           <InboxPanel
             suggestedEntries={suggestedEntries}
             ledgerStatus={workspace.ledgerStatus}
+            knownAccounts={knownAccounts}
             onApprove={handleApproveSuggestedEntry}
             onApproveTransfer={handleApproveTransferEntry}
+            onRevertTransfer={handleRevertTransferToStandard}
           />
         ) : activeScreen === "git" ? (
           <GitPanel

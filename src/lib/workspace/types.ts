@@ -136,6 +136,11 @@ export type ApproveTransferEntryInput = {
   linkedStatementRowId: string;
 };
 
+export type RevertTransferToStandardInput = {
+  workspaceRootPath: string;
+  statementRowId: string;
+};
+
 export type BrokenProvenance = {
   statementRowId: string;
   diurnumEntryId?: string | null;

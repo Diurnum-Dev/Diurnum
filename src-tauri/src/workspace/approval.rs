@@ -4,10 +4,12 @@ use crate::workspace::data_integrity::{atomic_append, create_snapshot, SnapshotR
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::imports::ensure_import_tables;
 use crate::workspace::open::open_workspace;
-use crate::workspace::types::{LedgerStatus, WorkspaceSummary};
+use crate::workspace::types::{LedgerStatus, WorkspaceManifest, WorkspaceSummary};
 use crate::workspace::validation::validate_workspace;
+use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -67,6 +69,13 @@ pub struct ApproveTransferEntryInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RevertTransferToStandardInput {
+    pub workspace_root_path: String,
+    pub statement_row_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BrokenProvenance {
     pub statement_row_id: String,
     pub diurnum_entry_id: Option<String>,
@@ -80,8 +89,43 @@ pub fn get_suggested_entries(
     let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
+    ensure_force_standard_column(&connection)?;
     let pending_rows = load_pending_statement_rows(&connection)?;
-    build_suggested_entries(root, &connection, pending_rows)
+    let force_standard_ids = load_force_standard_ids(&connection)?;
+    build_suggested_entries(root, &connection, pending_rows, &force_standard_ids)
+}
+
+pub fn revert_transfer_to_standard(
+    input: RevertTransferToStandardInput,
+) -> Result<WorkspaceSummary, WorkspaceError> {
+    let root = Path::new(&input.workspace_root_path);
+    let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
+    ensure_import_tables(&connection)?;
+    ensure_provenance_columns(&connection)?;
+    ensure_force_standard_column(&connection)?;
+    connection.execute(
+        "update statement_rows set force_standard = 1 where id = ?1 and status = 'pending'",
+        [&input.statement_row_id],
+    )?;
+    open_workspace(root)
+}
+
+pub fn get_known_ledger_accounts(
+    workspace_root_path: impl AsRef<Path>,
+) -> Result<Vec<String>, WorkspaceError> {
+    let accounts_content = fs::read_to_string(workspace_root_path.as_ref().join("accounts.bean"))?;
+    let accounts = accounts_content
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 && parts[1] == "open" {
+                Some(parts[2].to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    Ok(accounts)
 }
 
 pub fn get_broken_provenance(
@@ -146,7 +190,7 @@ pub fn approve_suggested_entry(
             "Approval is blocked while the Workspace is in Invalid Ledger State.",
         ));
     }
-    ensure_ledger_account_exists(root, &input.ledger_account)?;
+    open_ledger_account_if_missing(root, &input.ledger_account)?;
 
     let connection = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
     ensure_import_tables(&connection)?;
@@ -284,6 +328,7 @@ fn build_suggested_entries(
     root: &Path,
     connection: &Connection,
     rows: Vec<SuggestedEntry>,
+    force_standard_ids: &HashSet<String>,
 ) -> Result<Vec<SuggestedEntry>, WorkspaceError> {
     let mut suggestions = Vec::new();
     let mut consumed = vec![false; rows.len()];
@@ -311,7 +356,9 @@ fn build_suggested_entries(
             continue;
         }
 
-        if looks_like_one_sided_transfer(row) {
+        if looks_like_one_sided_transfer(row)
+            && !force_standard_ids.contains(&row.statement_row_id)
+        {
             let mut transfer = row.clone();
             transfer.kind = SuggestedEntryKind::Transfer;
             consumed[index] = true;
@@ -400,18 +447,55 @@ fn load_pending_suggested_entry(
         })
 }
 
-fn ensure_ledger_account_exists(root: &Path, ledger_account: &str) -> Result<(), WorkspaceError> {
-    let accounts = fs::read_to_string(root.join("accounts.bean"))?;
+fn open_ledger_account_if_missing(root: &Path, ledger_account: &str) -> Result<(), WorkspaceError> {
+    let accounts_path = root.join("accounts.bean");
+    let accounts = fs::read_to_string(&accounts_path)?;
     if accounts
         .lines()
         .any(|line| line.split_whitespace().nth(2) == Some(ledger_account))
     {
         return Ok(());
     }
-    Err(WorkspaceError::new(
-        WorkspaceErrorCode::InvalidLedger,
-        "Approval requires an existing Ledger Account.",
-    ))
+    let manifest: WorkspaceManifest =
+        serde_json::from_str(&fs::read_to_string(root.join(".diurnum").join("workspace.json"))?)
+            .map_err(|_| {
+                WorkspaceError::new(
+                    WorkspaceErrorCode::MissingManifest,
+                    "Workspace manifest is unreadable.",
+                )
+            })?;
+    let today = Utc::now().date_naive().to_string();
+    atomic_append(
+        accounts_path,
+        &format!(
+            "{today} open {ledger_account} {}\n",
+            manifest.business.base_currency
+        ),
+    )
+}
+
+fn ensure_force_standard_column(connection: &Connection) -> Result<(), WorkspaceError> {
+    let columns = connection
+        .prepare("pragma table_info(statement_rows)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !columns.iter().any(|col| col == "force_standard") {
+        connection.execute(
+            "alter table statement_rows add column force_standard integer not null default 0",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn load_force_standard_ids(connection: &Connection) -> Result<HashSet<String>, WorkspaceError> {
+    let mut stmt = connection.prepare(
+        "select id from statement_rows where status = 'pending' and force_standard = 1",
+    )?;
+    let ids = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<HashSet<_>, _>>()?;
+    Ok(ids)
 }
 
 impl AiSuggestionRow for SuggestedEntry {

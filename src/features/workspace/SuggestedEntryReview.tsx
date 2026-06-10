@@ -50,11 +50,14 @@ export function SuggestedEntryReview({
 export function SuggestedEntryDetail({
   entry,
   ledgerStatus,
+  knownAccounts = [],
   onApprove,
   onApproveTransfer,
+  onRevertTransfer,
 }: {
   entry: SuggestedEntry;
   ledgerStatus: LedgerStatus;
+  knownAccounts?: string[];
   onApprove: (input: {
     statementRowId: string;
     ledgerAccount: string;
@@ -63,6 +66,7 @@ export function SuggestedEntryDetail({
     statementRowId: string;
     linkedStatementRowId: string;
   }) => Promise<void> | void;
+  onRevertTransfer?: (input: { statementRowId: string }) => Promise<void> | void;
 }) {
   const [ledgerAccount, setLedgerAccount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,6 +74,8 @@ export function SuggestedEntryDetail({
   const approvalBlocked = ledgerStatus === "invalid";
   const isTransfer = entry.kind === "transfer";
   const linkedRow = entry.linkedStatementRow;
+  const isNewAccount =
+    ledgerAccount.trim().length > 0 && !knownAccounts.includes(ledgerAccount.trim());
 
   useEffect(() => {
     if (entry.suggestedLedgerAccount) {
@@ -102,6 +108,16 @@ export function SuggestedEntryDetail({
         statementRowId: entry.statementRowId,
         linkedStatementRowId: linkedRow.statementRowId,
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRevertTransfer() {
+    if (!onRevertTransfer) return;
+    setIsSubmitting(true);
+    try {
+      await onRevertTransfer({ statementRowId: entry.statementRowId });
     } finally {
       setIsSubmitting(false);
     }
@@ -171,28 +187,50 @@ export function SuggestedEntryDetail({
       </div>
 
       {isTransfer ? (
-        <button
-          className="primary-button"
-          type="button"
-          disabled={approvalBlocked || !linkedRow || !onApproveTransfer || isSubmitting}
-          onClick={handleTransferApproval}
-        >
-          {approvalBlocked
-            ? "Approval blocked"
-            : linkedRow
-              ? "Approve Transfer"
-              : "Needs matching row"}
-        </button>
+        <div>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={approvalBlocked || !linkedRow || !onApproveTransfer || isSubmitting}
+            onClick={handleTransferApproval}
+          >
+            {approvalBlocked
+              ? "Approval blocked"
+              : linkedRow
+                ? "Approve Transfer"
+                : "Needs matching row"}
+          </button>
+          {!linkedRow && onRevertTransfer ? (
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleRevertTransfer}
+            >
+              Not a transfer — treat as expense
+            </button>
+          ) : null}
+        </div>
       ) : (
         <form className="workspace-form" onSubmit={handleSubmit}>
-          <label>
-            Ledger Account
+          <div>
+            <label htmlFor="ledger-account-input">Ledger Account</label>
             <input
+              id="ledger-account-input"
+              list="known-accounts"
               value={ledgerAccount}
               onChange={(event) => setLedgerAccount(event.target.value)}
               placeholder="Expenses:Software"
             />
-          </label>
+            <datalist id="known-accounts">
+              {knownAccounts.map((account) => (
+                <option key={account} value={account} />
+              ))}
+            </datalist>
+            {isNewAccount ? (
+              <span className="new-account-hint">New account — will be created on approval</span>
+            ) : null}
+          </div>
 
           <button
             className="primary-button"

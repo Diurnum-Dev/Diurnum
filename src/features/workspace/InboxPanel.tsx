@@ -5,6 +5,7 @@ import { SuggestedEntryDetail } from "./SuggestedEntryReview";
 type InboxPanelProps = {
   suggestedEntries: SuggestedEntry[];
   ledgerStatus: LedgerStatus;
+  knownAccounts?: string[];
   onApprove: (input: {
     statementRowId: string;
     ledgerAccount: string;
@@ -13,13 +14,16 @@ type InboxPanelProps = {
     statementRowId: string;
     linkedStatementRowId: string;
   }) => Promise<void> | void;
+  onRevertTransfer?: (input: { statementRowId: string }) => Promise<void> | void;
 };
 
 export function InboxPanel({
   suggestedEntries,
   ledgerStatus,
+  knownAccounts,
   onApprove,
   onApproveTransfer,
+  onRevertTransfer,
 }: InboxPanelProps) {
   const [selectedStatementRowId, setSelectedStatementRowId] = useState<string | null>(
     suggestedEntries[0]?.statementRowId ?? null,
@@ -139,8 +143,10 @@ export function InboxPanel({
                 <SuggestedEntryDetail
                   entry={selectedEntry}
                   ledgerStatus={ledgerStatus}
+                  knownAccounts={knownAccounts}
                   onApprove={onApprove}
                   onApproveTransfer={onApproveTransfer}
+                  onRevertTransfer={onRevertTransfer}
                 />
               </>
             ) : null}

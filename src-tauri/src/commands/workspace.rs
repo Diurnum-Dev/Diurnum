@@ -2,7 +2,8 @@ use crate::workspace::ai_adapter::{
     self, AiAdapterConfig, AiContextDisclosure, ConfigureAiAdapterInput,
 };
 use crate::workspace::approval::{
-    self, ApproveSuggestedEntryInput, ApproveTransferEntryInput, BrokenProvenance, SuggestedEntry,
+    self, ApproveSuggestedEntryInput, ApproveTransferEntryInput, BrokenProvenance,
+    RevertTransferToStandardInput, SuggestedEntry,
 };
 use crate::workspace::categorization_rules::{
     self, CategorizationRule, CreateCategorizationRuleInput, UpdateCategorizationRuleInput,
@@ -217,6 +218,18 @@ pub fn approve_transfer_entry(
     input: ApproveTransferEntryInput,
 ) -> Result<WorkspaceSummary, WorkspaceError> {
     approval::approve_transfer_entry(input)
+}
+
+#[tauri::command]
+pub fn revert_transfer_to_standard(
+    input: RevertTransferToStandardInput,
+) -> Result<WorkspaceSummary, WorkspaceError> {
+    approval::revert_transfer_to_standard(input)
+}
+
+#[tauri::command]
+pub fn get_known_ledger_accounts(path: String) -> Result<Vec<String>, WorkspaceError> {
+    approval::get_known_ledger_accounts(path)
 }
 
 #[tauri::command]

@@ -7,6 +7,7 @@ import type {
   AiContextDisclosure,
   ApproveSuggestedEntryInput,
   ApproveTransferEntryInput,
+  RevertTransferToStandardInput,
   CommitGitChangesInput,
   CloseSourceAccountInput,
   DetectedAiAdapter,
@@ -98,6 +99,8 @@ type WorkspaceApi = {
   getBrokenProvenance: (path: string) => Promise<BrokenProvenance[]>;
   approveSuggestedEntry: (input: ApproveSuggestedEntryInput) => Promise<WorkspaceSummary>;
   approveTransferEntry: (input: ApproveTransferEntryInput) => Promise<WorkspaceSummary>;
+  revertTransferToStandard: (input: RevertTransferToStandardInput) => Promise<WorkspaceSummary>;
+  getKnownLedgerAccounts: (path: string) => Promise<string[]>;
   listCategorizationRules: (path: string) => Promise<CategorizationRule[]>;
   createCategorizationRule: (
     input: CreateCategorizationRuleInput,
@@ -494,6 +497,22 @@ export async function approveTransferEntry(
     return window.__DIURNUM_TEST_API__.approveTransferEntry(input);
   }
   return invoke<WorkspaceSummary>("approve_transfer_entry", { input });
+}
+
+export async function revertTransferToStandard(
+  input: RevertTransferToStandardInput,
+): Promise<WorkspaceSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.revertTransferToStandard(input);
+  }
+  return invoke<WorkspaceSummary>("revert_transfer_to_standard", { input });
+}
+
+export async function getKnownLedgerAccounts(path: string): Promise<string[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getKnownLedgerAccounts(path);
+  }
+  return invoke<string[]>("get_known_ledger_accounts", { path });
 }
 
 export async function listCategorizationRules(

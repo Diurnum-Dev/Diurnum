@@ -60,6 +60,8 @@ pub fn run() {
             commands::workspace::get_broken_provenance,
             commands::workspace::approve_suggested_entry,
             commands::workspace::approve_transfer_entry,
+            commands::workspace::revert_transfer_to_standard,
+            commands::workspace::get_known_ledger_accounts,
             commands::workspace::list_categorization_rules,
             commands::workspace::create_categorization_rule,
             commands::workspace::update_categorization_rule,
