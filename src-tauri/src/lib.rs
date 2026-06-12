@@ -5,6 +5,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             // macOS WKWebView does not process keyboard shortcuts (⌘V, ⌘C, ⌘Z, …)
             // unless the application has an NSApp menu that contains the corresponding
