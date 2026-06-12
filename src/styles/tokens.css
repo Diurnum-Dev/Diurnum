@@ -81,8 +81,7 @@
   --font-serif:
     "Spectral", Georgia, "Iowan Old Style", "Times New Roman", serif;
   --font-sans:
-    "Source Sans 3", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
   --font-mono:
     "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas,
     monospace;

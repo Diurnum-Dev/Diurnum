@@ -1,11 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&display=swap");
 
 :root {
   color: #1C1A17;
-  background: #FEFCF8;
+  background: transparent;
   font-family:
-    "Source Sans 3", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
 }
 
 * {
@@ -97,7 +96,7 @@ select {
   background: #FEFCF8;
   color: #1C1A17;
   padding: 8px;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 
@@ -160,7 +159,7 @@ select {
 .settings-gear,
 .remove-recent-button {
   border: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .recent-workspace > button:first-child,
@@ -183,7 +182,7 @@ select {
 }
 
 .recent-workspace > button:first-child:disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.58;
 }
 
@@ -384,7 +383,7 @@ select {
   background: #FEFCF8;
   color: #1C1A17;
   padding: 18px;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 
@@ -455,7 +454,7 @@ select {
   background: transparent;
   color: #1C1A17;
   padding: 12px 8px;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 
@@ -464,7 +463,7 @@ select {
 }
 
 .welcome-recent:disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.55;
 }
 
@@ -528,7 +527,7 @@ h2 {
   border-radius: 2px;
   padding: 0 16px;
   border: 1px solid transparent;
-  cursor: pointer;
+  cursor: default;
   font-size: 14px;
   font-weight: 500;
 }
@@ -543,7 +542,7 @@ h2 {
 }
 
 .primary-button:disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.55;
 }
 
@@ -766,7 +765,7 @@ h2 {
   text-align: left;
   font-size: 13px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
 }
 
 .settings-subnav button:hover {
@@ -992,7 +991,7 @@ h2 {
   background: #FEFCF8;
   color: #1C1A17;
   padding: 14px;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 
@@ -1315,7 +1314,7 @@ dd {
   color: #1C1A17;
   padding: 8px 12px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 
 .documents-tree button:hover {
@@ -1381,7 +1380,7 @@ dd {
   color: #1C1A17;
   padding: 10px 0;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 
 .documents-file-row:hover {
@@ -1442,7 +1441,7 @@ dd {
   color: #1C1A17;
   padding: 0 10px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 
 .documents-context-menu button:hover {
@@ -1505,7 +1504,7 @@ dd {
   border-radius: 2px;
   background: transparent;
   color: #1C1A17;
-  cursor: pointer;
+  cursor: default;
   padding: 8px 10px;
   text-align: left;
   overflow: hidden;
@@ -1548,7 +1547,7 @@ dd {
   border-right: 1px solid #EDEAE4;
   background: transparent;
   color: #6B6051;
-  cursor: pointer;
+  cursor: default;
   padding: 0 12px;
 }
 
@@ -1604,7 +1603,7 @@ dd {
 }
 
 .cm-include-link {
-  cursor: pointer;
+  cursor: default;
   text-decoration: underline;
   text-decoration-style: dotted;
 }
@@ -1890,7 +1889,7 @@ dd {
   padding: 12px 14px;
   color: #1C1A17;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 
 .inbox-row:hover {
@@ -2179,7 +2178,7 @@ dd {
   border-radius: 2px;
   background: transparent;
   color: #1C1A17;
-  cursor: pointer;
+  cursor: default;
   padding: 0 10px;
   text-align: left;
 }
@@ -2380,4 +2379,36 @@ dd {
   .command-palette-shortcut {
     display: none;
   }
+}
+
+/* ============================================================
+   Native chrome behavior — Diurnum is a macOS app, not a page.
+   ============================================================ */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+.cm-editor {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid #243B6B;
+  outline-offset: 1px;
 }
