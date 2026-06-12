@@ -2399,16 +2399,24 @@ input,
 textarea,
 select,
 [contenteditable="true"],
-.cm-editor {
+.cm-editor,
+pre,
+code,
+.error-banner,
+.git-warning-banner,
+.git-file-path,
+.git-commit-hash {
   user-select: text;
   -webkit-user-select: text;
 }
 
-button:focus {
+button:focus,
+[role="button"]:focus {
   outline: none;
 }
 
-button:focus-visible {
+button:focus-visible,
+[role="button"]:focus-visible {
   outline: 2px solid #243B6B;
   outline-offset: 1px;
 }
