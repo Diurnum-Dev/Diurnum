@@ -71,6 +71,11 @@ select {
   z-index: 60;
 }
 
+body.window-blurred .sidebar-stack,
+body.window-blurred .sidebar-footer {
+  opacity: 0.6;
+}
+
 .brand {
   font-size: 1.35rem;
   font-weight: 700;
