@@ -143,6 +143,9 @@ pub fn build_app_menu<R: Runtime>(
     Ok(())
 }
 
+// Unlike the workspace commands this returns a plain String error: menu
+// rebuilds cannot meaningfully fail at runtime and the frontend calls this
+// fire-and-forget, so the structured WorkspaceError contract buys nothing here.
 #[tauri::command]
 pub fn sync_app_menu(app: AppHandle, state: AppMenuState) -> Result<(), String> {
     #[cfg(target_os = "macos")]
