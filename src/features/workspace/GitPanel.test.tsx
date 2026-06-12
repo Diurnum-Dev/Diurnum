@@ -157,7 +157,7 @@ describe("GitPanel", () => {
         throw new Error("not used");
       },
       async getKnownLedgerAccounts() {
-        return [];
+        throw new Error("not used");
       },
       async listCategorizationRules() {
         throw new Error("not used");
