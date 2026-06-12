@@ -85,6 +85,7 @@ export function AppShell({
   return (
     <div className="app-shell app-shell--workspace">
       <aside className="sidebar" aria-label="Workspace navigation">
+        <div className="sidebar-titlebar" data-tauri-drag-region />
         <div className="sidebar-stack">
           <div className="workspace-switcher">
             <button
@@ -194,6 +195,7 @@ export function AppShell({
       </aside>
 
       <main className={`shell-main${activeScreen === "inbox" ? " shell-main--fill" : ""}`}>
+        <div className="window-drag-strip" data-tauri-drag-region />
         <div className={`main-pane${activeScreen === "inbox" ? " main-pane--fill" : ""}`}>{children}</div>
         <footer className="status-bar" aria-label="Workspace status">
           <span>{statusContext}</span>

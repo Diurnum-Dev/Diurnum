@@ -1181,6 +1181,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <WorkspaceStart
             recentWorkspaces={recentWorkspaces}
@@ -1199,6 +1200,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <CreateWorkspaceForm
             initialTemplate={createTemplate}
@@ -1219,6 +1221,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <OpenWorkspaceForm
             onCancel={() => {

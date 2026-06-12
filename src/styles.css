@@ -36,15 +36,15 @@ select {
 
 .app-shell--workspace {
   grid-template-columns: 200px minmax(0, 1fr);
-  background: #FEFCF8;
+  background: transparent;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   border-right: 1px solid #EDEAE4;
-  background: #FBF6EC;
+  background: rgba(251, 246, 236, 0.55);
   padding: 28px 24px;
 }
 
@@ -53,7 +53,22 @@ select {
   top: 0;
   height: 100vh;
   min-width: 0;
-  padding: 16px 14px;
+  padding: 0 14px 16px;
+}
+
+.sidebar-titlebar {
+  height: 52px;
+  flex: 0 0 auto;
+  margin: 0 -14px;
+}
+
+.window-drag-strip {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 16px;
+  z-index: 60;
 }
 
 .brand {
@@ -265,6 +280,7 @@ select {
   gap: 8px;
   justify-content: flex-start;
   padding: 12px 4px 0;
+  margin-top: auto;
 }
 
 .settings-gear {
@@ -282,6 +298,8 @@ select {
   grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 100vh;
+  position: relative;
+  background: #FEFCF8;
 }
 
 .shell-main--fill {
@@ -315,6 +333,7 @@ select {
 
 .standalone-pane {
   min-height: 100vh;
+  background: rgba(254, 252, 248, 0.86);
 }
 
 .workspace-start,

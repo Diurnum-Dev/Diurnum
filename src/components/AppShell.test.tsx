@@ -128,4 +128,14 @@ describe("AppShell", () => {
 
     expect(onCloseWorkspace).toHaveBeenCalledOnce();
   });
+
+  it("renders window drag regions for the hidden title bar", () => {
+    renderShell();
+    expect(
+      document.querySelector(".sidebar-titlebar[data-tauri-drag-region]"),
+    ).not.toBeNull();
+    expect(
+      document.querySelector(".window-drag-strip[data-tauri-drag-region]"),
+    ).not.toBeNull();
+  });
 });
