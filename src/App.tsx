@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { MENU_SAVE_EVENT, routeMenuEvent, type MenuHandlers } from "./lib/menu";
 import {
@@ -370,6 +371,14 @@ export default function App() {
         .map((recent) => ({ path: recent.path, displayName: recent.displayName })),
     }).catch(() => undefined);
   }, [workspaceOpen, gitStatus.isRepository, recentWorkspaces]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const count = view === "workspace" ? suggestedEntries.length : 0;
+    void getCurrentWindow()
+      .setBadgeCount(count > 0 ? count : undefined)
+      .catch(() => undefined);
+  }, [view, suggestedEntries.length]);
 
   const updateBanner = updateNotice ? (
     <div className="update-banner" role="status" aria-live="polite">
