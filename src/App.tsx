@@ -357,16 +357,19 @@ export default function App() {
     };
   }, []);
 
+  // Depends on workspace truthiness, not identity — the workspace object is
+  // re-created on every save/validation and the menu must not rebuild then.
+  const workspaceOpen = view === "workspace" && Boolean(workspace);
   useEffect(() => {
     if (!isTauri()) return;
     void syncAppMenu({
-      workspaceOpen: view === "workspace" && Boolean(workspace),
+      workspaceOpen,
       gitAvailable: gitStatus.isRepository,
       recents: recentWorkspaces
         .filter((recent) => recent.exists !== false)
         .map((recent) => ({ path: recent.path, displayName: recent.displayName })),
     }).catch(() => undefined);
-  }, [view, workspace, gitStatus.isRepository, recentWorkspaces]);
+  }, [workspaceOpen, gitStatus.isRepository, recentWorkspaces]);
 
   const updateBanner = updateNotice ? (
     <div className="update-banner" role="status" aria-live="polite">
