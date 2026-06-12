@@ -634,3 +634,14 @@ export async function openExternalPath(path: string): Promise<void> {
   }
   await openPath(path);
 }
+
+export type AppMenuSyncState = {
+  workspaceOpen: boolean;
+  gitAvailable: boolean;
+  recents: Array<{ path: string; displayName: string }>;
+};
+
+export async function syncAppMenu(state: AppMenuSyncState): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) return;
+  await invoke("sync_app_menu", { state });
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MENU_SAVE_EVENT } from "../../lib/menu";
 import { basicSetup } from "codemirror";
 import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
 import { EditorView, Decoration, keymap, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
@@ -253,6 +254,14 @@ export function LedgerEditor({
       setIsSaving(false);
     }
   }, [activePath, onError, onSaved, onValidationChange, tabs, workspace.rootPath]);
+
+  useEffect(() => {
+    function handleMenuSave() {
+      void saveActiveFile();
+    }
+    window.addEventListener(MENU_SAVE_EVENT, handleMenuSave);
+    return () => window.removeEventListener(MENU_SAVE_EVENT, handleMenuSave);
+  }, [saveActiveFile]);
 
   useEffect(() => {
     if (!activeTab?.isDirty) return;

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { MENU_SAVE_EVENT, routeMenuEvent, type MenuHandlers } from "./lib/menu";
 import {
   AppShell,
   type RecentWorkspace,
@@ -45,6 +48,7 @@ import {
   updateWorkspaceMetadata,
   updateCategorizationRule,
   validateWorkspace,
+  syncAppMenu,
 } from "./lib/workspace/api";
 import type {
   AiAdapterConfig,
@@ -329,6 +333,40 @@ export default function App() {
       return next;
     });
   }
+
+  const menuHandlersRef = useRef<MenuHandlers | null>(null);
+  menuHandlersRef.current = {
+    navigate: handleNavigate,
+    openSettings: () => handleNavigate("settings"),
+    newWorkspace: handleCreateBlankWorkspace,
+    openWorkspace: () => void handleWelcomeOpenExistingWorkspace(),
+    openRecentWorkspace: (path) => void handleOpenWorkspace(path),
+    closeWorkspace: () => void handleCloseWorkspace(),
+    save: () => window.dispatchEvent(new CustomEvent(MENU_SAVE_EVENT)),
+    openCommandPalette: () => openCommandPalette("commands"),
+  };
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlisten = listen<string>("menu", (event) => {
+      const handlers = menuHandlersRef.current;
+      if (handlers) routeMenuEvent(event.payload, handlers);
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    void syncAppMenu({
+      workspaceOpen: view === "workspace" && Boolean(workspace),
+      gitAvailable: gitStatus.isRepository,
+      recents: recentWorkspaces
+        .filter((recent) => recent.exists !== false)
+        .map((recent) => ({ path: recent.path, displayName: recent.displayName })),
+    }).catch(() => undefined);
+  }, [view, workspace, gitStatus.isRepository, recentWorkspaces]);
 
   const updateBanner = updateNotice ? (
     <div className="update-banner" role="status" aria-live="polite">
