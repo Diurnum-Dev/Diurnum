@@ -3,8 +3,20 @@ import { isTauri } from "@tauri-apps/api/core";
 const EDITABLE_SELECTOR =
   'input, textarea, select, [contenteditable="true"], .cm-editor';
 
+/* Read-only surfaces whose text is selectable (see the native chrome block in
+   styles.css) — right-click copy must keep working on them. */
+const SELECTABLE_TEXT_SELECTOR =
+  "pre, code, .error-banner, .git-warning-banner, .git-file-path, .git-commit-hash";
+
 export function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(EDITABLE_SELECTOR) !== null;
+}
+
+export function isSelectableTextTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest(SELECTABLE_TEXT_SELECTOR) !== null
+  );
 }
 
 /**
@@ -15,7 +27,9 @@ export function initNativeChrome(): void {
   if (!isTauri()) return;
 
   window.addEventListener("contextmenu", (event) => {
-    if (!isEditableTarget(event.target)) event.preventDefault();
+    if (!isEditableTarget(event.target) && !isSelectableTextTarget(event.target)) {
+      event.preventDefault();
+    }
   });
 
   window.addEventListener("blur", () => {
