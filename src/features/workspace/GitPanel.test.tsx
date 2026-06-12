@@ -153,6 +153,12 @@ describe("GitPanel", () => {
       async approveTransferEntry() {
         throw new Error("not used");
       },
+      async revertTransferToStandard() {
+        throw new Error("not used");
+      },
+      async getKnownLedgerAccounts() {
+        return [];
+      },
       async listCategorizationRules() {
         throw new Error("not used");
       },
@@ -227,7 +233,7 @@ describe("GitPanel", () => {
       },
     };
 
-    const state = await window.__DIURNUM_TEST_API__.getGitPanelState("/tmp/Acme Studio");
+    const state = await window.__DIURNUM_TEST_API__!.getGitPanelState("/tmp/Acme Studio");
 
     render(
       <GitPanel
