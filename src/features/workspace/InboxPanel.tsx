@@ -216,7 +216,7 @@ function InboxGroup({
   return (
     <div className="inbox-group">
       <div className="inbox-group-head">{title}</div>
-      <div className="inbox-table" role="list">
+      <div className="inbox-table">
         {entries.map((entry) => {
           const selected = entry.statementRowId === selectedId;
           return (

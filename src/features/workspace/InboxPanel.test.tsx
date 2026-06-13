@@ -122,4 +122,50 @@ describe("InboxPanel", () => {
       "true",
     );
   });
+
+  it("moves selection up with the k key", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    // LYFT is selected by default; press j to move down, then k to move back up.
+    await user.keyboard("j");
+    expect(screen.getByRole("button", { name: /Transfer to savings/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.keyboard("k");
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("enters edit mode on the selected standard entry with the e key", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    // Click the matched entry — its inspector shows the suggestion card (Accept button), not the edit form.
+    await user.click(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ }));
+    expect(screen.queryByLabelText("Ledger Account")).toBeNull();
+
+    // Press e to open the edit form.
+    await user.keyboard("e");
+    expect(screen.getByLabelText("Ledger Account")).toBeInTheDocument();
+  });
+
+  it("approves the selected matched entry with the Enter key", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={onApprove} />);
+
+    // Select the matched entry.
+    await user.click(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ }));
+
+    // Press Enter to approve.
+    await user.keyboard("{Enter}");
+    expect(onApprove).toHaveBeenCalledWith({
+      statementRowId: "matched-1",
+      ledgerAccount: "Expenses:Software",
+    });
+  });
 });
