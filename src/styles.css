@@ -43,6 +43,18 @@ select {
   font: inherit;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 .app {
   min-height: 100vh;
 }
@@ -2922,24 +2934,6 @@ dd {
   .report-period-form,
   .reports-grid {
     grid-template-columns: 1fr;
-  }
-
-  .inbox-summary {
-    justify-items: start;
-  }
-
-  .inbox-row {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "date"
-      "desc"
-      "amount"
-      "source"
-      "badges";
-  }
-
-  .inbox-row-badges {
-    justify-content: flex-start;
   }
 
   .documents-file-header,
