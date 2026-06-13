@@ -116,4 +116,32 @@ describe("InboxInspector", () => {
       linkedStatementRowId: "row-3",
     });
   });
+
+  it("reverts a transfer that has no linked row", async () => {
+    const user = userEvent.setup();
+    const onRevertTransfer = vi.fn().mockResolvedValue(undefined);
+    render(
+      <InboxInspector
+        entry={entry({
+          statementRowId: "row-2",
+          kind: "transfer",
+          suggestedLedgerAccount: null,
+          aiSuggestion: null,
+          linkedStatementRow: null,
+        })}
+        ledgerStatus="valid"
+        editing={false}
+        onEditingChange={vi.fn()}
+        onApprove={vi.fn()}
+        onApproveTransfer={vi.fn()}
+        onRevertTransfer={onRevertTransfer}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Not a transfer — treat as expense" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Not a transfer — treat as expense" }));
+    expect(onRevertTransfer).toHaveBeenCalledWith({ statementRowId: "row-2" });
+  });
 });

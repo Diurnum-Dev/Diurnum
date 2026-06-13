@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
-import { formatInboxAmount, formatInboxDate, invertAmount } from "./inboxFormat";
+import { formatInboxAmount, formatInboxDate } from "./inboxFormat";
 
 type InboxInspectorProps = {
   entry: SuggestedEntry;
@@ -94,6 +94,7 @@ export function InboxInspector({
     }
   }
 
+  // Transfers are approved/reverted as-is; the edit-account form never applies to them.
   const showEditForm = !isTransfer && (editing || !suggestedAccount);
   const confidence = entry.aiSuggestion?.confidence;
 
@@ -118,7 +119,7 @@ export function InboxInspector({
           </div>
           <p className="inbox-suggestion-explanation">
             {linkedRow
-              ? `${linkedRow.sourceAmount} USD · ${linkedRow.description}`
+              ? `${formatInboxAmount(linkedRow.sourceAmount)} · ${linkedRow.description}`
               : "No counter-row found yet."}
           </p>
           <div className="inbox-suggestion-actions">
@@ -174,6 +175,7 @@ export function InboxInspector({
             <button
               className="secondary-button"
               type="button"
+              disabled={isSubmitting}
               onClick={() => onEditingChange(true)}
             >
               Edit
