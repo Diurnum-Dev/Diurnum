@@ -1319,6 +1319,7 @@ export default function App() {
         gitWarning={gitWarning}
         statusContext={activeScreen === "ledger" ? ledgerActiveFile : statusContextFor(activeScreen)}
         ledgerCursor={activeScreen === "ledger" ? ledgerCursor : null}
+        statusHints={activeScreen === "inbox" ? "⏎ Accept · J / K Navigate · E Edit" : null}
         switcherOpen={switcherOpen}
         onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
         onNavigate={handleNavigate}

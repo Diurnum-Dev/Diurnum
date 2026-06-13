@@ -29,6 +29,7 @@ type AppShellProps = {
   ledgerErrorCount: number;
   statusContext: string;
   ledgerCursor?: { line: number; column: number } | null;
+  statusHints?: ReactNode;
   switcherOpen: boolean;
   children: ReactNode;
   onToggleSwitcher: () => void;
@@ -75,6 +76,7 @@ export function AppShell({
   ledgerErrorCount,
   statusContext,
   ledgerCursor,
+  statusHints,
   switcherOpen,
   children,
   onToggleSwitcher,
@@ -280,6 +282,7 @@ export function AppShell({
           ) : (
             <>
               <span>{statusContext}</span>
+              {statusHints ? <span className="status-bar-hints">{statusHints}</span> : null}
               <span className="status-bar-right">
                 <span className={`ledger-status ledger-status--${ledgerStatus}`}>
                   {ledgerStatus === "valid" ? "Valid" : `${ledgerErrorCount} errors`}
