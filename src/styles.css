@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&display=swap");
 
 :root {
   color: #1C1A17;
@@ -15,6 +14,26 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+/* ── Parchment grain overlay ──────────────────────────────── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: var(--grain);
+  background-size: 180px 180px;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app,
+.app-shell,
+.app-shell--workspace {
+  position: relative;
+  z-index: 1;
 }
 
 button,
@@ -43,8 +62,8 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  border-right: 1px solid #EDEAE4;
-  background: rgba(251, 246, 236, 0.55);
+  border-right: var(--border-width) solid var(--color-border-strong);
+  background: var(--color-bg-muted);
   padding: 28px 24px;
 }
 
@@ -71,8 +90,7 @@ select {
   z-index: 60;
 }
 
-body.window-blurred .sidebar-stack,
-body.window-blurred .sidebar-footer {
+body.window-blurred .sidebar-stack {
   opacity: 0.6;
 }
 
@@ -87,10 +105,13 @@ body.window-blurred .sidebar-footer {
   height: 34px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 4px;
-  background: #243B6B;
-  color: #FEFCF8;
-  font-weight: 700;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: 1;
 }
 
 .sidebar-stack,
@@ -264,9 +285,10 @@ body.window-blurred .sidebar-footer {
 }
 
 .nav-item.active {
-  background: #E4E8F1;
-  color: #243B6B;
-  font-weight: 600;
+  background: var(--color-bg);
+  color: var(--color-accent);
+  font-weight: var(--weight-medium);
+  box-shadow: inset 2px 0 0 var(--color-accent), inset 0 0 0 1px var(--color-border);
 }
 
 .count-badge {
@@ -280,22 +302,22 @@ body.window-blurred .sidebar-footer {
   text-align: center;
 }
 
-.sidebar-footer {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-start;
-  padding: 12px 4px 0;
-  margin-top: auto;
+/* Sidebar footer removed: no account/user UI (local-first). The bottom of
+   the sidebar is reserved for a future remote sync / web-service surface.
+   See docs/adr/0002-sidebar-footer-reserved-for-sync.md. */
+
+.nav-caps--recent {
+  margin-top: var(--space-3);
 }
 
-.settings-gear {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 2px;
-  background: transparent;
-  color: #1C1A17;
+.nav-item--recent {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  min-height: 28px;
+}
+
+.nav-item--recent:hover {
+  color: var(--color-text);
 }
 
 .shell-main {
@@ -304,7 +326,7 @@ body.window-blurred .sidebar-footer {
   min-width: 0;
   min-height: 100vh;
   position: relative;
-  background: #FEFCF8;
+  background: var(--color-bg);
 }
 
 .shell-main--fill {
@@ -312,14 +334,26 @@ body.window-blurred .sidebar-footer {
   overflow: hidden;
 }
 
+/* Content screens use a tight uniform inset so titles/content don't touch the
+   window edges. The ledger overrides this with `--flush` (edge-to-edge). */
 .shell-main .main-pane {
-  padding: 34px 44px 72px;
+  padding: var(--space-6);
 }
 
 .main-pane--fill {
   height: 100%;
   overflow: hidden;
-  padding: 34px 44px 0;
+  padding: var(--space-6);
+}
+
+/* Ledger screen: flush (no padding) so editor fills edge-to-edge.
+   Scoped under .shell-main to outrank `.shell-main .main-pane`'s padding. */
+.shell-main .main-pane--flush {
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-note,
@@ -1082,21 +1116,56 @@ textarea {
 }
 
 .status-bar {
-  position: sticky;
-  bottom: 0;
   display: flex;
-  min-width: 0;
-  min-height: 28px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-top: 1px solid #EDEAE4;
-  background: #FBF6EC;
-  color: #6B6051;
-  padding: 8px 12px;
-  font-size: 0.84rem;
+  height: var(--shell-status-bar-height);
+  min-height: var(--shell-status-bar-height);
+  background: var(--color-bg-muted);
+  border-top: var(--border-width) solid var(--color-border-strong);
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  gap: var(--space-3);
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
+.status-bar-spacer {
+  flex: 1;
+}
+
+.status-bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.status-sep {
+  color: var(--color-border-strong);
+}
+
+.status-valid {
+  color: var(--color-accent);
+}
+
+.status-check {
+  width: 12px;
+  height: 12px;
+}
+
+.status-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  display: inline-block;
+}
+
+/* Legacy - kept for non-ledger screens */
 .status-bar > span,
 .status-bar-right {
   min-width: 0;
@@ -1117,11 +1186,11 @@ textarea {
 }
 
 .ledger-status--valid {
-  color: #243B6B;
+  color: var(--color-accent);
 }
 
 .ledger-status--invalid {
-  color: #A03228;
+  color: var(--color-destructive);
 }
 
 .status-pill {
@@ -1476,165 +1545,473 @@ dd {
   margin: 0 0 8px;
 }
 
+/* ── Ledger Editor ──────────────────────────────────────────── */
 .ledger-editor {
-  display: grid;
-  min-height: calc(100vh - 132px);
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.ledger-editor-alert,
-.ledger-editor-toolbar {
+.ledger-editor-alert {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.ledger-editor-alert {
-  border: 1px solid #B68A3E;
-  border-radius: 3px;
-  background: #F2E7CD;
-  color: #7A5A20;
+  border: 1px solid var(--color-highlight);
+  border-radius: var(--radius-md);
+  background: var(--color-highlight-bg);
+  color: var(--color-highlight-ink);
   padding: 10px 12px;
+  flex: none;
 }
 
+/* Toolbar is hidden — use native menu Save / keyboard shortcuts */
 .ledger-editor-toolbar {
-  color: #6B6051;
+  display: none;
 }
 
+/* ── 3-column layout: file-browser | editor-pane ── */
 .ledger-editor-layout {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  min-height: 620px;
-  border: 1px solid #EDEAE4;
-  border-radius: 3px;
+  grid-template-columns: 200px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
-  background: #FEFCF8;
 }
 
+/* ── File browser (tree) ─────────────────────────────────── */
 .ledger-file-tree {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  border-right: 1px solid #EDEAE4;
-  background: #FBF6EC;
-  padding: 10px;
+  background: var(--color-bg-muted);
+  border-right: var(--border-width) solid var(--color-border-strong);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  flex: none;
 }
 
-.ledger-file-tree button,
-.command-results button {
-  min-width: 0;
-  border: 0;
-  border-radius: 2px;
+.ledger-file-tree-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 36px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  flex: none;
+}
+
+.ledger-file-tree-title {
+  flex: 1;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ledger-file-tree-icon-btn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-subtle);
+  flex: none;
   background: transparent;
-  color: #1C1A17;
+  border: 0;
   cursor: default;
-  padding: 8px 10px;
+  transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+}
+
+.ledger-file-tree-icon-btn:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+.ledger-file-tree-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-1) 0 var(--space-6);
+}
+
+.ledger-file-tree-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ledger-file-tree-body::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.ledger-file-tree-body::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+.ledger-tree-root-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: default;
+  white-space: nowrap;
+  transition: color var(--duration-fast) var(--easing);
+  user-select: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
   text-align: left;
+}
+
+.ledger-tree-root-label:hover {
+  color: var(--color-text);
+}
+
+.ledger-tree-root-label .root-chev {
+  transition: transform 0.12s ease;
+  flex: none;
+}
+
+.ledger-tree-root-label.collapsed .root-chev {
+  transform: rotate(-90deg);
+}
+
+/* tree-item: shared for files and folders */
+.ledger-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-text);
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  padding-right: var(--space-3);
+  transition: background var(--duration-fast) var(--easing);
+  user-select: none;
+  position: relative;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.ledger-tree-item:hover {
+  background: var(--color-bg-subtle);
+}
+
+.ledger-tree-item .tree-chev {
+  flex: none;
+  color: var(--color-text-subtle);
+  transition: transform 0.12s ease;
+}
+
+.ledger-tree-item.collapsed .tree-chev {
+  transform: rotate(-90deg);
+}
+
+.ledger-tree-item .folder-icon {
+  color: var(--color-text-muted);
+  flex: none;
+}
+
+.ledger-tree-item .file-icon {
+  color: var(--color-text-subtle);
+  flex: none;
+}
+
+.ledger-tree-item span.label {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ledger-file-tree button:hover,
-.command-results button:hover {
-  background: #FCF9F2;
-}
-
-.ledger-file-tree button.active {
-  background: #FEFCF8;
-  color: #243B6B;
-  font-weight: 600;
-}
-
-.ledger-editor-pane {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
 }
 
+.ledger-tree-item.active {
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+  font-weight: var(--weight-medium);
+}
+
+.ledger-tree-item.active .folder-icon,
+.ledger-tree-item.active .file-icon {
+  color: var(--color-accent);
+}
+
+/* ── Editor pane ─────────────────────────────────────────── */
+.ledger-editor-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.ledger-tabbar {
+  display: flex;
+  height: var(--shell-tab-bar-height);
+  background: var(--color-bg);
+  border-bottom: var(--border-width) solid var(--color-border);
+  flex: none;
+}
+
+/* Scrollable tab list. Not a drag region — tabs take full click precedence.
+   `flex: 0 1 auto` lets it shrink/scroll while the drag zone keeps its width. */
 .ledger-tabs {
   display: flex;
+  flex: 0 1 auto;
   min-width: 0;
+  height: 100%;
   overflow-x: auto;
-  border-bottom: 1px solid #EDEAE4;
-  background: #FBF6EC;
-  height: 36px;
 }
 
 .ledger-tabs > button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
   border: 0;
-  border-right: 1px solid #EDEAE4;
+  border-right: var(--border-width) solid var(--color-border);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
-  color: #6B6051;
   cursor: default;
-  padding: 0 12px;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing);
+}
+
+.ledger-tabs > button:hover {
+  background: var(--color-bg-subtle);
 }
 
 .ledger-tabs > button.active {
-  background: #FEFCF8;
-  color: #1C1A17;
-  font-weight: 600;
-  box-shadow: inset 0 -2px 0 #243B6B;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border-bottom-color: var(--color-accent);
 }
 
-.ledger-tabs [role="button"] {
-  color: #938775;
-  font-weight: 500;
+.ledger-tabs .tab-close {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-subtle);
+  opacity: 0;
+  margin-right: -4px;
+  transition: opacity var(--duration-fast) var(--easing);
 }
 
+.ledger-tabs > button:hover .tab-close,
+.ledger-tabs > button.active .tab-close {
+  opacity: 1;
+}
+
+.ledger-tabs .tab-close:hover {
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.tab-modified-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-subtle);
+  display: inline-block;
+  flex: none;
+}
+
+/* Reserved drag zone to the right of the tabs. Grows to fill empty space when
+   few tabs are open, but never shrinks below 80px — so there is always a
+   tab-free surface to drag the window even with many tabs open. */
+.ledger-tab-dragzone {
+  flex: 1 1 80px;
+  min-width: 80px;
+  height: 100%;
+}
+
+/* ── CodeMirror ──────────────────────────────────────────── */
 .codemirror-host {
+  flex: 1;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .codemirror-host .cm-editor {
   height: 100%;
-  min-height: 580px;
-  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 0.92rem;
+  background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
 }
 
 .codemirror-host .cm-scroller {
   overflow: auto;
+  line-height: 1.65;
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-16);
 }
 
 .codemirror-host .cm-content {
   white-space: pre;
+  line-height: 1.65;
 }
 
+/* CodeMirror's base theme sets line-height on .cm-line, overriding the
+   editor cascade — force the airy ledger rhythm to match the mockup. */
+.codemirror-host .cm-line {
+  line-height: 1.65;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Gutter: subtle, right-aligned, tabular nums, no border */
+.codemirror-host .cm-gutters {
+  background: var(--color-bg);
+  border-right: none;
+  color: var(--color-text-subtle);
+  min-width: 56px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.codemirror-host .cm-lineNumbers .cm-gutterElement {
+  text-align: right;
+  padding-right: var(--space-3);
+  padding-left: var(--space-1);
+}
+
+/* Active line: use the editor-active-block token, not CM gray */
+.codemirror-host .cm-activeLine {
+  background: var(--color-editor-active-block);
+}
+
+.codemirror-host .cm-activeLineGutter {
+  background: var(--color-editor-active-block);
+}
+
+/* Fold gutter: hide fold chevrons (keep keymap) */
+.codemirror-host .cm-foldGutter,
+.codemirror-host .cm-gutterElement.cm-foldPlaceholder {
+  display: none;
+}
+.codemirror-host .cm-gutters > .cm-gutter.cm-foldGutter {
+  width: 0;
+  overflow: hidden;
+}
+
+/* Lint gutter: keep error dots */
+.codemirror-host .cm-lintRange-error {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2.5 L1.5 1 L3 2.5 L4.5 1 L6 2.5' fill='none' stroke='%23A03228' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+}
+
+/* Transaction block highlight */
 .cm-current-transaction {
-  background: #FEFCF8;
+  background: var(--color-editor-active-block);
 }
 
+/* Amounts: medium weight */
 .cm-bean-amount {
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 
+/* Strings: gilt tint */
 .cm-bean-string {
-  border-radius: 3px;
-  background: #F2E7CD;
+  border-radius: 2px;
+  background: var(--color-editor-string-bg);
+  padding: 1px 2px;
 }
 
+/* Ghost completion */
 .cm-ghost-completion {
-  color: #A89C88;
+  color: var(--color-editor-ghost-text);
   pointer-events: none;
   white-space: pre;
 }
 
+/* Ghost hint pill ("Tab to accept") */
+.cm-ghost-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--space-3);
+  padding: 2px 8px;
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  vertical-align: 1px;
+}
+
+.cm-ghost-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-border);
+  color: var(--color-text);
+  line-height: 1;
+}
+
+/* Include links */
 .cm-include-link {
   cursor: default;
   text-decoration: underline;
   text-decoration-style: dotted;
 }
 
+/* Error underline: wavy oxblood */
 .cm-ledger-error {
-  text-decoration: underline wavy #C94034;
-  text-underline-offset: 2px;
+  text-decoration: underline wavy var(--color-destructive);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+/* Lint/diagnostic tooltip: dark */
+.cm-tooltip.cm-tooltip-lint,
+.cm-tooltip {
+  background: var(--color-text) !important;
+  color: var(--color-bg) !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-xs) !important;
+  box-shadow: var(--shadow-subtle) !important;
+}
+
+.cm-diagnostic {
+  background: transparent !important;
+  color: var(--color-bg) !important;
+  border-left: none !important;
+  padding: 6px 10px !important;
+}
+
+.cm-diagnostic-error {
+  border-left: none !important;
 }
 
 .command-popover {

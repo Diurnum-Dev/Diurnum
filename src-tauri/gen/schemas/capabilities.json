@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default capabilities for the Diurnum desktop app.","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-badge-count","dialog:allow-open","opener:allow-open-path","window-state:default"]}}
+{"default":{"identifier":"default","description":"Default capabilities for the Diurnum desktop app.","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-badge-count","core:window:allow-start-dragging","dialog:allow-open","opener:allow-open-path","window-state:default"]}}

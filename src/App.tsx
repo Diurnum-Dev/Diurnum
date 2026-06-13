@@ -156,6 +156,7 @@ export default function App() {
   const [gitHookOutput, setGitHookOutput] = useState<string | null>(null);
   const [ledgerRequestedCursor, setLedgerRequestedCursor] = useState<number | null>(null);
   const [ledgerRequestedVersion, setLedgerRequestedVersion] = useState(0);
+  const [ledgerCursor, setLedgerCursor] = useState<{ line: number; column: number } | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandPaletteMode, setCommandPaletteMode] =
     useState<CommandPaletteMode>("commands");
@@ -168,6 +169,7 @@ export default function App() {
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
     loadRecentWorkspaces,
   );
+  const [recentLedgerFiles, setRecentLedgerFiles] = useState<string[]>([]);
   const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
   const [error, setError] = useState<string | null>(null);
   const gitBackupTimerRef = useRef<number | null>(null);
@@ -191,6 +193,14 @@ export default function App() {
   useEffect(() => {
     saveUpdatePrefs(updatePrefs);
   }, [updatePrefs]);
+
+  useEffect(() => {
+    if (!ledgerActiveFile) return;
+    setRecentLedgerFiles((prev) => {
+      const deduped = [ledgerActiveFile, ...prev.filter((f) => f !== ledgerActiveFile)];
+      return deduped.slice(0, 5);
+    });
+  }, [ledgerActiveFile]);
 
   useEffect(() => {
     if (!updatePrefs.checkOnLaunch) {
@@ -312,6 +322,14 @@ export default function App() {
     setLedgerRequestedCursor(cursor);
     setLedgerRequestedVersion((current) => current + 1);
     setCommandPaletteOpen(false);
+    setSwitcherOpen(false);
+  }
+
+  function handleOpenRecentLedgerFile(relativePath: string) {
+    setActiveScreen("ledger");
+    setLedgerRequestedFile(relativePath);
+    setLedgerRequestedCursor(null);
+    setLedgerRequestedVersion((current) => current + 1);
     setSwitcherOpen(false);
   }
 
@@ -1294,18 +1312,20 @@ export default function App() {
         activeScreen={activeScreen}
         pendingInboxCount={suggestedEntries.length}
         recentWorkspaces={recentWorkspaces}
+        recentLedgerFiles={recentLedgerFiles}
         gitStatus={gitStatus}
         ledgerStatus={workspace.ledgerStatus}
         ledgerErrorCount={workspace.ledgerValidation.errors.length}
         gitWarning={gitWarning}
         statusContext={activeScreen === "ledger" ? ledgerActiveFile : statusContextFor(activeScreen)}
+        ledgerCursor={activeScreen === "ledger" ? ledgerCursor : null}
         switcherOpen={switcherOpen}
         onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
         onNavigate={handleNavigate}
         onOpenRecentWorkspace={handleOpenRecentWorkspace}
         onRemoveRecentWorkspace={handleRemoveRecentWorkspace}
         onOpenExistingWorkspace={handleOpenExistingWorkspace}
-        onCloseWorkspace={handleCloseWorkspace}
+        onOpenRecentFile={handleOpenRecentLedgerFile}
       >
         {updateBanner}
         {activeScreen === "ledger" ? (
@@ -1319,6 +1339,7 @@ export default function App() {
             onValidationChange={handleLedgerValidationChange}
             onSaved={handleLedgerFileSaved}
             onError={setError}
+            onCursorChange={setLedgerCursor}
           />
         ) : activeScreen === "inbox" ? (
           <InboxPanel

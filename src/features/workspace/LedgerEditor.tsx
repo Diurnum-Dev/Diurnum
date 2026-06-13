@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { MENU_SAVE_EVENT } from "../../lib/menu";
 import { basicSetup } from "codemirror";
 import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
@@ -34,6 +34,7 @@ type LedgerEditorProps = {
   onValidationChange: (validation: LedgerValidationSummary) => void;
   onSaved?: (relativePath: string) => void | Promise<void>;
   onError: (message: string | null) => void;
+  onCursorChange?: (cursor: { line: number; column: number }) => void;
 };
 
 type OpenTab = LedgerEditorTabSession & {
@@ -60,6 +61,7 @@ export function LedgerEditor({
   onValidationChange,
   onSaved,
   onError,
+  onCursorChange,
 }: LedgerEditorProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -407,16 +409,6 @@ export function LedgerEditor({
         </div>
       ) : null}
 
-      <div className="ledger-editor-toolbar">
-        <button className="secondary-button" type="button" onClick={() => setCommandOpen(true)}>
-          Open file
-        </button>
-        <button className="secondary-button" type="button" onClick={() => void saveActiveFile()}>
-          Save
-        </button>
-        <span>{isSaving ? "Saving..." : activeTab.isDirty ? "Unsaved" : "Saved"}</span>
-      </div>
-
       {commandOpen ? (
         <div className="command-popover" role="dialog" aria-label="Open file">
           <input
@@ -448,21 +440,17 @@ export function LedgerEditor({
       ) : null}
 
       <div className="ledger-editor-layout">
-        <aside className="ledger-file-tree" aria-label="Ledger files">
-          {files.map((file) => (
-            <button
-              className={file === activePath ? "active" : ""}
-              type="button"
-              key={file}
-              onClick={() => void openFile(file)}
-            >
-              {file}
-            </button>
-          ))}
-        </aside>
+        <LedgerFileTree
+          files={files}
+          activePath={activePath}
+          workspaceName={workspace.businessName}
+          onOpenFile={(file) => void openFile(file)}
+          onOpenCommandPalette={() => setCommandOpen(true)}
+        />
 
         <div className="ledger-editor-pane">
-          <div className="ledger-tabs" role="tablist" aria-label="Open ledger files">
+          <div className="ledger-tabbar">
+            <div className="ledger-tabs" role="tablist" aria-label="Open ledger files">
             {tabs.map((tab) => (
               <button
                 className={tab.relativePath === activePath ? "active" : ""}
@@ -473,8 +461,11 @@ export function LedgerEditor({
                 onClick={() => setActivePath(tab.relativePath)}
               >
                 <span>{shortName(tab.relativePath)}</span>
-                {tab.isDirty ? <span aria-label="Unsaved changes">*</span> : null}
+                {tab.isDirty ? (
+                  <span className="tab-modified-dot" aria-label="Unsaved changes" />
+                ) : null}
                 <span
+                  className="tab-close"
                   role="button"
                   tabIndex={0}
                   aria-label={`Close ${tab.relativePath}`}
@@ -490,10 +481,19 @@ export function LedgerEditor({
                     }
                   }}
                 >
-                  x
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 6l12 12" />
+                    <path d="M6 18L18 6" />
+                  </svg>
                 </span>
               </button>
             ))}
+            </div>
+            <div
+              className="ledger-tab-dragzone"
+              data-tauri-drag-region
+              aria-hidden="true"
+            />
           </div>
           <CodeMirrorEditor
             key={activePath}
@@ -508,10 +508,274 @@ export function LedgerEditor({
             onReopenTab={reopenClosedTab}
             onOpenInclude={(relativePath) => void openFile(relativePath)}
             onDismissCompletion={() => setPredictiveCompletion(null)}
+            onCursorChange={onCursorChange}
           />
         </div>
       </div>
     </section>
+  );
+}
+
+// ── File tree types ────────────────────────────────────────────
+
+type TreeNode =
+  | { kind: "file"; name: string; relativePath: string }
+  | { kind: "folder"; name: string; children: TreeNode[] };
+
+function buildTree(files: string[]): TreeNode[] {
+  const root: TreeNode[] = [];
+  for (const relativePath of files) {
+    const parts = relativePath.split("/");
+    let nodes = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const folderName = parts[i];
+      let folder = nodes.find(
+        (n): n is Extract<TreeNode, { kind: "folder" }> =>
+          n.kind === "folder" && n.name === folderName,
+      );
+      if (!folder) {
+        folder = { kind: "folder", name: folderName, children: [] };
+        nodes.push(folder);
+      }
+      nodes = folder.children;
+    }
+    nodes.push({ kind: "file", name: parts[parts.length - 1], relativePath });
+  }
+  return root;
+}
+
+// ── LedgerFileTree component ───────────────────────────────────
+
+type LedgerFileTreeProps = {
+  files: string[];
+  activePath: string;
+  workspaceName: string;
+  onOpenFile: (relativePath: string) => void;
+  onOpenCommandPalette: () => void;
+};
+
+function LedgerFileTree({
+  files,
+  activePath,
+  workspaceName,
+  onOpenFile,
+  onOpenCommandPalette,
+}: LedgerFileTreeProps) {
+  const tree = useMemo(() => buildTree(files), [files]);
+  const [rootCollapsed, setRootCollapsed] = useState(false);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+
+  function toggleFolder(path: string) {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  function collapseAll() {
+    const allFolderPaths = new Set<string>();
+    function collect(nodes: TreeNode[], prefix: string) {
+      for (const node of nodes) {
+        if (node.kind === "folder") {
+          const path = prefix ? `${prefix}/${node.name}` : node.name;
+          allFolderPaths.add(path);
+          collect(node.children, path);
+        }
+      }
+    }
+    collect(tree, "");
+    setCollapsedFolders(allFolderPaths);
+  }
+
+  return (
+    <aside className="ledger-file-tree" aria-label="Ledger files">
+      <div className="ledger-file-tree-head" data-tauri-drag-region>
+        <span className="ledger-file-tree-title" data-tauri-drag-region>Explorer</span>
+        <button
+          className="ledger-file-tree-icon-btn"
+          type="button"
+          title="New file"
+          aria-label="New file"
+          onClick={onOpenCommandPalette}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+            <path d="M12 18v-6" />
+            <path d="M9 15h6" />
+          </svg>
+        </button>
+        <button
+          className="ledger-file-tree-icon-btn"
+          type="button"
+          title="New folder"
+          aria-label="New folder"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            <path d="M12 13v4" />
+            <path d="M10 15h4" />
+          </svg>
+        </button>
+        <button
+          className="ledger-file-tree-icon-btn"
+          type="button"
+          title="Collapse all"
+          aria-label="Collapse all"
+          onClick={collapseAll}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 6h16" />
+            <path d="M4 12h10" />
+            <path d="M4 18h4" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="ledger-file-tree-body" role="tree">
+        <button
+          className={`ledger-tree-root-label${rootCollapsed ? " collapsed" : ""}`}
+          type="button"
+          role="treeitem"
+          aria-expanded={!rootCollapsed}
+          onClick={() => setRootCollapsed((c) => !c)}
+        >
+          <svg
+            className="root-chev"
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+          {workspaceName.toLowerCase()}
+        </button>
+
+        {!rootCollapsed && (
+          <div role="group">
+            <TreeNodes
+              nodes={tree}
+              activePath={activePath}
+              collapsedFolders={collapsedFolders}
+              pathPrefix=""
+              depth={0}
+              onOpenFile={onOpenFile}
+              onToggleFolder={toggleFolder}
+            />
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+type TreeNodesProps = {
+  nodes: TreeNode[];
+  activePath: string;
+  collapsedFolders: Set<string>;
+  pathPrefix: string;
+  depth: number;
+  onOpenFile: (relativePath: string) => void;
+  onToggleFolder: (path: string) => void;
+};
+
+const FILE_ICON = (
+  <svg className="file-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+  </svg>
+);
+
+const FOLDER_ICON = (
+  <svg className="folder-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const CHEV_ICON = (
+  <svg className="tree-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+function TreeNodes({
+  nodes,
+  activePath,
+  collapsedFolders,
+  pathPrefix,
+  depth,
+  onOpenFile,
+  onToggleFolder,
+}: TreeNodesProps) {
+  // Indent: root files at 20px, each depth adds 12px. Folders start at 8px for depth=0.
+  const filePadding = depth === 0 ? 20 : 20 + depth * 12;
+  const folderPadding = depth === 0 ? 8 : 8 + depth * 12;
+
+  return (
+    <>
+      {nodes.map((node) => {
+        if (node.kind === "file") {
+          const isActive = node.relativePath === activePath;
+          return (
+            <button
+              key={node.relativePath}
+              className={`ledger-tree-item${isActive ? " active" : ""}`}
+              style={{ paddingLeft: filePadding }}
+              type="button"
+              role="treeitem"
+              aria-selected={isActive}
+              aria-label={node.name}
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => onOpenFile(node.relativePath)}
+            >
+              {FILE_ICON}
+              <span className="label">{node.name}</span>
+            </button>
+          );
+        } else {
+          const folderPath = pathPrefix ? `${pathPrefix}/${node.name}` : node.name;
+          const isCollapsed = collapsedFolders.has(folderPath);
+          return (
+            <Fragment key={folderPath}>
+              <button
+                className={`ledger-tree-item${isCollapsed ? " collapsed" : ""}`}
+                style={{ paddingLeft: folderPadding }}
+                type="button"
+                role="treeitem"
+                aria-expanded={!isCollapsed}
+                tabIndex={0}
+                onClick={() => onToggleFolder(folderPath)}
+              >
+                {CHEV_ICON}
+                {FOLDER_ICON}
+                <span className="label">{node.name}</span>
+              </button>
+              {!isCollapsed && (
+                <div role="group">
+                  <TreeNodes
+                    nodes={node.children}
+                    activePath={activePath}
+                    collapsedFolders={collapsedFolders}
+                    pathPrefix={folderPath}
+                    depth={depth + 1}
+                    onOpenFile={onOpenFile}
+                    onToggleFolder={onToggleFolder}
+                  />
+                </div>
+              )}
+            </Fragment>
+          );
+        }
+      })}
+    </>
   );
 }
 
@@ -527,6 +791,7 @@ type CodeMirrorEditorProps = {
   onReopenTab: () => void;
   onOpenInclude: (relativePath: string) => void;
   onDismissCompletion: () => void;
+  onCursorChange?: (cursor: { line: number; column: number }) => void;
 };
 
 function CodeMirrorEditor({
@@ -541,6 +806,7 @@ function CodeMirrorEditor({
   onReopenTab,
   onOpenInclude,
   onDismissCompletion,
+  onCursorChange,
 }: CodeMirrorEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -554,6 +820,7 @@ function CodeMirrorEditor({
     onReopenTab,
     onOpenInclude,
     onDismissCompletion,
+    onCursorChange,
   });
 
   useEffect(() => {
@@ -565,8 +832,9 @@ function CodeMirrorEditor({
       onReopenTab,
       onOpenInclude,
       onDismissCompletion,
+      onCursorChange,
     };
-  }, [completionText, onChange, onSave, onCloseTab, onReopenTab, onOpenInclude, onDismissCompletion]);
+  }, [completionText, onChange, onSave, onCloseTab, onReopenTab, onOpenInclude, onDismissCompletion, onCursorChange]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -636,11 +904,18 @@ function CodeMirrorEditor({
           ]),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged && !update.selectionSet && !update.viewportChanged) return;
+            const head = update.state.selection.main.head;
             callbacksRef.current.onChange(
               update.state.doc.toString(),
-              update.state.selection.main.head,
+              head,
               update.view.scrollDOM.scrollTop,
             );
+            if (update.selectionSet || update.docChanged) {
+              const cursorLine = update.state.doc.lineAt(head);
+              const lineNumber = cursorLine.number;
+              const column = head - cursorLine.from + 1;
+              callbacksRef.current.onCursorChange?.({ line: lineNumber, column });
+            }
           }),
         ],
       }),
@@ -648,6 +923,13 @@ function CodeMirrorEditor({
     viewRef.current = view;
     window.requestAnimationFrame(() => {
       view.scrollDOM.scrollTop = scrollTop;
+      // Emit initial cursor position
+      const head = view.state.selection.main.head;
+      const cursorLine = view.state.doc.lineAt(head);
+      callbacksRef.current.onCursorChange?.({
+        line: cursorLine.number,
+        column: head - cursorLine.from + 1,
+      });
     });
     return () => {
       view.destroy();
@@ -686,10 +968,17 @@ class GhostCompletionWidget extends WidgetType {
   }
 
   toDOM() {
-    const element = document.createElement("span");
-    element.className = "cm-ghost-completion";
-    element.textContent = this.text;
-    return element;
+    const wrap = document.createElement("span");
+    const ghost = document.createElement("span");
+    ghost.className = "cm-ghost-completion";
+    ghost.textContent = this.text;
+    const hint = document.createElement("span");
+    hint.className = "cm-ghost-hint";
+    const kbd = document.createElement("kbd");
+    kbd.textContent = "Tab";
+    hint.append(kbd, document.createTextNode("to accept"));
+    wrap.append(ghost, hint);
+    return wrap;
   }
 
   ignoreEvent() {

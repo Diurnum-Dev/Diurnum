@@ -26,6 +26,7 @@ function renderShell(
     activeScreen: "ledger",
     pendingInboxCount: 3,
     recentWorkspaces,
+    recentLedgerFiles: [],
     gitStatus: {
       isRepository: false,
       branchName: null,
@@ -41,7 +42,7 @@ function renderShell(
     onOpenRecentWorkspace: vi.fn(),
     onRemoveRecentWorkspace: vi.fn(),
     onOpenExistingWorkspace: vi.fn(),
-    onCloseWorkspace: vi.fn(),
+    onOpenRecentFile: vi.fn(),
     children: <div>Workspace content</div>,
     ...overrides,
   };
@@ -60,8 +61,10 @@ describe("AppShell", () => {
       "page",
     );
     expect(screen.getByRole("button", { name: /Inbox 3/ })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Settings/ })).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Close Workspace" })).toBeInTheDocument();
+    // Settings is reached via the nav list; the sidebar footer is intentionally
+    // empty (no account/user UI — local-first).
+    expect(screen.getByRole("button", { name: /Settings/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close Workspace" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Git/ })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Workspace status")).toHaveTextContent("main.bean");
     expect(screen.getByLabelText("Workspace status")).toHaveTextContent("Valid");
@@ -118,22 +121,47 @@ describe("AppShell", () => {
     expect(onOpenExistingWorkspace).toHaveBeenCalledOnce();
   });
 
-  it("closes the current Workspace from the sidebar footer", async () => {
+  it("shows recent ledger files and opens the file when clicked", async () => {
     const user = userEvent.setup();
-    const onCloseWorkspace = vi.fn();
+    const onOpenRecentFile = vi.fn();
 
-    renderShell({ onCloseWorkspace });
+    renderShell({
+      recentLedgerFiles: ["2026-05.bean", "accounts.bean"],
+      onOpenRecentFile,
+    });
 
-    await user.click(screen.getByRole("button", { name: "Close Workspace" }));
+    expect(screen.getByRole("button", { name: /2026-05\.bean/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /accounts\.bean/ })).toBeInTheDocument();
 
-    expect(onCloseWorkspace).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: /2026-05\.bean/ }));
+    expect(onOpenRecentFile).toHaveBeenCalledWith("2026-05.bean");
   });
 
-  it("renders window drag regions for the hidden title bar", () => {
+  it("hides the Recent group when there are no recent files", () => {
+    renderShell({ recentLedgerFiles: [] });
+    expect(screen.queryByText("Recent")).not.toBeInTheDocument();
+  });
+
+  it("keeps the sidebar footer empty (no account/user UI)", () => {
+    renderShell();
+    expect(screen.queryByRole("button", { name: "Open Settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close Workspace" })).not.toBeInTheDocument();
+  });
+
+  it("renders the sidebar title-bar drag region for the hidden title bar", () => {
     renderShell();
     expect(
       document.querySelector(".sidebar-titlebar[data-tauri-drag-region]"),
     ).not.toBeNull();
+  });
+
+  it("omits the full-width top drag strip on the ledger screen", () => {
+    renderShell({ activeScreen: "ledger" });
+    expect(document.querySelector(".window-drag-strip")).toBeNull();
+  });
+
+  it("renders the full-width top drag strip on non-ledger screens", () => {
+    renderShell({ activeScreen: "inbox" });
     expect(
       document.querySelector(".window-drag-strip[data-tauri-drag-region]"),
     ).not.toBeNull();
