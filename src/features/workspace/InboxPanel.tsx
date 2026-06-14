@@ -166,9 +166,8 @@ export function InboxPanel({
             <p className="eyebrow">Inbox</p>
             <h2>No pending Statement Rows</h2>
             <p>
-              Imported rows will appear here when they are waiting for review. Approving a row
-              removes it and advances you to the next one, so you can keep triaging without
-              leaving the Inbox.
+              Imported rows will appear here when they are waiting for review. Approved rows
+              disappear from the Inbox and return you to the Ledger Editor.
             </p>
           </section>
         </>
