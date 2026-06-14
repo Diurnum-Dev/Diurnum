@@ -352,10 +352,10 @@ body.window-blurred .sidebar-stack {
   padding: var(--space-6);
 }
 
-.main-pane--fill {
+.shell-main .main-pane--fill {
   height: 100%;
   overflow: hidden;
-  padding: var(--space-6);
+  padding: 0;
 }
 
 /* Ledger screen: flush (no padding) so editor fills edge-to-edge.
@@ -1191,6 +1191,11 @@ textarea {
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
+  margin-left: auto;
+}
+
+.status-bar-hints + .status-bar-right {
+  margin-left: var(--space-3);
 }
 
 .ledger-status {
@@ -2217,16 +2222,59 @@ dd {
 }
 
 .inbox-panel {
+  --inbox-date-col: 64px;
+  --inbox-tag-col: minmax(180px, 300px);
+  --inbox-amount-col: 100px;
+  --inbox-icon-col: 28px;
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  gap: 16px;
+  background: var(--color-bg);
 }
 
 .inbox-header {
-  margin-bottom: 0;
-  padding-bottom: 4px;
+  flex: none;
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-8) var(--space-8) var(--space-5);
+}
+
+.inbox-header .eyebrow {
+  display: none;
+}
+
+.inbox-header h1 {
+  margin: 0 0 6px;
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: 0.005em;
+}
+
+.inbox-header .page-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}
+
+.inbox-header .pill-count {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  margin-right: 3px;
+}
+
+.inbox-header .dot-sep {
+  margin: 0 var(--space-3);
+  color: var(--color-text-subtle);
 }
 
 .inbox-empty-state {
@@ -2237,6 +2285,7 @@ dd {
   border-radius: 3px;
   background: var(--color-bg);
   padding: 20px;
+  margin: var(--space-6) var(--space-8);
 }
 
 .inbox-toolbar {
@@ -2245,8 +2294,10 @@ dd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border);
+  flex: none;
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  padding: var(--space-3) var(--space-8);
 }
 
 .inbox-filters {
@@ -2258,24 +2309,29 @@ dd {
 .inbox-filter {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: var(--text-md);
+  line-height: 1;
 }
 
 .inbox-filter-label {
-  font-weight: 600;
+  font-weight: var(--weight-normal);
 }
 
 .inbox-select {
   height: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
+  min-width: 178px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
   background: var(--color-bg);
   color: var(--color-text);
-  padding: 0 8px;
+  padding: 0 var(--space-3);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  cursor: default;
 }
 
 .inbox-select:focus-visible {
@@ -2286,50 +2342,66 @@ dd {
 
 .inbox-tabs {
   display: inline-flex;
+  align-items: center;
   gap: 2px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-muted);
+  padding: 2px;
 }
 
 .inbox-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: 2px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  padding: 0 10px;
+  padding: 0 var(--space-3);
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+  line-height: 1;
   cursor: default;
 }
 
 .inbox-tab:hover {
-  background: var(--color-bg-subtle);
+  color: var(--color-text);
 }
 
 .inbox-tab--active {
-  background: var(--color-accent-bg);
-  color: var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.04);
+  font-weight: var(--weight-medium);
 }
 
 .inbox-tab-count {
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
   color: var(--color-text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .inbox-tab--active .inbox-tab-count {
-  color: var(--color-accent);
+  color: var(--color-text-muted);
 }
 
 .inbox-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width);
   flex: 1;
   min-height: 0;
+}
+
+.inbox-content-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .inbox-list-col,
@@ -2341,7 +2413,8 @@ dd {
 .inbox-list-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  flex: 1;
+  gap: 0;
   overflow-y: auto;
 }
 
@@ -2349,13 +2422,24 @@ dd {
   position: sticky;
   top: 0;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   background: var(--color-bg);
-  padding: 8px 0 6px;
-  color: var(--color-text-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  border-bottom: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: var(--space-3) var(--space-8) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.inbox-group-head::after {
+  content: "";
+  height: var(--border-width);
+  flex: 1;
+  background: var(--color-border);
 }
 
 .inbox-table {
@@ -2365,18 +2449,22 @@ dd {
 
 .inbox-row {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto auto 18px;
+  grid-template-columns:
+    var(--inbox-date-col) minmax(0, 1fr) var(--inbox-tag-col)
+    var(--inbox-amount-col) var(--inbox-icon-col);
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
   width: 100%;
   border: none;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-width) solid var(--color-border);
   border-radius: 0;
   background: transparent;
-  padding: 10px 8px;
+  min-height: 44px;
+  padding: 0 var(--space-8);
   color: var(--color-text);
   text-align: left;
   cursor: default;
+  transition: background var(--duration-fast) var(--easing);
 }
 
 .inbox-row:hover {
@@ -2385,12 +2473,14 @@ dd {
 
 .inbox-row--selected {
   background: var(--color-accent-bg);
+  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 .inbox-row-date {
-  color: var(--color-text-subtle);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .inbox-row-desc {
@@ -2398,25 +2488,30 @@ dd {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
 }
 
 .inbox-row-tags {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
+  min-width: 0;
 }
 
 .inbox-row-amount {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 13px;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .inbox-row-glyph {
   display: inline-flex;
+  justify-content: center;
   color: var(--color-text-subtle);
 }
 
@@ -2424,20 +2519,24 @@ dd {
 .pending-at-import-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
-  border-radius: 2px;
-  padding: 1px 6px;
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 500;
+  max-width: 100%;
+  min-height: 22px;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1;
   white-space: nowrap;
 }
 
 .pending-at-import-badge {
-  border: 1px solid var(--color-highlight);
+  border: var(--border-width) solid var(--color-highlight);
   background: var(--color-highlight-bg);
   color: var(--color-highlight-ink);
-  font-family: inherit;
+  font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2454,59 +2553,68 @@ dd {
   color: var(--color-highlight-ink);
 }
 
+.inbox-chip--uncategorized {
+  border: var(--border-width) dashed var(--color-border-strong);
+  background: var(--color-bg-muted);
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
 .inbox-inspector {
-  border-left: 1px solid var(--color-border);
-  padding-left: 20px;
+  border-left: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
   overflow-y: auto;
 }
 
 .inbox-inspector-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
 }
 
 .inbox-inspector-head {
   display: grid;
-  gap: 6px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-1);
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-5) var(--space-5) var(--space-4);
 }
 
 .insp-eyebrow,
 .inbox-section-label {
-  color: var(--color-text-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inbox-inspector-amount {
   color: var(--color-text);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 28px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
 }
 
 .inbox-inspector-title {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
 }
 
 .inbox-inspector-meta {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .inbox-suggestion-card {
   display: grid;
-  gap: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
+  gap: var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
-  padding: 14px;
+  margin: var(--space-5);
+  padding: var(--space-3);
 }
 
 .inbox-suggestion-head {
@@ -2517,80 +2625,92 @@ dd {
 }
 
 .inbox-suggestion-badge {
-  color: var(--color-text-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inbox-suggestion-confidence {
   color: var(--color-accent);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 
 .inbox-suggestion-account {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
 }
 
 .inbox-suggestion-explanation {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
 .inbox-suggestion-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 4px;
+}
+
+.inbox-suggestion-actions .primary-button,
+.inbox-suggestion-actions .secondary-button {
+  flex: 1;
 }
 
 .inbox-edit-form {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-5);
 }
 
 .inbox-edit-form label {
-  color: var(--color-text-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inbox-posting,
 .inbox-source-record {
   display: grid;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  gap: var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-5);
 }
 
 .inbox-field {
   display: grid;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .inbox-field-label {
-  color: var(--color-text-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inbox-field-value {
-  font-size: 14px;
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+
+.inbox-field .inbox-chip {
+  justify-self: start;
 }
 
 .inbox-field-value--mono {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
 }
 
 .inbox-field-placeholder {
@@ -2604,9 +2724,10 @@ dd {
    in the value column instead of overflowing into the label. */
 .inbox-source-record {
   grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 16px;
-  row-gap: 10px;
+  column-gap: var(--space-4);
+  row-gap: var(--space-3);
   align-items: baseline;
+  border-bottom: 0;
 }
 
 .inbox-source-record .inbox-section-label {
@@ -3019,7 +3140,11 @@ button:focus-visible,
 }
 
 .status-bar-hints {
-  margin-left: 16px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
   color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }

@@ -127,63 +127,72 @@ export function InboxPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [ordered, selectedEntry, ledgerStatus, onApprove, onApproveTransfer]);
 
+  const header = (
+    <header className="page-header inbox-header">
+      <div>
+        <p className="eyebrow">Inbox</p>
+        <h1 id="inbox-title">Inbox</h1>
+        <p className="page-subtitle">
+          <span className="pill-count">{totals.pending}</span> pending
+          <span className="dot-sep">·</span>
+          <span className="pill-count">{totals.matched}</span> matched by rules
+          <span className="dot-sep">·</span>
+          <span className="pill-count">{totals.transfers}</span> possible transfer
+        </p>
+      </div>
+    </header>
+  );
+
   return (
     <section className="inbox-panel" aria-labelledby="inbox-title">
-      <header className="page-header inbox-header">
-        <div>
-          <p className="eyebrow">Inbox</p>
-          <h1 id="inbox-title">Inbox</h1>
-          <p className="page-subtitle">
-            <span className="pill-count">{totals.pending}</span> pending
-            <span className="dot-sep">·</span>
-            <span className="pill-count">{totals.matched}</span> matched by rules
-            <span className="dot-sep">·</span>
-            <span className="pill-count">{totals.transfers}</span> possible transfer
-          </p>
-        </div>
-      </header>
-
       {suggestedEntries.length === 0 ? (
-        <section className="inbox-empty-state" aria-live="polite">
-          <p className="eyebrow">Inbox</p>
-          <h2>No pending Statement Rows</h2>
-          <p>
-            Imported rows will appear here when they are waiting for review. Approved rows
-            disappear from the Inbox and return you to the Ledger Editor.
-          </p>
-        </section>
+        <>
+          {header}
+          <section className="inbox-empty-state" aria-live="polite">
+            <p className="eyebrow">Inbox</p>
+            <h2>No pending Statement Rows</h2>
+            <p>
+              Imported rows will appear here when they are waiting for review. Approved rows
+              disappear from the Inbox and return you to the Ledger Editor.
+            </p>
+          </section>
+        </>
       ) : (
         <>
-          <InboxToolbar
-            accounts={accounts}
-            account={account}
-            onAccountChange={setAccount}
-            months={months}
-            month={month}
-            onMonthChange={setMonth}
-            tab={tab}
-            onTabChange={setTab}
-            counts={tabCounts}
-          />
-
           <div className="inbox-layout">
-            <section className="inbox-list-col" aria-labelledby="inbox-list-title">
-              <span id="inbox-list-title" className="sr-only">
-                Pending Statement Rows
-              </span>
-              <InboxGroup
-                title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
-                entries={groups.needsReview}
-                selectedId={selectedEntry?.statementRowId ?? null}
-                onSelect={setSelectedStatementRowId}
+            <div className="inbox-content-col">
+              {header}
+
+              <InboxToolbar
+                accounts={accounts}
+                account={account}
+                onAccountChange={setAccount}
+                months={months}
+                month={month}
+                onMonthChange={setMonth}
+                tab={tab}
+                onTabChange={setTab}
+                counts={tabCounts}
               />
-              <InboxGroup
-                title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
-                entries={groups.matched}
-                selectedId={selectedEntry?.statementRowId ?? null}
-                onSelect={setSelectedStatementRowId}
-              />
-            </section>
+
+              <section className="inbox-list-col" aria-labelledby="inbox-list-title">
+                <span id="inbox-list-title" className="sr-only">
+                  Pending Statement Rows
+                </span>
+                <InboxGroup
+                  title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
+                  entries={groups.needsReview}
+                  selectedId={selectedEntry?.statementRowId ?? null}
+                  onSelect={setSelectedStatementRowId}
+                />
+                <InboxGroup
+                  title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
+                  entries={groups.matched}
+                  selectedId={selectedEntry?.statementRowId ?? null}
+                  onSelect={setSelectedStatementRowId}
+                />
+              </section>
+            </div>
 
             <aside className="inbox-inspector" aria-label="Transaction inspector">
               {selectedEntry ? (

@@ -256,7 +256,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Import deduplication is scoped to `(source_account, import_fingerprint)` and skips duplicates even when prior rows are already accounted.
 - Imported statement rows carry a `pending_at_import` flag so approval metadata can distinguish rows that were still awaiting review when they entered the staging area.
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
-- The Inbox is the shell-native review surface for pending Statement Rows. It shows a left-hand list, a right-hand inspector, highlights rows marked `pending_at_import`, and returns to the Ledger Editor after approval with the newly written monthly file opened.
+- The Inbox is the shell-native review surface for pending Statement Rows. It uses a full-height split layout with header, filters, and grouped rows in the left work area plus a flush right-hand inspector, highlights rows marked `pending_at_import`, and returns to the Ledger Editor after approval with the newly written monthly file opened.
 - After approving a Suggested Entry or Transfer Match, the UI returns to the Ledger Editor and requests the monthly transaction file that received the new Beancount entry.
 - Categorization Rules are user-confirmed SQLite records scoped to Source Account by default, visible/editable in the Workspace overview, and used to prefill future Standard Suggested Entries before any AI suggestion layer.
 - Categorization Rules can now be edited, disabled, re-enabled, or deleted from the shell-native Settings surface, while predictive completion only considers enabled rules.

@@ -2,6 +2,7 @@ import { test } from "@playwright/test";
 import path from "path";
 
 const OUT = "/tmp/diurnum-audit";
+const REFERENCE_VIEWPORT = { width: 2048, height: 1536 };
 
 function injectMockApi() {
   const workspace = {
@@ -150,6 +151,10 @@ function injectMockApi() {
     async getBrokenProvenance() { return []; },
     async approveSuggestedEntry() { return workspace; },
     async approveTransferEntry() { return workspace; },
+    async revertTransferToStandard() { return workspace; },
+    async getKnownLedgerAccounts() {
+      return ["Expenses:Software", "Expenses:Cloud", "Expenses:Meals", "Assets:Bank:Chase Checking"];
+    },
     async listCategorizationRules() {
       return [
         { id: "rule-1", sourceAccount: "Assets:Bank:Operating-Checking", matchText: "OPENAI", ledgerAccount: "Expenses:Software", enabled: true, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
@@ -240,6 +245,13 @@ async function withWorkspace(page: any) {
   await page.getByLabel("Ledger Editor").waitFor({ state: "visible", timeout: 10000 });
 }
 
+async function dismissUpdateBanner(page: any) {
+  const later = page.getByRole("button", { name: "Later" });
+  if (await later.count()) await later.click().catch(() => {});
+  await page.waitForTimeout(600);
+  if (await later.count()) await later.click().catch(() => {});
+}
+
 test("01-start-screen", async ({ page }) => {
   await page.addInitScript(injectMockApi);
   await page.goto("/");
@@ -262,7 +274,9 @@ test("04-ledger-editor", async ({ page }) => {
 });
 
 test("05-inbox", async ({ page }) => {
+  await page.setViewportSize(REFERENCE_VIEWPORT);
   await withWorkspace(page);
+  await dismissUpdateBanner(page);
   await page.getByRole("button", { name: /Inbox/ }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(OUT, "05-inbox.png"), fullPage: true });
