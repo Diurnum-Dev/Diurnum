@@ -2598,14 +2598,29 @@ dd {
   font-style: italic;
 }
 
-.inbox-source-record .inbox-field {
-  grid-template-columns: minmax(0, 1fr) auto;
+/* Source Record is a shared two-column grid (label | value) so columns line up
+   across rows. Fields use display:contents to drop their own box and let the
+   label/value spans become direct grid cells of the section. Long values wrap
+   in the value column instead of overflowing into the label. */
+.inbox-source-record {
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 10px;
   align-items: baseline;
-  gap: 12px;
+}
+
+.inbox-source-record .inbox-section-label {
+  grid-column: 1 / -1;
+}
+
+.inbox-source-record .inbox-field {
+  display: contents;
 }
 
 .inbox-source-record .inbox-field-value {
+  min-width: 0;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .suggested-entry-heading {
