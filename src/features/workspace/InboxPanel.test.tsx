@@ -153,6 +153,27 @@ describe("InboxPanel", () => {
     expect(screen.getByLabelText("Ledger Account")).toBeInTheDocument();
   });
 
+  it("advances to the next row, not the top, when the selected row leaves the Inbox", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />,
+    );
+
+    // Select the middle row, then simulate it being approved (parent drops it).
+    await user.click(screen.getByRole("button", { name: /Transfer to savings/ }));
+    const remaining = entries.filter((entry) => entry.statementRowId !== "transfer-1");
+    rerender(<InboxPanel suggestedEntries={remaining} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("approves the selected matched entry with the Enter key", async () => {
     const user = userEvent.setup();
     const onApprove = vi.fn().mockResolvedValue(undefined);
