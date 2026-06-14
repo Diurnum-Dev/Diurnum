@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -10,65 +10,22 @@ import {
   type WorkspaceScreen,
 } from "./components/AppShell";
 import {
-  addSourceAccount,
-  approveTransferEntry,
-  approveSuggestedEntry,
-  revertTransferToStandard,
-  getKnownLedgerAccounts,
-  closeSourceAccount,
-  commitGitChanges,
-  deleteCategorizationRule,
-  disableCategorizationRule,
-  detectAiAdapters,
-  configureAiAdapter,
-  createCategorizationRule,
-  createWorkspace,
-  getGitIdentity,
-  getGitPanelState,
-  getAiAdapterConfig,
-  getAiContextDisclosure,
-  getBrokenProvenance,
-  getMvpReports,
-  getSuggestedEntries,
-  getWorkspaceGitStatus,
-  importStatementRows,
   inspectWorkspacePaths,
-  listSnapshots,
-  listCategorizationRules,
-  listSourceAccounts,
-  enableCategorizationRule,
-  openWorkspace,
   pickDirectory,
   revealWorkspace,
-  restoreSnapshot,
-  renameSourceAccount,
-  saveSourceMapping,
-  testAiAdapter,
-  updateGitIdentity,
-  updateSourceAccountOpeningBalance,
-  updateWorkspaceMetadata,
-  updateCategorizationRule,
-  validateWorkspace,
   syncAppMenu,
 } from "./lib/workspace/api";
+import {
+  createDefaultWorkspaceSession,
+  monthlyLedgerPath,
+  userFacingError,
+} from "./lib/workspace/session";
 import type {
-  AiAdapterConfig,
-  AiContextDisclosure,
-  CategorizationRule,
   CsvSourceMappingInput,
-  BrokenProvenance,
   CloseSourceAccountInput,
-  DetectedAiAdapter,
-  GitIdentitySummary,
-  GitPanelState,
-  MvpReports,
-  SnapshotSummary,
-  SourceAccountSummary,
-  SourceAccountKind,
   SourceMappingUpdateInput,
-  SuggestedEntry,
+  SourceAccountKind,
   RenameSourceAccountInput,
-  WorkspaceGitStatus,
   LedgerValidationSummary,
   WorkspaceCreateInput,
   UpdateGitIdentityInput,
@@ -105,55 +62,40 @@ const RECENT_WORKSPACES_KEY = "diurnum.workspaceRecents.v1";
 const RECENT_COMMANDS_KEY = "diurnum.commandPaletteRecents.v1";
 const APP_VERSION = "0.1.0";
 
-const emptyGitStatus: WorkspaceGitStatus = {
-  isRepository: false,
-  branchName: null,
-  uncommittedChangesCount: 0,
-};
-
-function userFacingError(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = String((error as { message: unknown }).message);
-    if (message.includes("not an App-Created Workspace")) {
-      return "This folder is not a Diurnum workspace.";
-    }
-    return message;
-  }
-  return "Diurnum could not complete that Workspace action.";
-}
-
 export default function App() {
+  // The open Workspace and its derived data live in one module. App owns only
+  // UI and navigation state and subscribes to the session for the rest.
+  const sessionRef = useRef(createDefaultWorkspaceSession());
+  const session = sessionRef.current;
+  const sessionState = useSyncExternalStore(session.subscribe, session.getState);
+  const {
+    workspace,
+    suggestedEntries,
+    knownAccounts,
+    brokenProvenance,
+    categorizationRules,
+    sourceAccounts,
+    snapshots,
+    gitStatus,
+    gitPanelState,
+    aiAdapterConfig,
+    aiContextDisclosure,
+    detectedAdapters,
+    gitIdentity,
+    reports,
+    gitWarning,
+    gitHookOutput,
+    error,
+  } = sessionState;
+
   const [view, setView] = useState<View>("start");
   const [createTemplate, setCreateTemplate] = useState<WorkspaceTemplate>(null);
   const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("ledger");
   const [ledgerActiveFile, setLedgerActiveFile] = useState("main.bean");
   const [ledgerRequestedFile, setLedgerRequestedFile] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [ledgerFiles, setLedgerFiles] = useState<string[]>([]);
-  const [suggestedEntries, setSuggestedEntries] = useState<SuggestedEntry[]>([]);
-  const [knownAccounts, setKnownAccounts] = useState<string[]>([]);
-  const [brokenProvenance, setBrokenProvenance] = useState<BrokenProvenance[]>([]);
-  const [categorizationRules, setCategorizationRules] = useState<CategorizationRule[]>([]);
   const [ruleOffer, setRuleOffer] = useState<CategorizationRuleOffer | null>(null);
-  const [aiAdapterConfig, setAiAdapterConfig] = useState<AiAdapterConfig>({ command: null });
-  const [aiContextDisclosure, setAiContextDisclosure] = useState<AiContextDisclosure>({
-    adapterConfigured: false,
-    fieldsSent: [],
-  });
-  const [sourceAccounts, setSourceAccounts] = useState<SourceAccountSummary[]>([]);
-  const [detectedAdapters, setDetectedAdapters] = useState<DetectedAiAdapter[]>([]);
-  const [gitIdentity, setGitIdentity] = useState<GitIdentitySummary>({
-    isRepository: false,
-    localName: null,
-    localEmail: null,
-    globalName: null,
-    globalEmail: null,
-    warning: null,
-  });
-  const [gitPanelState, setGitPanelState] = useState<GitPanelState | null>(null);
-  const [gitWarning, setGitWarning] = useState<string | null>(null);
-  const [gitHookOutput, setGitHookOutput] = useState<string | null>(null);
   const [ledgerRequestedCursor, setLedgerRequestedCursor] = useState<number | null>(null);
   const [ledgerRequestedVersion, setLedgerRequestedVersion] = useState(0);
   const [ledgerCursor, setLedgerCursor] = useState<{ line: number; column: number } | null>(null);
@@ -164,15 +106,10 @@ export default function App() {
   const [updatePrefs, setUpdatePrefs] = useState<UpdatePrefs>(loadUpdatePrefs);
   const [updateNotice, setUpdateNotice] = useState<GitHubReleaseUpdate | null>(null);
   const [updateCheckInProgress, setUpdateCheckInProgress] = useState(false);
-  const [reports, setReports] = useState<MvpReports | null>(null);
-  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
     loadRecentWorkspaces,
   );
   const [recentLedgerFiles, setRecentLedgerFiles] = useState<string[]>([]);
-  const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
-  const [error, setError] = useState<string | null>(null);
-  const gitBackupTimerRef = useRef<number | null>(null);
   const autoUpdateCheckRef = useRef(false);
 
   const checkForAppUpdate = useCallback(async (): Promise<boolean> => {
@@ -213,75 +150,41 @@ export default function App() {
   }, [checkForAppUpdate, updatePrefs.checkOnLaunch]);
 
   async function handleCreate(input: WorkspaceCreateInput) {
-    setError(null);
-    clearGitBackupTimer();
     try {
-      const created = await createWorkspace(input);
-      setWorkspace(created);
-      setSuggestedEntries(await getSuggestedEntries(created.rootPath));
-      setKnownAccounts(await getKnownLedgerAccounts(created.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(created.rootPath));
-      setCategorizationRules(await listCategorizationRules(created.rootPath));
-      setRuleOffer(null);
-      setAiAdapterConfig(await getAiAdapterConfig(created.rootPath));
-      setAiContextDisclosure(await getAiContextDisclosure(created.rootPath));
-      setSourceAccounts(await listSourceAccounts(created.rootPath));
-      setDetectedAdapters(await detectAiAdapters());
-      setGitIdentity(await getGitIdentity(created.rootPath));
-      setReports(null);
-      setSnapshots(await listSnapshots(created.rootPath));
-      rememberWorkspace(created);
-      await refreshGitStatus(created.rootPath);
-      await refreshGitPanel(created.rootPath);
+      await session.create(input);
+      rememberOpenWorkspace();
       openLedgerFile("main.bean", 0);
       setView("workspace");
-    } catch (caught) {
-      setError(userFacingError(caught));
+    } catch {
+      // Error is surfaced through session state.
     }
   }
 
   async function handleOpenWorkspace(path: string) {
-    setError(null);
-    clearGitBackupTimer();
     try {
-      const opened = await openWorkspace(path);
-      setWorkspace(opened);
-      setSuggestedEntries(await getSuggestedEntries(opened.rootPath));
-      setKnownAccounts(await getKnownLedgerAccounts(opened.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(opened.rootPath));
-      setCategorizationRules(await listCategorizationRules(opened.rootPath));
-      setAiAdapterConfig(await getAiAdapterConfig(opened.rootPath));
-      setAiContextDisclosure(await getAiContextDisclosure(opened.rootPath));
-      setRuleOffer(null);
-      setReports(null);
-      setSnapshots(await listSnapshots(opened.rootPath));
-      setSourceAccounts(await listSourceAccounts(opened.rootPath));
-      setDetectedAdapters(await detectAiAdapters());
-      setGitIdentity(await getGitIdentity(opened.rootPath));
-      rememberWorkspace(opened);
-      await refreshGitStatus(opened.rootPath);
-      await refreshGitPanel(opened.rootPath);
+      await session.open(path);
+      rememberOpenWorkspace();
       openLedgerFile("main.bean", 0);
       setView("workspace");
-    } catch (caught) {
-      setError(userFacingError(caught));
+    } catch {
+      // Error is surfaced through session state.
     }
   }
 
   function handleCreateBlankWorkspace() {
-    setError(null);
+    session.setError(null);
     setCreateTemplate(null);
     setView("create");
   }
 
   function handleCreateExampleWorkspace() {
-    setError(null);
+    session.setError(null);
     setCreateTemplate("example");
     setView("create");
   }
 
   async function handleWelcomeOpenExistingWorkspace() {
-    setError(null);
+    session.setError(null);
     const path = await pickDirectory();
     if (path) {
       await handleOpenWorkspace(path);
@@ -303,7 +206,7 @@ export default function App() {
 
   function handleRemoveRecentWorkspace(path: string) {
     setRecentWorkspaces((current) => {
-      const next = current.filter((workspace) => workspace.path !== path);
+      const next = current.filter((entry) => entry.path !== path);
       saveRecentWorkspaces(next);
       return next;
     });
@@ -620,102 +523,42 @@ export default function App() {
 
   function handleCommandPalettePromptSubmit(message: string) {
     closeCommandPalette();
-    void commitGitWorkspaceChanges(message);
+    void session.commit(message).catch(() => undefined);
   }
 
   async function handleCloseWorkspace() {
-    clearGitBackupTimer();
     closeCommandPalette();
-    if (workspace && gitStatus.isRepository) {
-      try {
-        await commitGitWorkspaceChanges(`workspace backup ${new Date().toISOString()}`);
-      } catch {
-        // Closing the Workspace should not be blocked by Git errors.
-      }
-    }
-    setWorkspace(null);
-    setLedgerFiles([]);
-    setSuggestedEntries([]);
-    setBrokenProvenance([]);
-    setCategorizationRules([]);
-    setRuleOffer(null);
-    setAiAdapterConfig({ command: null });
-    setAiContextDisclosure({ adapterConfigured: false, fieldsSent: [] });
-    setSourceAccounts([]);
-    setDetectedAdapters([]);
-    setGitIdentity({
-      isRepository: false,
-      localName: null,
-      localEmail: null,
-      globalName: null,
-      globalEmail: null,
-      warning: null,
-    });
-    setGitPanelState(null);
-    setGitWarning(null);
-    setGitHookOutput(null);
-    setReports(null);
-    setSnapshots([]);
-    setGitStatus(emptyGitStatus);
+    await session.close();
     setSwitcherOpen(false);
     setActiveScreen("ledger");
     setLedgerActiveFile("main.bean");
     setLedgerRequestedFile(null);
     setLedgerRequestedCursor(null);
     setLedgerRequestedVersion((current) => current + 1);
-    setError(null);
+    setRuleOffer(null);
+    setLedgerFiles([]);
     setView("start");
   }
 
   function handleLedgerValidationChange(validation: LedgerValidationSummary) {
-    if (!workspace) return;
-    setWorkspace({
-      ...workspace,
-      ledgerStatus: validation.status,
-      ledgerValidation: validation,
-    });
-    if (validation.status === "invalid") {
-      setReports(null);
-    }
+    session.applyLedgerValidation(validation);
   }
 
   async function handleReveal() {
     if (!workspace) return;
-    setError(null);
     try {
       await revealWorkspace(workspace.rootPath);
     } catch (caught) {
-      setError(userFacingError(caught));
+      session.setError(userFacingError(caught));
     }
   }
 
   async function handleValidateWorkspace() {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const ledgerValidation = await validateWorkspace(workspace.rootPath);
-      setWorkspace({
-        ...workspace,
-        ledgerStatus: ledgerValidation.status,
-        ledgerValidation,
-      });
-      setBrokenProvenance(await getBrokenProvenance(workspace.rootPath));
-      setSnapshots(await listSnapshots(workspace.rootPath));
-      await refreshGitStatus(workspace.rootPath);
-      if (ledgerValidation.status === "invalid") {
-        setReports(null);
-      }
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.validate().catch(() => undefined);
   }
 
   async function handleLedgerFileSaved() {
-    queueGitBackupCommit();
-    if (workspace) {
-      await refreshGitStatus(workspace.rootPath);
-      await refreshGitPanel(workspace.rootPath);
-    }
+    await session.notifyLedgerSaved().catch(() => undefined);
   }
 
   async function handleAddSourceAccount(input: {
@@ -724,25 +567,9 @@ export default function App() {
     openingBalance: string | null;
   }) {
     if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await addSourceAccount({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      setWorkspace(updated);
-      setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
-      setCategorizationRules(await listCategorizationRules(updated.rootPath));
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setReports(null);
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session
+      .addSourceAccount({ workspaceRootPath: workspace.rootPath, ...input })
+      .catch(() => undefined);
   }
 
   async function handleImportStatementRows(input: {
@@ -752,26 +579,9 @@ export default function App() {
     mapping: CsvSourceMappingInput;
   }) {
     if (!workspace) return;
-    setError(null);
-    try {
-      await importStatementRows({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      await handleValidateWorkspace();
-      setSuggestedEntries(await getSuggestedEntries(workspace.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(workspace.rootPath));
-      setCategorizationRules(await listCategorizationRules(workspace.rootPath));
-      setAiContextDisclosure(await getAiContextDisclosure(workspace.rootPath));
-      setSourceAccounts(await listSourceAccounts(workspace.rootPath));
-      setReports(null);
-      setSnapshots(await listSnapshots(workspace.rootPath));
-      await refreshGitStatus(workspace.rootPath);
-      await refreshGitPanel(workspace.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session
+      .importRows({ workspaceRootPath: workspace.rootPath, ...input })
+      .catch(() => undefined);
   }
 
   async function handleApproveSuggestedEntry(input: {
@@ -779,57 +589,22 @@ export default function App() {
     ledgerAccount: string;
   }) {
     if (!workspace) return;
-    setError(null);
     try {
-      const updated = await approveSuggestedEntry({
+      const { ruleOffer: offer } = await session.approve({
         workspaceRootPath: workspace.rootPath,
         ...input,
       });
-      setWorkspace(updated);
-      setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
-      setKnownAccounts(await getKnownLedgerAccounts(updated.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
-      setCategorizationRules(await listCategorizationRules(updated.rootPath));
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setReports(null);
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-      const approvedEntry = suggestedEntries.find(
-        (entry) => entry.statementRowId === input.statementRowId,
-      );
-      if (approvedEntry) {
-        setLedgerRequestedFile(monthlyLedgerPath(approvedEntry.postedDate));
-        setActiveScreen("ledger");
-        setRuleOffer({
-          sourceAccount: approvedEntry.sourceAccount,
-          matchText: approvedEntry.description,
-          ledgerAccount: input.ledgerAccount,
-        });
-        await commitGitWorkspaceChanges(
-          `diurnum: approve 1 entry (${approvedEntry.postedDate.slice(0, 7)})`,
-          [monthlyLedgerPath(approvedEntry.postedDate), "main.bean"],
-        );
-      }
-    } catch (caught) {
-      setError(userFacingError(caught));
+      if (offer) setRuleOffer(offer);
+    } catch {
+      // Error is surfaced through session state.
     }
   }
 
   async function handleRevertTransferToStandard(input: { statementRowId: string }) {
     if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await revertTransferToStandard({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      setWorkspace(updated);
-      setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session
+      .revertTransfer({ workspaceRootPath: workspace.rootPath, ...input })
+      .catch(() => undefined);
   }
 
   async function handleApproveTransferEntry(input: {
@@ -837,52 +612,21 @@ export default function App() {
     linkedStatementRowId: string;
   }) {
     if (!workspace) return;
-    setError(null);
     try {
-      const updated = await approveTransferEntry({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      setWorkspace(updated);
-      setSuggestedEntries(await getSuggestedEntries(updated.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(updated.rootPath));
-      setCategorizationRules(await listCategorizationRules(updated.rootPath));
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
+      await session.approveTransfer({ workspaceRootPath: workspace.rootPath, ...input });
       setRuleOffer(null);
-      setReports(null);
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-      const approvedEntry = suggestedEntries.find(
-        (entry) => entry.statementRowId === input.statementRowId,
-      );
-      if (approvedEntry) {
-        setLedgerRequestedFile(monthlyLedgerPath(approvedEntry.postedDate));
-        setActiveScreen("ledger");
-        await commitGitWorkspaceChanges(
-          `diurnum: approve 2 entries (${approvedEntry.postedDate.slice(0, 7)})`,
-          [monthlyLedgerPath(approvedEntry.postedDate), "main.bean"],
-        );
-      }
-    } catch (caught) {
-      setError(userFacingError(caught));
+    } catch {
+      // Error is surfaced through session state.
     }
   }
 
   async function handleCreateCategorizationRule(input: CategorizationRuleOffer) {
     if (!workspace) return;
-    setError(null);
     try {
-      await createCategorizationRule({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      setCategorizationRules(await listCategorizationRules(workspace.rootPath));
-      setSuggestedEntries(await getSuggestedEntries(workspace.rootPath));
+      await session.createRule({ workspaceRootPath: workspace.rootPath, ...input });
       setRuleOffer(null);
-    } catch (caught) {
-      setError(userFacingError(caught));
+    } catch {
+      // Error is surfaced through session state.
     }
   }
 
@@ -890,289 +634,81 @@ export default function App() {
     input: CategorizationRuleOffer & { id: string },
   ) {
     if (!workspace) return;
-    setError(null);
-    try {
-      await updateCategorizationRule({
-        workspaceRootPath: workspace.rootPath,
-        ...input,
-      });
-      setCategorizationRules(await listCategorizationRules(workspace.rootPath));
-      setSuggestedEntries(await getSuggestedEntries(workspace.rootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session
+      .updateRule({ workspaceRootPath: workspace.rootPath, ...input })
+      .catch(() => undefined);
   }
 
   async function handleDisableCategorizationRule(input: {
     workspaceRootPath: string;
     id: string;
   }) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      await disableCategorizationRule(input.workspaceRootPath, input.id);
-      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
-      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.disableRule(input.workspaceRootPath, input.id).catch(() => undefined);
   }
 
   async function handleEnableCategorizationRule(input: {
     workspaceRootPath: string;
     id: string;
   }) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      await enableCategorizationRule(input.workspaceRootPath, input.id);
-      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
-      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.enableRule(input.workspaceRootPath, input.id).catch(() => undefined);
   }
 
   async function handleDeleteCategorizationRule(input: {
     workspaceRootPath: string;
     id: string;
   }) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      await deleteCategorizationRule(input.workspaceRootPath, input.id);
-      setCategorizationRules(await listCategorizationRules(input.workspaceRootPath));
-      setSuggestedEntries(await getSuggestedEntries(input.workspaceRootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.deleteRule(input.workspaceRootPath, input.id).catch(() => undefined);
   }
 
   async function handleConfigureAiAdapter(command: string | null) {
     if (!workspace) return;
-    setError(null);
-    try {
-      const config = await configureAiAdapter({
-        workspaceRootPath: workspace.rootPath,
-        command,
-      });
-      setAiAdapterConfig(config);
-      setAiContextDisclosure(await getAiContextDisclosure(workspace.rootPath));
-      setSuggestedEntries(await getSuggestedEntries(workspace.rootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.configureAiAdapter(command).catch(() => undefined);
   }
 
   async function handleUpdateWorkspaceMetadata(input: WorkspaceMetadataUpdateInput) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await updateWorkspaceMetadata(input);
-      setWorkspace(updated);
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setDetectedAdapters(await detectAiAdapters());
-      setGitIdentity(await getGitIdentity(updated.rootPath));
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.updateMetadata(input);
   }
 
   async function handleRenameSourceAccount(input: RenameSourceAccountInput) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await renameSourceAccount(input);
-      setWorkspace(updated);
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.renameSourceAccount(input);
   }
 
   async function handleCloseSourceAccount(input: CloseSourceAccountInput) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await closeSourceAccount(input);
-      setWorkspace(updated);
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.closeSourceAccount(input);
   }
 
   async function handleUpdateSourceAccountOpeningBalance(
     input: UpdateSourceAccountOpeningBalanceInput,
   ) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await updateSourceAccountOpeningBalance(input);
-      setWorkspace(updated);
-      setSourceAccounts(await listSourceAccounts(updated.rootPath));
-      setSnapshots(await listSnapshots(updated.rootPath));
-      await refreshGitStatus(updated.rootPath);
-      await refreshGitPanel(updated.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.updateOpeningBalance(input);
   }
 
   async function handleSaveSourceMapping(input: SourceMappingUpdateInput) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      await saveSourceMapping(input);
-      setSourceAccounts(await listSourceAccounts(workspace.rootPath));
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.saveSourceMapping(input);
   }
 
   async function handleUpdateGitIdentity(input: UpdateGitIdentityInput) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      const updated = await updateGitIdentity(input);
-      setGitIdentity(updated);
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.updateGitIdentity(input);
   }
 
   async function handleTestAiAdapter() {
-    if (!workspace) return;
-    setError(null);
-    try {
-      await testAiAdapter({ workspaceRootPath: workspace.rootPath });
-    } catch (caught) {
-      setError(userFacingError(caught));
-      throw caught;
-    }
+    await session.testAiAdapter();
   }
 
   async function handleLoadReports(input: { periodStart: string; periodEnd: string }) {
-    if (!workspace) return;
-    setError(null);
-    try {
-      setReports(
-        await getMvpReports({
-          workspaceRootPath: workspace.rootPath,
-          ...input,
-        }),
-      );
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session.loadReports(input).catch(() => undefined);
   }
 
   async function handleRestoreSnapshot(snapshotId: string) {
     if (!workspace) return;
-    setError(null);
-    try {
-      const restored = await restoreSnapshot({
-        workspaceRootPath: workspace.rootPath,
-        snapshotId,
-      });
-      setWorkspace(restored);
-      setSuggestedEntries(await getSuggestedEntries(restored.rootPath));
-      setBrokenProvenance(await getBrokenProvenance(restored.rootPath));
-      setCategorizationRules(await listCategorizationRules(restored.rootPath));
-      setAiAdapterConfig(await getAiAdapterConfig(restored.rootPath));
-      setAiContextDisclosure(await getAiContextDisclosure(restored.rootPath));
-      setSourceAccounts(await listSourceAccounts(restored.rootPath));
-      setDetectedAdapters(await detectAiAdapters());
-      setGitIdentity(await getGitIdentity(restored.rootPath));
-      setSnapshots(await listSnapshots(restored.rootPath));
-      setReports(null);
-      setRuleOffer(null);
-      await refreshGitStatus(restored.rootPath);
-      await refreshGitPanel(restored.rootPath);
-      queueGitBackupCommit();
-    } catch (caught) {
-      setError(userFacingError(caught));
-    }
+    await session
+      .restoreSnapshot({ workspaceRootPath: workspace.rootPath, snapshotId })
+      .catch(() => undefined);
   }
 
-  async function refreshGitStatus(path: string) {
-    try {
-      setGitStatus(await getWorkspaceGitStatus(path));
-    } catch {
-      setGitStatus(emptyGitStatus);
-    }
-  }
-
-  async function refreshGitPanel(path: string) {
-    try {
-      setGitPanelState(await getGitPanelState(path));
-    } catch {
-      setGitPanelState(null);
-    }
-  }
-
-  function clearGitBackupTimer() {
-    if (gitBackupTimerRef.current !== null) {
-      window.clearTimeout(gitBackupTimerRef.current);
-      gitBackupTimerRef.current = null;
-    }
-  }
-
-  function queueGitBackupCommit() {
-    if (!workspace || !gitStatus.isRepository) return;
-    clearGitBackupTimer();
-    gitBackupTimerRef.current = window.setTimeout(() => {
-      void commitGitWorkspaceChanges(`workspace backup ${new Date().toISOString()}`);
-    }, 60_000);
-  }
-
-  async function commitGitWorkspaceChanges(message: string, paths: string[] = []) {
-    if (!workspace || !gitStatus.isRepository) return;
-    clearGitBackupTimer();
-    setGitWarning(null);
-    setGitHookOutput(null);
-    const commitPaths =
-      paths.length > 0
-        ? paths
-        : gitPanelState?.workingTree
-            .map((entry) => entry.path)
-            .filter((path) => !path.startsWith(".diurnum/")) ?? [];
-    if (commitPaths.length === 0) {
-      return;
-    }
-    const result = await commitGitChanges({
-      workspaceRootPath: workspace.rootPath,
-      message,
-      paths: commitPaths,
-    });
-    if (result.warning) {
-      setGitWarning(result.warning);
-      setGitHookOutput(result.hookOutput);
-    } else {
-      setGitWarning(null);
-      setGitHookOutput(null);
-    }
-    await refreshGitStatus(workspace.rootPath);
-    await refreshGitPanel(workspace.rootPath);
+  function rememberOpenWorkspace() {
+    const summary = session.getState().workspace;
+    if (summary) rememberWorkspace(summary);
   }
 
   function rememberWorkspace(summary: WorkspaceSummary) {
@@ -1184,7 +720,7 @@ export default function App() {
           lastOpenedAt: new Date().toISOString(),
           exists: true,
         },
-        ...current.filter((workspace) => workspace.path !== summary.rootPath),
+        ...current.filter((entry) => entry.path !== summary.rootPath),
       ].slice(0, 10);
       saveRecentWorkspaces(next);
       return next;
@@ -1200,21 +736,22 @@ export default function App() {
 
     window.addEventListener("focus", revalidateOnFocus);
     return () => window.removeEventListener("focus", revalidateOnFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, workspace?.rootPath]);
 
-  const recentPathsKey = recentWorkspaces.map((workspace) => workspace.path).join("\n");
+  const recentPathsKey = recentWorkspaces.map((entry) => entry.path).join("\n");
   useEffect(() => {
     if (recentWorkspaces.length === 0) return;
 
     let cancelled = false;
-    void inspectWorkspacePaths(recentWorkspaces.map((workspace) => workspace.path))
+    void inspectWorkspacePaths(recentWorkspaces.map((entry) => entry.path))
       .then((statuses) => {
         if (cancelled) return;
         const existsByPath = new Map(statuses.map((status) => [status.path, status.exists]));
         setRecentWorkspaces((current) =>
-          current.map((workspace) => ({
-            ...workspace,
-            exists: existsByPath.get(workspace.path) ?? workspace.exists,
+          current.map((entry) => ({
+            ...entry,
+            exists: existsByPath.get(entry.path) ?? entry.exists,
           })),
         );
       })
@@ -1223,6 +760,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentPathsKey]);
 
   useEffect(() => {
@@ -1243,6 +781,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   if (view === "start") {
@@ -1273,7 +812,7 @@ export default function App() {
           <CreateWorkspaceForm
             initialTemplate={createTemplate}
             onCancel={() => {
-              setError(null);
+              session.setError(null);
               setView("start");
             }}
             onChooseDirectory={pickDirectory}
@@ -1293,7 +832,7 @@ export default function App() {
         <main className="main-pane standalone-pane">
           <OpenWorkspaceForm
             onCancel={() => {
-              setError(null);
+              session.setError(null);
               setView("start");
             }}
             onChooseDirectory={pickDirectory}
@@ -1339,7 +878,7 @@ export default function App() {
             onFilesChange={setLedgerFiles}
             onValidationChange={handleLedgerValidationChange}
             onSaved={handleLedgerFileSaved}
-            onError={setError}
+            onError={session.setError}
             onCursorChange={setLedgerCursor}
           />
         ) : activeScreen === "inbox" ? (
@@ -1357,16 +896,15 @@ export default function App() {
             state={gitPanelState}
             warning={gitWarning}
             hookOutput={gitHookOutput}
-            onWarningChange={setGitWarning}
-            onHookOutputChange={setGitHookOutput}
+            onWarningChange={session.setGitWarning}
+            onHookOutputChange={session.setGitHookOutput}
             onRefresh={async () => {
-              await refreshGitStatus(workspace.rootPath);
-              await refreshGitPanel(workspace.rootPath);
+              await session.validate().catch(() => undefined);
             }}
-            onError={setError}
+            onError={session.setError}
           />
         ) : activeScreen === "documents" ? (
-          <DocumentsPanel workspace={workspace} onError={setError} />
+          <DocumentsPanel workspace={workspace} onError={session.setError} />
         ) : activeScreen === "settings" ? (
           <SettingsPanel
             workspace={workspace}
@@ -1382,7 +920,7 @@ export default function App() {
             updateCheckInProgress={updateCheckInProgress}
             onReveal={handleReveal}
             onOpenAnother={() => {
-              setError(null);
+              session.setError(null);
               setView("open");
             }}
             onUpdateWorkspaceMetadata={handleUpdateWorkspaceMetadata}
@@ -1403,7 +941,7 @@ export default function App() {
             onDismissCategorizationRuleOffer={() => setRuleOffer(null)}
             onUpdatePrefsChange={setUpdatePrefs}
             onCheckForUpdates={checkForAppUpdate}
-            onError={setError}
+            onError={session.setError}
           />
         ) : (
           <WorkspaceOverview
@@ -1415,7 +953,7 @@ export default function App() {
             categorizationRuleOffer={ruleOffer}
             onReveal={handleReveal}
             onOpenAnother={() => {
-              setError(null);
+              session.setError(null);
               setView("open");
             }}
             reports={reports}
@@ -1456,10 +994,6 @@ export default function App() {
   }
 
   return null;
-}
-
-function monthlyLedgerPath(postedDate: string): string {
-  return `transactions/${postedDate.slice(0, 7)}.bean`;
 }
 
 function loadRecentWorkspaces(): RecentWorkspace[] {

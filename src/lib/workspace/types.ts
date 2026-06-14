@@ -525,6 +525,23 @@ export type LedgerValidationSummary = {
   errors: string[];
 };
 
+/**
+ * The full derived view of an open Workspace returned by `get_workspace_view`
+ * and by every mutation command. Mirrors `workspace::view::WorkspaceView`.
+ * Reports and detected AI adapters are intentionally not here.
+ */
+export type WorkspaceView = {
+  summary: WorkspaceSummary;
+  suggestedEntries: SuggestedEntry[];
+  knownAccounts: string[];
+  brokenProvenance: BrokenProvenance[];
+  categorizationRules: CategorizationRule[];
+  sourceAccounts: SourceAccountSummary[];
+  snapshots: SnapshotSummary[];
+  gitStatus: WorkspaceGitStatus;
+  gitPanel: GitPanelState | null;
+};
+
 export type WorkspaceErrorCode =
   | "invalidBusinessName"
   | "invalidBooksStartDate"

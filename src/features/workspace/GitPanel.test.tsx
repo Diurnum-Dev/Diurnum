@@ -16,6 +16,9 @@ describe("GitPanel", () => {
     const onError = vi.fn();
 
     window.__DIURNUM_TEST_API__ = {
+      async getWorkspaceView() {
+        throw new Error("not used");
+      },
       async createWorkspace() {
         throw new Error("not used");
       },
