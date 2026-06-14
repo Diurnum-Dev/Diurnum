@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
+import { MENU_SAVE_EVENT, routeMenuEvent, type MenuHandlers } from "./lib/menu";
 import {
   AppShell,
   type RecentWorkspace,
@@ -45,6 +49,7 @@ import {
   updateWorkspaceMetadata,
   updateCategorizationRule,
   validateWorkspace,
+  syncAppMenu,
 } from "./lib/workspace/api";
 import type {
   AiAdapterConfig,
@@ -151,6 +156,7 @@ export default function App() {
   const [gitHookOutput, setGitHookOutput] = useState<string | null>(null);
   const [ledgerRequestedCursor, setLedgerRequestedCursor] = useState<number | null>(null);
   const [ledgerRequestedVersion, setLedgerRequestedVersion] = useState(0);
+  const [ledgerCursor, setLedgerCursor] = useState<{ line: number; column: number } | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandPaletteMode, setCommandPaletteMode] =
     useState<CommandPaletteMode>("commands");
@@ -163,6 +169,7 @@ export default function App() {
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(
     loadRecentWorkspaces,
   );
+  const [recentLedgerFiles, setRecentLedgerFiles] = useState<string[]>([]);
   const [gitStatus, setGitStatus] = useState<WorkspaceGitStatus>(emptyGitStatus);
   const [error, setError] = useState<string | null>(null);
   const gitBackupTimerRef = useRef<number | null>(null);
@@ -186,6 +193,14 @@ export default function App() {
   useEffect(() => {
     saveUpdatePrefs(updatePrefs);
   }, [updatePrefs]);
+
+  useEffect(() => {
+    if (!ledgerActiveFile) return;
+    setRecentLedgerFiles((prev) => {
+      const deduped = [ledgerActiveFile, ...prev.filter((f) => f !== ledgerActiveFile)];
+      return deduped.slice(0, 5);
+    });
+  }, [ledgerActiveFile]);
 
   useEffect(() => {
     if (!updatePrefs.checkOnLaunch) {
@@ -310,6 +325,14 @@ export default function App() {
     setSwitcherOpen(false);
   }
 
+  function handleOpenRecentLedgerFile(relativePath: string) {
+    setActiveScreen("ledger");
+    setLedgerRequestedFile(relativePath);
+    setLedgerRequestedCursor(null);
+    setLedgerRequestedVersion((current) => current + 1);
+    setSwitcherOpen(false);
+  }
+
   function openCommandPalette(mode: CommandPaletteMode = "commands") {
     if (view !== "workspace") return;
     setSwitcherOpen(false);
@@ -329,6 +352,51 @@ export default function App() {
       return next;
     });
   }
+
+  const menuHandlersRef = useRef<MenuHandlers | null>(null);
+  menuHandlersRef.current = {
+    navigate: handleNavigate,
+    openSettings: () => handleNavigate("settings"),
+    newWorkspace: handleCreateBlankWorkspace,
+    openWorkspace: () => void handleWelcomeOpenExistingWorkspace(),
+    openRecentWorkspace: (path) => void handleOpenWorkspace(path),
+    closeWorkspace: () => void handleCloseWorkspace(),
+    save: () => window.dispatchEvent(new CustomEvent(MENU_SAVE_EVENT)),
+    openCommandPalette: () => openCommandPalette("commands"),
+  };
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlisten = listen<string>("menu", (event) => {
+      const handlers = menuHandlersRef.current;
+      if (handlers) routeMenuEvent(event.payload, handlers);
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Depends on workspace truthiness, not identity — the workspace object is
+  // re-created on every save/validation and the menu must not rebuild then.
+  const workspaceOpen = view === "workspace" && Boolean(workspace);
+  useEffect(() => {
+    if (!isTauri()) return;
+    void syncAppMenu({
+      workspaceOpen,
+      gitAvailable: gitStatus.isRepository,
+      recents: recentWorkspaces
+        .filter((recent) => recent.exists !== false)
+        .map((recent) => ({ path: recent.path, displayName: recent.displayName })),
+    }).catch(() => undefined);
+  }, [workspaceOpen, gitStatus.isRepository, recentWorkspaces]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const count = view === "workspace" ? suggestedEntries.length : 0;
+    void getCurrentWindow()
+      .setBadgeCount(count > 0 ? count : undefined)
+      .catch(() => undefined);
+  }, [view, suggestedEntries.length]);
 
   const updateBanner = updateNotice ? (
     <div className="update-banner" role="status" aria-live="polite">
@@ -1181,6 +1249,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <WorkspaceStart
             recentWorkspaces={recentWorkspaces}
@@ -1199,6 +1268,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <CreateWorkspaceForm
             initialTemplate={createTemplate}
@@ -1219,6 +1289,7 @@ export default function App() {
     return (
       <>
         {updateBanner}
+        <div className="window-drag-strip" data-tauri-drag-region />
         <main className="main-pane standalone-pane">
           <OpenWorkspaceForm
             onCancel={() => {
@@ -1241,18 +1312,21 @@ export default function App() {
         activeScreen={activeScreen}
         pendingInboxCount={suggestedEntries.length}
         recentWorkspaces={recentWorkspaces}
+        recentLedgerFiles={recentLedgerFiles}
         gitStatus={gitStatus}
         ledgerStatus={workspace.ledgerStatus}
         ledgerErrorCount={workspace.ledgerValidation.errors.length}
         gitWarning={gitWarning}
         statusContext={activeScreen === "ledger" ? ledgerActiveFile : statusContextFor(activeScreen)}
+        ledgerCursor={activeScreen === "ledger" ? ledgerCursor : null}
+        statusHints={activeScreen === "inbox" ? "⏎ Accept · J / K Navigate · E Edit" : null}
         switcherOpen={switcherOpen}
         onToggleSwitcher={() => setSwitcherOpen((open) => !open)}
         onNavigate={handleNavigate}
         onOpenRecentWorkspace={handleOpenRecentWorkspace}
         onRemoveRecentWorkspace={handleRemoveRecentWorkspace}
         onOpenExistingWorkspace={handleOpenExistingWorkspace}
-        onCloseWorkspace={handleCloseWorkspace}
+        onOpenRecentFile={handleOpenRecentLedgerFile}
       >
         {updateBanner}
         {activeScreen === "ledger" ? (
@@ -1266,6 +1340,7 @@ export default function App() {
             onValidationChange={handleLedgerValidationChange}
             onSaved={handleLedgerFileSaved}
             onError={setError}
+            onCursorChange={setLedgerCursor}
           />
         ) : activeScreen === "inbox" ? (
           <InboxPanel

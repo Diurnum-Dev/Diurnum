@@ -1,36 +1,25 @@
 pub mod commands;
+pub mod menu;
 pub mod workspace;
 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
-            // macOS WKWebView does not process keyboard shortcuts (⌘V, ⌘C, ⌘Z, …)
-            // unless the application has an NSApp menu that contains the corresponding
-            // Edit actions.  Without this, pasting and other text-editing shortcuts
-            // are silently swallowed across the entire app.
+            // The native menu doubles as the macOS keyboard-shortcut surface:
+            // WKWebView only processes ⌘-shortcuts that exist in the NSApp menu.
             #[cfg(target_os = "macos")]
-            {
-                use tauri::menu::{MenuBuilder, SubmenuBuilder};
-                let app_menu = SubmenuBuilder::new(app, "Diurnum")
-                    .quit()
-                    .build()?;
-                let edit = SubmenuBuilder::new(app, "Edit")
-                    .undo()
-                    .redo()
-                    .separator()
-                    .cut()
-                    .copy()
-                    .paste()
-                    .select_all()
-                    .build()?;
-                let menu = MenuBuilder::new(app).item(&app_menu).item(&edit).build()?;
-                app.set_menu(menu)?;
-            }
+            menu::build_app_menu(app.handle(), &menu::AppMenuState::default())?;
             Ok(())
         })
+        .on_menu_event(|app, event| {
+            use tauri::Emitter;
+            let _ = app.emit("menu", event.id().0.clone());
+        })
         .invoke_handler(tauri::generate_handler![
+            menu::sync_app_menu,
             commands::workspace::create_workspace,
             commands::workspace::open_workspace,
             commands::workspace::validate_workspace,

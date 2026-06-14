@@ -1,15 +1,23 @@
+// src/features/workspace/InboxPanel.tsx
 import { useEffect, useMemo, useState } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
-import { SuggestedEntryDetail } from "./SuggestedEntryReview";
+import { InboxInspector } from "./InboxInspector";
+import { InboxToolbar } from "./InboxToolbar";
+import {
+  accountOptions,
+  bucketCounts,
+  filterEntries,
+  groupEntries,
+  monthOptions,
+  type InboxTab,
+} from "./inboxFilters";
+import { formatInboxAmount, formatInboxDate } from "./inboxFormat";
 
 type InboxPanelProps = {
   suggestedEntries: SuggestedEntry[];
   ledgerStatus: LedgerStatus;
   knownAccounts?: string[];
-  onApprove: (input: {
-    statementRowId: string;
-    ledgerAccount: string;
-  }) => Promise<void> | void;
+  onApprove: (input: { statementRowId: string; ledgerAccount: string }) => Promise<void> | void;
   onApproveTransfer?: (input: {
     statementRowId: string;
     linkedStatementRowId: string;
@@ -25,34 +33,99 @@ export function InboxPanel({
   onApproveTransfer,
   onRevertTransfer,
 }: InboxPanelProps) {
-  const [selectedStatementRowId, setSelectedStatementRowId] = useState<string | null>(
-    suggestedEntries[0]?.statementRowId ?? null,
+  const [account, setAccount] = useState("all");
+  const [month, setMonth] = useState("all");
+  const [tab, setTab] = useState<InboxTab>("all");
+  const [selectedStatementRowId, setSelectedStatementRowId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+
+  const accounts = useMemo(() => accountOptions(suggestedEntries), [suggestedEntries]);
+  const months = useMemo(() => monthOptions(suggestedEntries), [suggestedEntries]);
+  const totals = useMemo(() => bucketCounts(suggestedEntries), [suggestedEntries]);
+
+  const scoped = useMemo(
+    () => filterEntries(suggestedEntries, { account, month, tab: "all" }),
+    [suggestedEntries, account, month],
+  );
+  const tabCounts = useMemo(() => {
+    const counts = bucketCounts(scoped);
+    return { all: scoped.length, ...counts };
+  }, [scoped]);
+
+  const filtered = useMemo(
+    () => filterEntries(suggestedEntries, { account, month, tab }),
+    [suggestedEntries, account, month, tab],
+  );
+  const groups = useMemo(() => groupEntries(filtered), [filtered]);
+  const ordered = useMemo(
+    () => [...groups.needsReview, ...groups.matched],
+    [groups],
   );
 
-  const selectedEntry = useMemo(() => {
-    if (suggestedEntries.length === 0) return null;
-    return (
-      suggestedEntries.find((entry) => entry.statementRowId === selectedStatementRowId) ??
-      suggestedEntries[0]
-    );
-  }, [suggestedEntries, selectedStatementRowId]);
+  const selectedEntry = useMemo(
+    () =>
+      ordered.find((entry) => entry.statementRowId === selectedStatementRowId) ?? ordered[0] ?? null,
+    [ordered, selectedStatementRowId],
+  );
 
   useEffect(() => {
-    if (suggestedEntries.length === 0) {
-      setSelectedStatementRowId(null);
-      return;
-    }
-    if (!selectedEntry) {
-      setSelectedStatementRowId(suggestedEntries[0].statementRowId);
-    }
-  }, [suggestedEntries, selectedEntry]);
+    setEditing(false);
+  }, [selectedEntry?.statementRowId]);
 
-  const pendingCount = suggestedEntries.length;
-  const pendingAtImportCount = suggestedEntries.filter((entry) => entry.pendingAtImport).length;
-  const transferCount = suggestedEntries.filter((entry) => entry.kind === "transfer").length;
-  const matchedByRulesCount = suggestedEntries.filter(
-    (entry) => entry.kind === "standard" && Boolean(entry.suggestedLedgerAccount),
-  ).length;
+  useEffect(() => {
+    if (selectedEntry && selectedEntry.statementRowId !== selectedStatementRowId) {
+      setSelectedStatementRowId(selectedEntry.statementRowId);
+    }
+  }, [selectedEntry, selectedStatementRowId]);
+
+  useEffect(() => {
+    function isTypingTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTypingTarget(event.target) || ordered.length === 0) return;
+      const index = ordered.findIndex(
+        (entry) => entry.statementRowId === selectedEntry?.statementRowId,
+      );
+
+      if (event.key === "j" || event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = ordered[Math.min(index + 1, ordered.length - 1)];
+        if (next) setSelectedStatementRowId(next.statementRowId);
+      } else if (event.key === "k" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const previous = ordered[Math.max(index - 1, 0)];
+        if (previous) setSelectedStatementRowId(previous.statementRowId);
+      } else if (event.key === "e" && selectedEntry?.kind === "standard") {
+        event.preventDefault();
+        setEditing(true);
+      } else if (event.key === "Enter" && selectedEntry) {
+        const suggested =
+          selectedEntry.suggestedLedgerAccount ?? selectedEntry.aiSuggestion?.ledgerAccount ?? null;
+        if (
+          selectedEntry.kind === "transfer" &&
+          selectedEntry.linkedStatementRow &&
+          onApproveTransfer &&
+          ledgerStatus === "valid"
+        ) {
+          event.preventDefault();
+          void onApproveTransfer({
+            statementRowId: selectedEntry.statementRowId,
+            linkedStatementRowId: selectedEntry.linkedStatementRow.statementRowId,
+          });
+        } else if (selectedEntry.kind === "standard" && suggested && ledgerStatus === "valid") {
+          event.preventDefault();
+          void onApprove({ statementRowId: selectedEntry.statementRowId, ledgerAccount: suggested });
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [ordered, selectedEntry, ledgerStatus, onApprove, onApproveTransfer]);
 
   return (
     <section className="inbox-panel" aria-labelledby="inbox-title">
@@ -61,16 +134,12 @@ export function InboxPanel({
           <p className="eyebrow">Inbox</p>
           <h1 id="inbox-title">Inbox</h1>
           <p className="page-subtitle">
-            <span className="pill-count">{pendingCount}</span> pending
+            <span className="pill-count">{totals.pending}</span> pending
             <span className="dot-sep">·</span>
-            <span className="pill-count">{matchedByRulesCount}</span> matched by rules
+            <span className="pill-count">{totals.matched}</span> matched by rules
             <span className="dot-sep">·</span>
-            <span className="pill-count">{transferCount}</span> possible transfer
+            <span className="pill-count">{totals.transfers}</span> possible transfer
           </p>
-        </div>
-        <div className="inbox-summary">
-          <span>{pendingCount} pending rows</span>
-          <span>{pendingAtImportCount} pending at import</span>
         </div>
       </header>
 
@@ -84,92 +153,119 @@ export function InboxPanel({
           </p>
         </section>
       ) : (
-        <div className="inbox-layout">
-          <section className="inbox-list-col" aria-labelledby="inbox-list-title">
-            <div className="inbox-list-head">
-              <span id="inbox-list-title">Pending</span>
-              <span>{pendingCount} transactions · needs your review</span>
-            </div>
-            <div className="inbox-list" role="list" aria-label="Pending Statement Rows">
-              {suggestedEntries.map((entry) => {
-                const selected = entry.statementRowId === selectedEntry?.statementRowId;
-                return (
-                  <button
-                    key={entry.statementRowId}
-                    className={`inbox-row ${selected ? "selected" : ""}`}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setSelectedStatementRowId(entry.statementRowId)}
-                  >
-                    <span className="inbox-row-date">{formatInboxDate(entry.postedDate)}</span>
-                    <span className="inbox-row-desc">{entry.description}</span>
-                    <span className="inbox-row-amount">{formatInboxAmount(entry.sourceAmount)}</span>
-                    <span className="inbox-row-source">{entry.sourceAccount}</span>
-                    <span className="inbox-row-badges">
-                      {entry.pendingAtImport ? (
-                        <span className="pending-at-import-badge">Pending at import</span>
-                      ) : null}
-                      {entry.kind === "transfer" ? (
-                        <span className="inbox-chip inbox-chip--transfer">Transfer Match</span>
-                      ) : entry.suggestedLedgerAccount ? (
-                        <span className="inbox-chip inbox-chip--rule">Rule suggestion</span>
-                      ) : entry.aiSuggestion ? (
-                        <span className="inbox-chip inbox-chip--ai">AI suggestion</span>
-                      ) : (
-                        <span className="inbox-chip inbox-chip--plain">Needs review</span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+        <>
+          <InboxToolbar
+            accounts={accounts}
+            account={account}
+            onAccountChange={setAccount}
+            months={months}
+            month={month}
+            onMonthChange={setMonth}
+            tab={tab}
+            onTabChange={setTab}
+            counts={tabCounts}
+          />
 
-          <aside className="inbox-inspector" aria-label="Transaction inspector">
-            {selectedEntry ? (
-              <>
-                <div className="inbox-inspector-head">
-                  <div className="insp-eyebrow">Pending · Selected</div>
-                  <div className="inbox-inspector-amount">
-                    {formatInboxAmount(selectedEntry.sourceAmount)}
-                  </div>
-                  <div className="inbox-inspector-title">{selectedEntry.description}</div>
-                  <div className="inbox-inspector-meta">
-                    {formatInboxDate(selectedEntry.postedDate)} · {selectedEntry.sourceAccount} ·{" "}
-                    {selectedEntry.sourceFileName}
-                  </div>
-                </div>
+          <div className="inbox-layout">
+            <section className="inbox-list-col" aria-labelledby="inbox-list-title">
+              <span id="inbox-list-title" className="sr-only">
+                Pending Statement Rows
+              </span>
+              <InboxGroup
+                title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
+                entries={groups.needsReview}
+                selectedId={selectedEntry?.statementRowId ?? null}
+                onSelect={setSelectedStatementRowId}
+              />
+              <InboxGroup
+                title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
+                entries={groups.matched}
+                selectedId={selectedEntry?.statementRowId ?? null}
+                onSelect={setSelectedStatementRowId}
+              />
+            </section>
 
-                <SuggestedEntryDetail
+            <aside className="inbox-inspector" aria-label="Transaction inspector">
+              {selectedEntry ? (
+                <InboxInspector
                   entry={selectedEntry}
                   ledgerStatus={ledgerStatus}
                   knownAccounts={knownAccounts}
+                  editing={editing}
+                  onEditingChange={setEditing}
                   onApprove={onApprove}
                   onApproveTransfer={onApproveTransfer}
                   onRevertTransfer={onRevertTransfer}
                 />
-              </>
-            ) : null}
-          </aside>
-        </div>
+              ) : null}
+            </aside>
+          </div>
+        </>
       )}
     </section>
   );
 }
 
-function formatInboxDate(postedDate: string): string {
-  const date = new Date(`${postedDate}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return postedDate;
-  }
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function InboxGroup({
+  title,
+  entries,
+  selectedId,
+  onSelect,
+}: {
+  title: string;
+  entries: SuggestedEntry[];
+  selectedId: string | null;
+  onSelect: (statementRowId: string) => void;
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="inbox-group">
+      <div className="inbox-group-head">{title}</div>
+      <div className="inbox-table">
+        {entries.map((entry) => {
+          const selected = entry.statementRowId === selectedId;
+          return (
+            <button
+              key={entry.statementRowId}
+              type="button"
+              aria-pressed={selected}
+              className={`inbox-row ${selected ? "inbox-row--selected" : ""}`}
+              onClick={() => onSelect(entry.statementRowId)}
+            >
+              <span className="inbox-row-date">{formatInboxDate(entry.postedDate)}</span>
+              <span className="inbox-row-desc">{entry.description}</span>
+              <span className="inbox-row-tags">
+                <CategoryChip entry={entry} />
+                {entry.pendingAtImport ? (
+                  <span className="pending-at-import-badge">Pending at import</span>
+                ) : null}
+              </span>
+              <span className="inbox-row-amount">{formatInboxAmount(entry.sourceAmount)}</span>
+              <span className="inbox-row-glyph" aria-hidden="true">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none">
+                  <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M8 5v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
-function formatInboxAmount(value: string): string {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return value;
+function CategoryChip({ entry }: { entry: SuggestedEntry }) {
+  if (entry.kind === "transfer") {
+    const target = entry.linkedStatementRow?.sourceAccount;
+    return (
+      <span className="inbox-chip inbox-chip--transfer">
+        {target ? `Transfer → ${target}` : "Transfer"}
+      </span>
+    );
   }
-  const absolute = Math.abs(parsed).toFixed(2);
-  return parsed > 0 ? `+$${absolute}` : `−$${absolute}`;
+  if (entry.suggestedLedgerAccount) {
+    return <span className="inbox-chip inbox-chip--rule">{entry.suggestedLedgerAccount}</span>;
+  }
+  return <span className="inbox-chip inbox-chip--uncategorized">Uncategorized</span>;
 }

@@ -1,105 +1,171 @@
-import { render, screen } from "@testing-library/react";
+// src/features/workspace/InboxPanel.test.tsx
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InboxPanel } from "./InboxPanel";
 import type { SuggestedEntry } from "../../lib/workspace/types";
 
-const suggestedEntries: SuggestedEntry[] = [
-  {
+function entry(overrides: Partial<SuggestedEntry>): SuggestedEntry {
+  return {
     kind: "standard",
-    statementRowId: "row-1",
+    statementRowId: "row",
     postedDate: "2026-05-08",
-    description: "OPENAI *CHATGPT",
-    sourceAccount: "Assets:Bank:Chase Checking",
-    sourceAmount: "-20.00",
-    sourceFileName: "checking.csv",
-    importFingerprint: "checking-1",
-    pendingAtImport: true,
-    suggestedLedgerAccount: "Expenses:Software",
-    linkedStatementRow: null,
-    categorizationRuleId: "rule-1",
-    aiSuggestion: null,
-  },
-  {
-    kind: "transfer",
-    statementRowId: "row-2",
-    postedDate: "2026-05-08",
-    description: "Transfer to savings",
-    sourceAccount: "Assets:Bank:Chase Checking",
-    sourceAmount: "-1500.00",
-    sourceFileName: "checking.csv",
-    importFingerprint: "checking-2",
+    description: "TEST",
+    sourceAccount: "Assets:Bank:Chase",
+    sourceAmount: "-10.00",
+    sourceFileName: "chase.csv",
+    importFingerprint: "fp",
     pendingAtImport: false,
-    linkedStatementRow: {
-      statementRowId: "row-3",
-      postedDate: "2026-05-08",
-      description: "Transfer from checking",
-      sourceAccount: "Assets:Bank:Ally Savings",
-      sourceAmount: "1500.00",
-      sourceFileName: "savings.csv",
-      importFingerprint: "savings-1",
-    },
+    linkedStatementRow: null,
     suggestedLedgerAccount: null,
     categorizationRuleId: null,
     aiSuggestion: null,
-  },
+    ...overrides,
+  };
+}
+
+const entries: SuggestedEntry[] = [
+  entry({
+    statementRowId: "needs-1",
+    description: "LYFT *RIDE",
+    suggestedLedgerAccount: null,
+  }),
+  entry({
+    statementRowId: "matched-1",
+    description: "OPENAI *CHATGPT",
+    sourceAmount: "-20.00",
+    suggestedLedgerAccount: "Expenses:Software",
+  }),
+  entry({
+    statementRowId: "transfer-1",
+    description: "Transfer to savings",
+    kind: "transfer",
+    sourceAmount: "-1500.00",
+    linkedStatementRow: {
+      statementRowId: "transfer-2",
+      postedDate: "2026-05-08",
+      description: "Transfer from checking",
+      sourceAccount: "Assets:Bank:Ally",
+      sourceAmount: "1500.00",
+      sourceFileName: "ally.csv",
+      importFingerprint: "fp2",
+    },
+  }),
 ];
 
 describe("InboxPanel", () => {
-  it("shows pending rows, pending-at-import badges, and row selection", async () => {
-    const user = userEvent.setup();
+  it("groups rows into needs-review and matched", () => {
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
 
+    expect(screen.getByText(/needs your review/)).toBeInTheDocument();
+    expect(screen.getByText(/auto-posted/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toBeInTheDocument();
+  });
+
+  it("filters by tab", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    await user.click(screen.getByRole("tab", { name: /Matched/ }));
+    expect(screen.queryByRole("button", { name: /LYFT \*RIDE/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toBeInTheDocument();
+  });
+
+  it("accepts the selected matched entry from the inspector", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={onApprove} />);
+
+    await user.click(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ }));
+    const inspector = screen.getByLabelText("Transaction inspector");
+    await user.click(within(inspector).getByRole("button", { name: "Accept" }));
+
+    expect(onApprove).toHaveBeenCalledWith({
+      statementRowId: "matched-1",
+      ledgerAccount: "Expenses:Software",
+    });
+  });
+
+  it("approves a transfer match from the inspector", async () => {
+    const user = userEvent.setup();
+    const onApproveTransfer = vi.fn().mockResolvedValue(undefined);
     render(
       <InboxPanel
-        suggestedEntries={suggestedEntries}
+        suggestedEntries={entries}
         ledgerStatus="valid"
         onApprove={vi.fn()}
+        onApproveTransfer={onApproveTransfer}
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
-    expect(screen.getAllByText("Pending at import")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toBeInTheDocument();
-
     await user.click(screen.getByRole("button", { name: /Transfer to savings/ }));
+    await user.click(screen.getByRole("button", { name: "Approve Transfer" }));
+    expect(onApproveTransfer).toHaveBeenCalledWith({
+      statementRowId: "transfer-1",
+      linkedStatementRowId: "transfer-2",
+    });
+  });
 
-    expect(screen.getByRole("button", { name: "Approve Transfer" })).toBeInTheDocument();
+  it("moves the selection with the j key", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    // First entry in flat order (needs-review group first) starts selected.
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.keyboard("j");
     expect(screen.getByRole("button", { name: /Transfer to savings/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
   });
 
-  it("submits the selected standard entry and transfer match approvals", async () => {
+  it("moves selection up with the k key", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    // LYFT is selected by default; press j to move down, then k to move back up.
+    await user.keyboard("j");
+    expect(screen.getByRole("button", { name: /Transfer to savings/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.keyboard("k");
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("enters edit mode on the selected standard entry with the e key", async () => {
+    const user = userEvent.setup();
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
+
+    // Click the matched entry — its inspector shows the suggestion card (Accept button), not the edit form.
+    await user.click(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ }));
+    expect(screen.queryByLabelText("Ledger Account")).toBeNull();
+
+    // Press e to open the edit form.
+    await user.keyboard("e");
+    expect(screen.getByLabelText("Ledger Account")).toBeInTheDocument();
+  });
+
+  it("approves the selected matched entry with the Enter key", async () => {
     const user = userEvent.setup();
     const onApprove = vi.fn().mockResolvedValue(undefined);
-    const onApproveTransfer = vi.fn().mockResolvedValue(undefined);
+    render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={onApprove} />);
 
-    render(
-      <InboxPanel
-        suggestedEntries={suggestedEntries}
-        ledgerStatus="valid"
-        onApprove={onApprove}
-        onApproveTransfer={onApproveTransfer}
-      />,
-    );
-
+    // Select the matched entry.
     await user.click(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ }));
-    await user.clear(screen.getByLabelText("Ledger Account"));
-    await user.type(screen.getByLabelText("Ledger Account"), "Expenses:Software");
-    await user.click(screen.getByRole("button", { name: "Approve Entry" }));
 
+    // Press Enter to approve.
+    await user.keyboard("{Enter}");
     expect(onApprove).toHaveBeenCalledWith({
-      statementRowId: "row-1",
+      statementRowId: "matched-1",
       ledgerAccount: "Expenses:Software",
-    });
-
-    await user.click(screen.getByRole("button", { name: /Transfer to savings/ }));
-    await user.click(screen.getByRole("button", { name: "Approve Transfer" }));
-
-    expect(onApproveTransfer).toHaveBeenCalledWith({
-      statementRowId: "row-2",
-      linkedStatementRowId: "row-3",
     });
   });
 });

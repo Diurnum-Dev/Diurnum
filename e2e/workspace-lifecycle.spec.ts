@@ -229,6 +229,12 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async approveTransferEntry() {
         return workspace;
       },
+      async revertTransferToStandard() {
+        return workspace;
+      },
+      async getKnownLedgerAccounts() {
+        return [];
+      },
       async listCategorizationRules() {
         return [];
       },

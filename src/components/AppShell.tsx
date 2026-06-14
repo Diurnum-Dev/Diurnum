@@ -22,11 +22,14 @@ type AppShellProps = {
   activeScreen: WorkspaceScreen;
   pendingInboxCount: number;
   recentWorkspaces: RecentWorkspace[];
+  recentLedgerFiles: string[];
   gitStatus: WorkspaceGitStatus;
   gitWarning: string | null;
   ledgerStatus: LedgerStatus;
   ledgerErrorCount: number;
   statusContext: string;
+  ledgerCursor?: { line: number; column: number } | null;
+  statusHints?: ReactNode;
   switcherOpen: boolean;
   children: ReactNode;
   onToggleSwitcher: () => void;
@@ -34,7 +37,7 @@ type AppShellProps = {
   onOpenRecentWorkspace: (path: string) => void;
   onRemoveRecentWorkspace: (path: string) => void;
   onOpenExistingWorkspace: () => void;
-  onCloseWorkspace: () => void;
+  onOpenRecentFile: (relativePath: string) => void;
 };
 
 const navItems: Array<{
@@ -66,11 +69,14 @@ export function AppShell({
   activeScreen,
   pendingInboxCount,
   recentWorkspaces,
+  recentLedgerFiles,
   gitStatus,
   gitWarning,
   ledgerStatus,
   ledgerErrorCount,
   statusContext,
+  ledgerCursor,
+  statusHints,
   switcherOpen,
   children,
   onToggleSwitcher,
@@ -78,13 +84,14 @@ export function AppShell({
   onOpenRecentWorkspace,
   onRemoveRecentWorkspace,
   onOpenExistingWorkspace,
-  onCloseWorkspace,
+  onOpenRecentFile,
 }: AppShellProps) {
   const visibleNavItems = navItems.filter((item) => !item.gitOnly || gitStatus.isRepository);
 
   return (
     <div className="app-shell app-shell--workspace">
       <aside className="sidebar" aria-label="Workspace navigation">
+        <div className="sidebar-titlebar" data-tauri-drag-region />
         <div className="sidebar-stack">
           <div className="workspace-switcher">
             <button
@@ -170,46 +177,127 @@ export function AppShell({
                 </button>
               ))}
             </div>
+
+            {recentLedgerFiles.length > 0 ? (
+              <>
+                <div className="nav-caps nav-caps--recent">Recent</div>
+                <div className="nav-group">
+                  {recentLedgerFiles.map((filePath) => {
+                    const basename = filePath.split("/").pop() ?? filePath;
+                    return (
+                      <button
+                        className="nav-item nav-item--recent"
+                        type="button"
+                        key={filePath}
+                        title={filePath}
+                        onClick={() => onOpenRecentFile(filePath)}
+                      >
+                        <FileIcon />
+                        <span className="label">{basename}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
           </nav>
         </div>
 
-        <div className="sidebar-footer">
-          <button
-            className="settings-gear"
-            type="button"
-            aria-label="Close Workspace"
-            onClick={onCloseWorkspace}
-          >
-            <Icon path="M4 4l8 8M12 4l-8 8" />
-          </button>
-          <button
-            className="settings-gear"
-            type="button"
-            aria-label="Settings"
-            onClick={() => onNavigate("settings")}
-          >
-            <Icon path="M8 4v1m0 6v1M4 8H3m10 0h-1M5.2 5.2l.7.7m4.2 4.2.7.7m0-5.6-.7.7m-4.2 4.2-.7.7M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
-          </button>
-        </div>
+        {/*
+          Sidebar footer intentionally empty. Diurnum is local-first with no
+          account required, so there is no user/account UI here. This space is
+          reserved for a future remote sync / web-service surface (account,
+          sync status, sign-in). "Close Workspace" lives in the native app
+          menu. See docs/adr/0002-sidebar-footer-reserved-for-sync.md.
+        */}
       </aside>
 
-      <main className={`shell-main${activeScreen === "inbox" ? " shell-main--fill" : ""}`}>
-        <div className={`main-pane${activeScreen === "inbox" ? " main-pane--fill" : ""}`}>{children}</div>
+      <main
+        className={`shell-main${activeScreen === "inbox" || activeScreen === "ledger" ? " shell-main--fill" : ""}`}
+      >
+        {/* The ledger screen provides its own drag surfaces (tab drag zone,
+            explorer header, sidebar top), so the full-width strip — which would
+            overlay the top of the tabs — is omitted there. */}
+        {activeScreen !== "ledger" ? (
+          <div className="window-drag-strip" data-tauri-drag-region />
+        ) : null}
+        <div
+          className={
+            activeScreen === "inbox"
+              ? "main-pane main-pane--fill"
+              : activeScreen === "ledger"
+                ? "main-pane main-pane--flush"
+                : "main-pane"
+          }
+        >
+          {children}
+        </div>
         <footer className="status-bar" aria-label="Workspace status">
-          <span>{statusContext}</span>
-          <span className="status-bar-right">
-            <span className={`ledger-status ledger-status--${ledgerStatus}`}>
-              {ledgerStatus === "valid" ? "Valid" : `${ledgerErrorCount} errors`}
-            </span>
-            {gitWarning ? <span className="status-warning">{gitWarning}</span> : null}
-            {gitStatus.isRepository ? (
-              <span>
-                {gitStatus.uncommittedChangesCount > 0
-                  ? `${gitStatus.uncommittedChangesCount} uncommitted`
-                  : `Git clean${gitStatus.branchName ? ` - ${gitStatus.branchName}` : ""}`}
+          {activeScreen === "ledger" ? (
+            <>
+              <span className="status-bar-item">{statusContext || "Ledger"}</span>
+              {ledgerCursor ? (
+                <>
+                  <span className="status-sep">·</span>
+                  <span className="status-bar-item">
+                    Ln {ledgerCursor.line}, Col {ledgerCursor.column}
+                  </span>
+                </>
+              ) : null}
+              <span className="status-sep">·</span>
+              {ledgerStatus === "valid" ? (
+                <span className="status-bar-item status-valid">
+                  <svg
+                    className="status-check"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12l5 5L20 7" />
+                  </svg>
+                  Valid
+                </span>
+              ) : (
+                <span className="status-bar-item" style={{ color: "var(--color-destructive)" }}>
+                  {ledgerErrorCount} errors
+                </span>
+              )}
+              <span className="status-bar-spacer" />
+              {gitStatus.isRepository && gitStatus.uncommittedChangesCount > 0 ? (
+                <>
+                  <span className="status-bar-item">
+                    <span className="status-dirty-dot" />
+                    {gitStatus.uncommittedChangesCount} uncommitted
+                  </span>
+                  <span className="status-sep">·</span>
+                </>
+              ) : null}
+              <span className="status-bar-item">UTF-8</span>
+              <span className="status-sep">·</span>
+              <span className="status-bar-item">Beancount</span>
+            </>
+          ) : (
+            <>
+              <span>{statusContext}</span>
+              {statusHints ? <span className="status-bar-hints">{statusHints}</span> : null}
+              <span className="status-bar-right">
+                <span className={`ledger-status ledger-status--${ledgerStatus}`}>
+                  {ledgerStatus === "valid" ? "Valid" : `${ledgerErrorCount} errors`}
+                </span>
+                {gitWarning ? <span className="status-warning">{gitWarning}</span> : null}
+                {gitStatus.isRepository ? (
+                  <span>
+                    {gitStatus.uncommittedChangesCount > 0
+                      ? `${gitStatus.uncommittedChangesCount} uncommitted`
+                      : `Git clean${gitStatus.branchName ? ` - ${gitStatus.branchName}` : ""}`}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-          </span>
+            </>
+          )}
         </footer>
       </main>
     </div>
@@ -226,6 +314,25 @@ function Icon({ path }: { path: string }) {
         strokeLinejoin="round"
         strokeWidth="1.5"
       />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
     </svg>
   );
 }

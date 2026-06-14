@@ -44,27 +44,27 @@ typography:
     fontWeight: "500"
     lineHeight: 1.35
   body-lg:
-    fontFamily: Source Sans 3, ui-sans-serif, system-ui, sans-serif
+    fontFamily: -apple-system, BlinkMacSystemFont, system-ui, sans-serif
     fontSize: 16px
     fontWeight: "400"
     lineHeight: 1.5
   body-md:
-    fontFamily: Source Sans 3, ui-sans-serif, system-ui, sans-serif
+    fontFamily: -apple-system, BlinkMacSystemFont, system-ui, sans-serif
     fontSize: 14px
     fontWeight: "400"
     lineHeight: 1.55
   body-base:
-    fontFamily: Source Sans 3, ui-sans-serif, system-ui, sans-serif
+    fontFamily: -apple-system, BlinkMacSystemFont, system-ui, sans-serif
     fontSize: 13px
     fontWeight: "400"
     lineHeight: 1.55
   caption:
-    fontFamily: Source Sans 3, ui-sans-serif, system-ui, sans-serif
+    fontFamily: -apple-system, BlinkMacSystemFont, system-ui, sans-serif
     fontSize: 12px
     fontWeight: "400"
     lineHeight: 1.45
   label-xs:
-    fontFamily: Source Sans 3, ui-sans-serif, system-ui, sans-serif
+    fontFamily: -apple-system, BlinkMacSystemFont, system-ui, sans-serif
     fontSize: 11px
     fontWeight: "600"
     lineHeight: 1.45
@@ -227,7 +227,7 @@ Diurnum's design language is **calm, precise, and confident** — the scholar's 
 
 Three rules override every other decision: hairlines over shadows (1px borders separate surfaces; shadows are reserved for floating elements only), weight and background over color (emphasis comes from font weight or subtle background tints, not hue), and whitespace as a feature (information density is welcome; cramped is not).
 
-The palette is warm parchment and iron-gall ink, with a lapis/ink-blue accent for interactive states and oxblood reserved for errors and destructive actions. The wordmark and page titles speak in Spectral; all UI chrome in Source Sans 3; ledger content in JetBrains Mono. That contrast — classical serif for brand, humanist sans for chrome, monospace for data — is the visual thesis: an ancient practice, a modern tool.
+The palette is warm parchment and iron-gall ink, with a lapis/ink-blue accent for interactive states and oxblood reserved for errors and destructive actions. The wordmark and page titles speak in Spectral; all UI chrome in the system font (SF Pro); ledger content in JetBrains Mono. That contrast — classical serif for brand, humanist sans for chrome, monospace for data — is the visual thesis: an ancient practice, a modern tool.
 
 ## Colors
 
@@ -256,7 +256,7 @@ Diurnum uses three typefaces, each with a defined domain.
 
 **Spectral** is the brand voice — used for the wordmark, page titles, and prominent display headings. Its classical proportions and screen-optimized ink traps lend authority and calm to the most prominent moments in the UI.
 
-**Source Sans 3** is the workhorse — all UI chrome, navigation, labels, captions, form elements, and body copy in the application shell. Its humanist warmth complements Spectral without competing.
+**The system font (SF Pro)** is the workhorse — all UI chrome, navigation, labels, captions, form elements, and body copy in the application shell. Using the native macOS system font keeps the chrome unmistakably mac-native while Spectral carries the brand voice.
 
 **JetBrains Mono** is the ledger voice — used exclusively for editor content, Beancount previews, file paths, hashes, and inline code. The deliberate contrast between serif chrome and monospace ledger is the design's core visual statement.
 
@@ -269,6 +269,8 @@ The shell is a fixed-width sidebar layout: a 200px left nav, a full-height conte
 Spacing uses a 4px base unit. Most gaps are 8px (inter-element) or 16px (card padding). Give every element room to breathe — cramped layouts contradict the parchment aesthetic.
 
 The right-side inspector panel (Inbox) is 380px wide, separated by a single 1px border. Modals: 420px small, 520px default, 640px large (command palette).
+
+The window has no title bar: traffic lights float over a full-height translucent sidebar (vibrancy material), and the sidebar's top 52px is a window drag region. The content pane is opaque parchment.
 
 ## Elevation & Depth
 
@@ -337,7 +339,7 @@ JetBrains Mono, 13px. String tokens: `editor-string-bg` tint. Active block: `edi
 
 **Do** use oxblood for errors and destructive actions exclusively. **Don't** make it the primary accent — lapis owns that role.
 
-**Do** use Spectral for the wordmark, page titles, and prominent headings. **Don't** use it for UI chrome — that register belongs to Source Sans 3.
+**Do** use Spectral for the wordmark, page titles, and prominent headings. **Don't** use it for UI chrome — that register belongs to the system font.
 
 **Do** use `label-xs` all-caps for section headers and metadata labels. **Don't** mix serif and sans within the same table cell or editor line.
 

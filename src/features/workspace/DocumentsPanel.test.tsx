@@ -222,6 +222,12 @@ describe("DocumentsPanel", () => {
       async approveTransferEntry() {
         return workspace;
       },
+      async revertTransferToStandard() {
+        return workspace;
+      },
+      async getKnownLedgerAccounts() {
+        return [];
+      },
       async listCategorizationRules() {
         return [];
       },
