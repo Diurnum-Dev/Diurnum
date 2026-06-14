@@ -105,7 +105,12 @@ export function InboxPanel({
       } else if (event.key === "Enter" && selectedEntry) {
         const suggested =
           selectedEntry.suggestedLedgerAccount ?? selectedEntry.aiSuggestion?.ledgerAccount ?? null;
-        if (selectedEntry.kind === "transfer" && selectedEntry.linkedStatementRow && onApproveTransfer) {
+        if (
+          selectedEntry.kind === "transfer" &&
+          selectedEntry.linkedStatementRow &&
+          onApproveTransfer &&
+          ledgerStatus === "valid"
+        ) {
           event.preventDefault();
           void onApproveTransfer({
             statementRowId: selectedEntry.statementRowId,
