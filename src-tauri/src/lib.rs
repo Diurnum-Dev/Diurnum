@@ -22,6 +22,7 @@ pub fn run() {
             menu::sync_app_menu,
             commands::workspace::create_workspace,
             commands::workspace::open_workspace,
+            commands::workspace::get_workspace_view,
             commands::workspace::validate_workspace,
             commands::workspace::list_snapshots,
             commands::workspace::restore_snapshot,

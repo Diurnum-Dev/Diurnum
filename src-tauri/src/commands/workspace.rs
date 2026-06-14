@@ -40,7 +40,13 @@ use crate::workspace::shell::{self, WorkspaceGitStatus, WorkspacePathStatus};
 use crate::workspace::source_accounts::{self, AddSourceAccountInput};
 use crate::workspace::types::{CreateWorkspaceInput, LedgerValidationSummary, WorkspaceSummary};
 use crate::workspace::validation;
+use crate::workspace::view::{self, WorkspaceView};
 use crate::workspace::WorkspaceError;
+
+#[tauri::command]
+pub fn get_workspace_view(path: String) -> Result<WorkspaceView, WorkspaceError> {
+    view::load(path)
+}
 
 #[tauri::command]
 pub fn create_workspace(input: CreateWorkspaceInput) -> Result<WorkspaceSummary, WorkspaceError> {
@@ -63,8 +69,8 @@ pub fn list_snapshots(path: String) -> Result<Vec<SnapshotSummary>, WorkspaceErr
 }
 
 #[tauri::command]
-pub fn restore_snapshot(input: RestoreSnapshotInput) -> Result<WorkspaceSummary, WorkspaceError> {
-    data_integrity::restore_snapshot(input)
+pub fn restore_snapshot(input: RestoreSnapshotInput) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(data_integrity::restore_snapshot(input)?)
 }
 
 #[tauri::command]
@@ -180,8 +186,8 @@ pub fn commit_git_changes(
 #[tauri::command]
 pub fn add_source_account(
     input: AddSourceAccountInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    source_accounts::add_source_account(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(source_accounts::add_source_account(input)?)
 }
 
 #[tauri::command]
@@ -209,22 +215,22 @@ pub fn get_broken_provenance(path: String) -> Result<Vec<BrokenProvenance>, Work
 #[tauri::command]
 pub fn approve_suggested_entry(
     input: ApproveSuggestedEntryInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    approval::approve_suggested_entry(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(approval::approve_suggested_entry(input)?)
 }
 
 #[tauri::command]
 pub fn approve_transfer_entry(
     input: ApproveTransferEntryInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    approval::approve_transfer_entry(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(approval::approve_transfer_entry(input)?)
 }
 
 #[tauri::command]
 pub fn revert_transfer_to_standard(
     input: RevertTransferToStandardInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    approval::revert_transfer_to_standard(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(approval::revert_transfer_to_standard(input)?)
 }
 
 #[tauri::command]
@@ -300,8 +306,8 @@ pub fn get_mvp_reports(input: ReportsInput) -> Result<MvpReports, WorkspaceError
 #[tauri::command]
 pub fn update_workspace_metadata(
     input: UpdateWorkspaceMetadataInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    settings::update_workspace_metadata(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(settings::update_workspace_metadata(input)?)
 }
 
 #[tauri::command]
@@ -328,22 +334,22 @@ pub fn save_source_mapping(
 #[tauri::command]
 pub fn rename_source_account(
     input: RenameSourceAccountInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    settings::rename_source_account(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(settings::rename_source_account(input)?)
 }
 
 #[tauri::command]
 pub fn close_source_account(
     input: CloseSourceAccountInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    settings::close_source_account(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(settings::close_source_account(input)?)
 }
 
 #[tauri::command]
 pub fn update_source_account_opening_balance(
     input: UpdateSourceAccountOpeningBalanceInput,
-) -> Result<WorkspaceSummary, WorkspaceError> {
-    settings::update_source_account_opening_balance(input)
+) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(settings::update_source_account_opening_balance(input)?)
 }
 
 #[tauri::command]
@@ -422,6 +428,9 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(updated.ledger_status, crate::workspace::LedgerStatus::Valid);
+        assert_eq!(
+            updated.summary.ledger_status,
+            crate::workspace::LedgerStatus::Valid
+        );
     }
 }
