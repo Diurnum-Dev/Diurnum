@@ -7,6 +7,11 @@ Diurnum is a local-first desktop bookkeeping app. The diagrams below keep the hu
 ```mermaid
 flowchart TB
   User[Founder-Operator]
+  Visitor[Prospective user]
+
+  subgraph Site[Public marketing site]
+    Homepage[Static homepage in docs/index.html]
+  end
 
   subgraph App[Diurnum local desktop app]
     UI[React App Shell and workspace UI]
@@ -29,6 +34,8 @@ flowchart TB
   end
 
   User --> UI
+  Visitor --> Homepage
+  Homepage --> User
   UI --> AppConfig
   UI --> Bridge
   Bridge --> Core
@@ -198,6 +205,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 
 | Area                 | Primary files                                                                                                                                                                | Responsibility                                                                                                                                                                                                 |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public marketing site | `docs/index.html`, `docs/images/*`, `docs/screenshots/*`                                                                                                                     | Static GitHub Pages homepage for people evaluating Diurnum, explaining the plain-text accounting position, anti-lock-in stance, workflow, product screenshot, comparison frame, and waitlist form. |
 | React shell          | `src/App.tsx`, `src/components/AppShell.tsx`                                                                                                                                 | App composition, no-workspace Welcome flow, two-column Workspace shell, Ledger Editor home routing, active screen state, Workspace Switcher recents, conditional Git nav, command palette shortcuts, non-blocking GitHub Release update notice, Close Workspace, and shared status bar. |
 | Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, CodeMirror Ledger Editor, Documents browser, command palette, shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, Settings, suggested-entry review, categorization rules, Git history, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |

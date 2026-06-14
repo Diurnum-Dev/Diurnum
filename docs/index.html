@@ -3,19 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Diurnum — The day-book, restored</title>
+    <title>Diurnum — Open-source accounting in plain text</title>
     <meta
       name="description"
-      content="A local-first, double-entry accounting workspace built on plain Beancount text. Own your ledger. Free and open source for macOS."
+      content="Open-source accounting for people who run their own books. Keep a double-entry ledger in plain-text Beancount files on your Mac, not in a rented vendor database."
     />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://diurnum.app/" />
-    <meta property="og:title" content="Diurnum — The day-book, restored" />
+    <meta
+      property="og:title"
+      content="Diurnum — Open-source accounting in plain text"
+    />
     <meta
       property="og:description"
-      content="A local-first, double-entry accounting workspace built on plain Beancount text. Own your ledger. Free and open source for macOS."
+      content="Open-source accounting for people who run their own books. Keep a double-entry ledger in plain-text Beancount files on your Mac, not in a rented vendor database."
     />
     <meta
       property="og:image"
@@ -32,10 +35,13 @@
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Diurnum — The day-book, restored" />
+    <meta
+      name="twitter:title"
+      content="Diurnum — Open-source accounting in plain text"
+    />
     <meta
       name="twitter:description"
-      content="A local-first, double-entry accounting workspace built on plain Beancount text. Own your ledger. Free and open source for macOS."
+      content="Open-source accounting for people who run their own books. Keep a double-entry ledger in plain-text Beancount files on your Mac, not in a rented vendor database."
     />
     <meta
       name="twitter:image"
@@ -388,6 +394,133 @@
         width: 100%;
         height: auto;
         display: block;
+      }
+
+      /* === Plain-language explainer === */
+      .explainer {
+        padding: 72px 0;
+      }
+
+      .explainer-inner,
+      .enemy-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      .section-heading {
+        font-family: var(--font-serif);
+        font-size: 34px;
+        font-weight: 500;
+        line-height: 1.18;
+        color: var(--color-text);
+        text-wrap: balance;
+      }
+
+      .section-lede {
+        font-size: 17px;
+        color: var(--color-text-muted);
+        line-height: 1.65;
+        max-width: 640px;
+      }
+
+      .explainer-header {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 48px;
+        align-items: end;
+        margin-bottom: 32px;
+      }
+
+      .definition-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        background: var(--color-border);
+        border: 1px solid var(--color-border);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .definition {
+        background: var(--color-bg);
+        padding: 26px 28px;
+      }
+
+      .definition-term {
+        font-family: var(--font-serif);
+        font-size: 18px;
+        font-weight: 500;
+        color: var(--color-text);
+        margin-bottom: 8px;
+      }
+
+      .definition-body {
+        font-size: 14px;
+        color: var(--color-text-muted);
+        line-height: 1.6;
+      }
+
+      .enemy {
+        background: var(--color-bg-muted);
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
+        padding: 72px 0;
+      }
+
+      .enemy-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        gap: 48px;
+        align-items: start;
+      }
+
+      .enemy-title {
+        font-family: var(--font-serif);
+        font-size: 38px;
+        font-weight: 500;
+        line-height: 1.12;
+        color: var(--color-text);
+        text-wrap: balance;
+      }
+
+      .enemy-copy {
+        font-size: 17px;
+        color: var(--color-text-muted);
+        line-height: 1.65;
+      }
+      .enemy-copy + .enemy-copy {
+        margin-top: 18px;
+      }
+      .enemy-copy strong {
+        color: var(--color-text);
+        font-weight: 600;
+      }
+
+      .enemy-list {
+        margin-top: 28px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .enemy-point {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--color-border-strong);
+      }
+
+      .enemy-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--color-highlight-ink);
+      }
+
+      .enemy-text {
+        font-size: 14px;
+        color: var(--color-text-muted);
+        line-height: 1.55;
       }
 
       /* === Etymology === */
@@ -809,6 +942,17 @@
         .nav-links {
           display: none;
         }
+        .explainer-header,
+        .enemy-layout {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .definition-grid {
+          grid-template-columns: 1fr;
+        }
+        .enemy-title {
+          font-size: 30px;
+        }
         .pillars-grid {
           grid-template-columns: 1fr;
         }
@@ -840,6 +984,19 @@
         .hero-body {
           font-size: 15px;
         }
+        .section-heading,
+        .waitlist-title {
+          font-size: 28px;
+        }
+        .definition,
+        .enemy-point {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .enemy-point {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
         .pillar {
           padding: 20px;
         }
@@ -847,6 +1004,8 @@
           font-size: 26px;
         }
         .page-wrap,
+        .explainer-inner,
+        .enemy-inner,
         .pillars-inner,
         .diff-showcase-inner,
         .competition-inner {
@@ -868,8 +1027,9 @@
         </a>
         <nav aria-label="Primary">
           <ul class="nav-links">
-            <li><a href="#why">Why</a></li>
-            <li><a href="#diff">Diff</a></li>
+            <li><a href="#what">What it is</a></li>
+            <li><a href="#enemy">Enemy</a></li>
+            <li><a href="#how">How it works</a></li>
             <li><a href="#compare">Compare</a></li>
             <li>
               <a
@@ -888,14 +1048,17 @@
     <!-- Hero -->
     <section class="hero">
       <span class="eyebrow"
-        >Desktop accounting workspace &middot; macOS &middot; GPL v3</span
+        >Open-source accounting &middot; macOS &middot; GPL v3</span
       >
-      <h1 class="hero-title">The day-book, restored.</h1>
-      <p class="hero-tagline">Own your ledger. Let AI help.</p>
+      <h1 class="hero-title">Your books, in plain text.</h1>
+      <p class="hero-tagline">
+        An open-source, local-first alternative to QuickBooks for people who run
+        their own books.
+      </p>
       <p class="hero-body">
-        For the founder-operator who keeps their own books: a desktop accounting
-        workspace that records everything as portable, double-entry Beancount
-        text &mdash; a day-book you write, own, and can read a decade from now.
+        Diurnum is a Mac app that turns bank CSVs into reviewable double-entry
+        entries. You approve what gets written, Diurnum validates the ledger,
+        and your accounting stays in a folder you can open with ordinary tools.
       </p>
       <div class="hero-actions">
         <a href="#waitlist" class="btn btn-primary">Join the waitlist</a>
@@ -921,7 +1084,7 @@
             />
             <path d="M9 18c-4.51 2-5-2-7-2" />
           </svg>
-          View on GitHub
+          Read the source
         </a>
       </div>
       <p class="hero-meta">
@@ -950,67 +1113,146 @@
 
     <hr class="rule" />
 
-    <!-- Etymology -->
-    <section class="etymology reveal">
-      <div class="narrow">
-        <p class="etymology-text">
-          <strong>Diurnum</strong> (dy-UR-num) is a Latin noun meaning
-          <strong>account-book, day-book</strong> &mdash; attested in Juvenal,
-          used in Rome for the running record of daily transactions. Late Latin
-          <em>diurnum</em> became Old French <em>journal</em>; the sense
-          &ldquo;a daily record of transactions&rdquo; is first recorded in
-          1565.
-        </p>
-        <p class="etymology-text" style="margin-top: 16px">
-          The journal entry &mdash; the atom of double-entry bookkeeping &mdash;
-          is, etymologically, a <em>diurnum</em> entry. The name is not a
-          metaphor for the product. It <strong>is</strong> the product, in its
-          oldest form.
-        </p>
-        <span class="etymology-pronounce">dy &middot; UR &middot; num</span>
+    <!-- Plain-language explainer -->
+    <section class="explainer reveal" id="what">
+      <div class="explainer-inner">
+        <div class="explainer-header">
+          <h2 class="section-heading">What you are looking at</h2>
+          <p class="section-lede">
+            Diurnum is accounting software for solo businesses, consultants,
+            and anyone else who does their own bookkeeping. It is not a
+            budgeting app, a cloud bookkeeping service, or a nicer skin on
+            QuickBooks. It is a local workspace for maintaining a clean,
+            readable ledger.
+          </p>
+        </div>
+
+        <div class="definition-grid">
+          <div class="definition">
+            <h3 class="definition-term">It keeps real books</h3>
+            <p class="definition-body">
+              Diurnum uses double-entry accounting, so your books can produce
+              an income statement, expense breakdown, account balances, and a
+              balance sheet. Books, not budget bars.
+            </p>
+          </div>
+          <div class="definition">
+            <h3 class="definition-term">Your ledger is a folder</h3>
+            <p class="definition-body">
+              The source of truth is plain Beancount text on your Mac. Open it
+              in Diurnum, Fava, Git, or a text editor. If Diurnum vanished, your
+              books would still be readable.
+            </p>
+          </div>
+          <div class="definition">
+            <h3 class="definition-term">Imports are reviewable</h3>
+            <p class="definition-body">
+              Bring in CSV statements from your bank, review Diurnum&rsquo;s
+              suggested entries, then approve the exact ledger changes before
+              they are written.
+            </p>
+          </div>
+          <div class="definition">
+            <h3 class="definition-term">AI never gets the pen</h3>
+            <p class="definition-body">
+              Optional AI can suggest categories or complete entries from your
+              ledger context, but approval stays with you. No autonomous
+              bookkeeping. No silent rewrites.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
 
     <hr class="rule" />
 
-    <!-- Pillars -->
-    <section class="pillars reveal" id="why">
+    <!-- Enemy -->
+    <section class="enemy reveal" id="enemy">
+      <div class="enemy-inner">
+        <div class="enemy-layout">
+          <h2 class="enemy-title">
+            Accounting software should not own your accounting.
+          </h2>
+          <div>
+            <p class="enemy-copy">
+              QuickBooks is the enemy because it taught small businesses to
+              accept slow software, opaque data, and a monthly bill just to
+              read their own books. Diurnum takes the opposite side:
+              <strong>the ledger belongs to the business</strong>.
+            </p>
+            <p class="enemy-copy">
+              The goal is not to clone QuickBooks with friendlier colors. The
+              goal is to make the smallest useful desktop app around a durable
+              accounting record you can inspect, version, validate, and carry
+              away.
+            </p>
+            <div class="enemy-list" aria-label="Diurnum principles">
+              <div class="enemy-point">
+                <span class="enemy-label">Instead of SaaS</span>
+                <p class="enemy-text">
+                  A local Workspace folder with your ledger, documents,
+                  imports, settings, and history.
+                </p>
+              </div>
+              <div class="enemy-point">
+                <span class="enemy-label">Instead of lock-in</span>
+                <p class="enemy-text">
+                  Standard Beancount files that open in other plain-text
+                  accounting tools.
+                </p>
+              </div>
+              <div class="enemy-point">
+                <span class="enemy-label">Instead of magic</span>
+                <p class="enemy-text">
+                  Reviewable diffs, source rows, validation, and approval
+                  before anything becomes trusted state.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
+    <!-- How it works -->
+    <section class="pillars reveal" id="how">
       <div class="pillars-inner">
-        <span class="section-label">Why Diurnum</span>
+        <span class="section-label">How Diurnum works</span>
         <div class="pillars-grid">
           <div class="pillar">
             <div class="pillar-num">1</div>
-            <div class="pillar-title">The day-book, restored</div>
+            <div class="pillar-title">Create a local Workspace</div>
             <p class="pillar-body">
-              Double-entry accounting in its oldest, most durable form. Real
-              P&amp;L and balance sheet &mdash; not budget bars. Books, not
-              budgets.
+              Diurnum creates a folder for one business: readable ledger files,
+              local app state, imported documents, snapshots, and optional Git
+              history.
             </p>
           </div>
           <div class="pillar">
             <div class="pillar-num">2</div>
-            <div class="pillar-title">Written in your own hand</div>
+            <div class="pillar-title">Import bank CSVs</div>
             <p class="pillar-body">
-              Plain Beancount text you own outright. Opens in Fava, validates
-              with <code>bean-check</code>, leaves with you to any plain-text
-              tool.
+              Download statements from your bank and bring them in. Diurnum
+              normalizes rows, detects duplicates, and keeps source files with
+              the Workspace.
             </p>
           </div>
           <div class="pillar">
             <div class="pillar-num">3</div>
-            <div class="pillar-title">Every line, accountable</div>
+            <div class="pillar-title">Review suggested entries</div>
             <p class="pillar-body">
-              Each figure traces to the entry &mdash; and the day &mdash; that
-              produced it. AI suggestions are grounded in your ledger and cite
-              their sources.
+              Rules, history, and optional AI can suggest payees, accounts, and
+              transfer matches. You see the Beancount entry before approval.
             </p>
           </div>
           <div class="pillar">
             <div class="pillar-num">4</div>
-            <div class="pillar-title">Built to endure</div>
+            <div class="pillar-title">Approve readable ledger changes</div>
             <p class="pillar-body">
-              Local-first, private, version-controlled. A record designed to
-              outlast the software that wrote it. Free and open source, forever.
+              Approval writes balanced plain-text entries, validates the ledger,
+              and keeps the record portable. Reports come from those files.
             </p>
           </div>
         </div>
@@ -1022,11 +1264,12 @@
     <!-- Diff Showcase -->
     <section class="diff-showcase reveal" id="diff">
       <div class="diff-showcase-inner">
-        <span class="section-label">The record proves itself</span>
-        <h2 class="diff-showcase-title">Every entry, in your own hand</h2>
+        <span class="section-label">Review before writing</span>
+        <h2 class="diff-showcase-title">You approve ledger changes as text</h2>
         <p class="diff-showcase-sub">
-          Plain Beancount text. Open in Fava. Validate with
-          <code>bean-check</code>. Leave any time.
+          Diurnum can help assemble the entry, but the final record is still a
+          readable Beancount change you can inspect before it becomes part of
+          your books.
         </p>
 
         <div class="diff-frame">
@@ -1046,11 +1289,31 @@
 
     <hr class="rule" />
 
+    <!-- Etymology -->
+    <section class="etymology reveal">
+      <div class="narrow">
+        <p class="etymology-text">
+          <strong>Diurnum</strong> (dy-UR-num) is a Latin noun meaning
+          <strong>account-book, day-book</strong>. Late Latin
+          <em>diurnum</em> became Old French <em>journal</em>, the daily record
+          of transactions.
+        </p>
+        <p class="etymology-text">
+          The name is not a metaphor for the product. A journal entry, the atom
+          of double-entry bookkeeping, is a <em>diurnum</em> entry: a day's
+          transaction written into a book that endures.
+        </p>
+        <span class="etymology-pronounce">dy &middot; UR &middot; num</span>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
     <!-- Competition -->
     <section class="competition reveal" id="compare">
       <div class="competition-inner">
         <div class="narrow" style="text-align: center">
-          <span class="eyebrow">Competitive frame</span>
+          <span class="eyebrow">Where it fits</span>
           <h2
             style="
               font-family: var(--font-serif);
@@ -1060,7 +1323,7 @@
               margin-bottom: 0;
             "
           >
-            Where Diurnum fits
+            Choose your bookkeeping tradeoff
           </h2>
         </div>
 
@@ -1069,9 +1332,9 @@
             <thead>
               <tr>
                 <th></th>
-                <th>Privacy budgeting apps</th>
-                <th>Cloud SaaS (QBO, Xero)</th>
-                <th>Raw Beancount + Fava</th>
+                <th>Budgeting apps</th>
+                <th>QuickBooks / Xero</th>
+                <th>Beancount by hand</th>
                 <th>Diurnum</th>
               </tr>
             </thead>
@@ -1079,37 +1342,40 @@
               <tr>
                 <td>Job</td>
                 <td>Track spending</td>
-                <td>Full accounting</td>
-                <td>Full accounting, DIY</td>
-                <td>Full accounting, kept to last</td>
+                <td>Run small-business accounting</td>
+                <td>Keep books in text files</td>
+                <td>Keep real books in text files without doing every step by hand</td>
               </tr>
               <tr>
                 <td>Data</td>
-                <td>Bespoke local file</td>
-                <td>Vendor database</td>
-                <td>Standard text files</td>
-                <td>Beancount standard</td>
+                <td>App-specific file</td>
+                <td>Vendor-controlled database</td>
+                <td>Plain Beancount text</td>
+                <td>Plain Beancount text in your local Workspace</td>
               </tr>
               <tr>
                 <td>Audience</td>
-                <td>Privacy-minded consumers</td>
-                <td>SMBs + accountants</td>
-                <td>Technical tinkerers</td>
-                <td>Technical operators</td>
+                <td>Households</td>
+                <td>Businesses and accountants</td>
+                <td>Technical people with patience</td>
+                <td>
+                  People who run their own books and want control without
+                  busywork
+                </td>
               </tr>
               <tr>
                 <td>AI</td>
-                <td>Categorize / import</td>
-                <td>Black-box automation</td>
+                <td>Spending categories</td>
+                <td>Automation you have to trust</td>
                 <td>None</td>
-                <td>Grounded, cited, approved</td>
+                <td>Optional suggestions grounded in your ledger, then approved by you</td>
               </tr>
               <tr>
                 <td>Trust</td>
-                <td>&ldquo;Local, trust us&rdquo;</td>
-                <td>&ldquo;Trust us&rdquo;</td>
-                <td>&ldquo;Do it yourself&rdquo;</td>
-                <td>&ldquo;The record proves itself&rdquo;</td>
+                <td>&ldquo;Your budget is on track&rdquo;</td>
+                <td>&ldquo;Your data is safe with us&rdquo;</td>
+                <td>&ldquo;You can inspect everything because you wrote everything&rdquo;</td>
+                <td>&ldquo;You can inspect everything before Diurnum writes it&rdquo;</td>
               </tr>
             </tbody>
           </table>
@@ -1121,10 +1387,10 @@
     <section class="waitlist" id="waitlist">
       <div class="waitlist-inner reveal">
         <span class="eyebrow">Early access</span>
-        <h2 class="waitlist-title">Be among the first.</h2>
+        <h2 class="waitlist-title">Keep your books where you can read them.</h2>
         <p class="waitlist-body">
           Diurnum is coming to macOS. Join the waitlist and we&rsquo;ll let you
-          know when it&rsquo;s ready.
+          know when the first public build is ready.
         </p>
         <div class="newsletter-form-container">
           <form
@@ -1182,7 +1448,7 @@
     <!-- Footer -->
     <footer class="site-footer">
       <p class="footer-pronounce">dy &middot; UR &middot; num</p>
-      <p class="footer-tagline">A record that endures.</p>
+      <p class="footer-tagline">Open-source accounting in plain text.</p>
       <ul class="footer-links">
         <li>
           <a
@@ -1197,8 +1463,8 @@
         <li><a href="#">Privacy</a></li>
       </ul>
       <p class="footer-copy">
-        Diurnum &middot; The day-book, restored &middot; Free and open source
-        forever
+        Diurnum &middot; Your ledger belongs to your business &middot; Free and
+        open source forever
       </p>
     </footer>
 
