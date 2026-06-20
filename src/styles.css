@@ -1921,6 +1921,17 @@ dd {
   background: var(--color-editor-active-block);
 }
 
+/* Text selection — CM sets the selection layer z-index to -1 (behind .cm-content)
+   via inline style. Bump it above content so active-line/transaction backgrounds
+   don't cover it. Cursor layer is at z-index ~150 so it still wins. */
+.codemirror-host .cm-selectionLayer {
+  z-index: 1 !important;
+}
+
+.codemirror-host .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: rgba(36, 59, 107, 0.18) !important;
+}
+
 .codemirror-host .cm-activeLineGutter {
   background: var(--color-editor-active-block);
 }
@@ -2471,7 +2482,8 @@ dd {
   background: var(--color-bg-subtle);
 }
 
-.inbox-row--selected {
+.inbox-row--selected,
+.inbox-row--selected:hover {
   background: var(--color-accent-bg);
   box-shadow: inset 2px 0 0 var(--color-accent);
 }
