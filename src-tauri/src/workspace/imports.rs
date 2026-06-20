@@ -190,7 +190,12 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
         imported_count += 1;
     }
 
-    auto_file_import_csv(root, &input.source_account, &input.source_file_name, &input.csv_contents)?;
+    auto_file_import_csv(
+        root,
+        &input.source_account,
+        &input.source_file_name,
+        &input.csv_contents,
+    )?;
 
     Ok(CsvImportResult {
         source_account: input.source_account,
@@ -199,7 +204,9 @@ pub fn import_statement_rows(input: CsvImportInput) -> Result<CsvImportResult, W
     })
 }
 
-pub fn analyze_csv_import(input: CsvImportAnalysisInput) -> Result<CsvImportAnalysis, WorkspaceError> {
+pub fn analyze_csv_import(
+    input: CsvImportAnalysisInput,
+) -> Result<CsvImportAnalysis, WorkspaceError> {
     let root = Path::new(&input.workspace_root_path);
     ensure_app_created_workspace(root)?;
     let parsed = parse_csv_document(&input.source_file_name, &input.csv_contents)?;
@@ -214,7 +221,9 @@ pub fn analyze_csv_import(input: CsvImportAnalysisInput) -> Result<CsvImportAnal
         load_source_mapping(&connection, source_account).ok()
     };
     let inferred_mapping = infer_source_mapping(&parsed)?;
-    let mapping = saved_mapping.clone().unwrap_or_else(|| inferred_mapping.clone());
+    let mapping = saved_mapping
+        .clone()
+        .unwrap_or_else(|| inferred_mapping.clone());
     let duplicate_fingerprints = if source_account.is_empty() {
         HashSet::new()
     } else {
@@ -497,7 +506,10 @@ fn parse_csv_document(file_name: &str, contents: &str) -> Result<ParsedCsv, Work
         .map(|record| {
             let mut row = HashMap::new();
             for (index, header) in headers.iter().enumerate() {
-                row.insert(header.clone(), record.get(index).cloned().unwrap_or_default());
+                row.insert(
+                    header.clone(),
+                    record.get(index).cloned().unwrap_or_default(),
+                );
             }
             row
         })
@@ -605,7 +617,13 @@ fn parse_csv_records(contents: &str, delimiter: char) -> Result<Vec<Vec<String>>
 fn infer_source_mapping(parsed: &ParsedCsv) -> Result<CsvSourceMappingInput, WorkspaceError> {
     let posted_date_column = find_header(
         &parsed.headers,
-        &["posted date", "post date", "transaction date", "trans date", "date"],
+        &[
+            "posted date",
+            "post date",
+            "transaction date",
+            "trans date",
+            "date",
+        ],
     )
     .ok_or_else(|| {
         WorkspaceError::new(
@@ -637,8 +655,7 @@ fn infer_source_mapping(parsed: &ParsedCsv) -> Result<CsvSourceMappingInput, Wor
         &parsed.headers,
         &["transaction amount", "signed amount", "amount", "value"],
     );
-    let transaction_type_column =
-        find_header(&parsed.headers, &["transaction type", "type"]);
+    let transaction_type_column = find_header(&parsed.headers, &["transaction type", "type"]);
     let debit_column = find_header(&parsed.headers, &["withdrawal", "debit", "out"]);
     let credit_column = find_header(&parsed.headers, &["deposit", "credit", "in"]);
 
@@ -737,19 +754,20 @@ fn importable_rows_for_mapping(
         if row.values().all(|value| value.trim().is_empty()) {
             continue;
         }
-        let Some(posted_date_raw) = row.get(&mapping.posted_date_column).map(|value| value.trim()) else {
+        let Some(posted_date_raw) = row
+            .get(&mapping.posted_date_column)
+            .map(|value| value.trim())
+        else {
             continue;
         };
         if posted_date_raw.is_empty() {
             continue;
         }
-        let posted_date = match normalize_posted_date(
-            posted_date_raw,
-            mapping.date_format.as_deref(),
-        ) {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
+        let posted_date =
+            match normalize_posted_date(posted_date_raw, mapping.date_format.as_deref()) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
         let description = required_value(row, &mapping.description_column)?;
         let source_amount = required_source_amount(row, mapping)?;
         let status = optional_value(row, mapping.status_column.as_deref());
@@ -794,10 +812,7 @@ fn required_source_amount(
         // sign.  "Debit" rows (money leaving the account) become negative.
         let signed = match (
             mapping.transaction_type_column.as_deref(),
-            mapping
-                .debit_type_value
-                .as_deref()
-                .or(Some("Debit")),
+            mapping.debit_type_value.as_deref().or(Some("Debit")),
         ) {
             (Some(type_col), Some(debit_val)) => {
                 let row_type = optional_value(row, Some(type_col)).unwrap_or_default();
@@ -867,8 +882,7 @@ fn parse_amount_cell(value: &str, column: &str) -> Result<f64, WorkspaceError> {
     let negative = trimmed.starts_with('(') && trimmed.ends_with(')');
     let cleaned = trimmed
         .trim_matches(|character| character == '(' || character == ')')
-        .replace('$', "")
-        .replace(',', "")
+        .replace(['$', ','], "")
         .replace("USD", "")
         .trim()
         .to_string();
@@ -938,14 +952,10 @@ fn normalize_posted_date(raw: &str, format_hint: Option<&str>) -> Result<String,
             "YYYY-MM-DD" if s.split('-').next().map(|part| part.len()) == Some(4) => {
                 NaiveDate::parse_from_str(s, "%Y-%m-%d")
             }
-            "MM/DD/YYYY" | "M/D/YYYY"
-                if s.split('/').nth(2).map(|part| part.len()) == Some(4) =>
-            {
+            "MM/DD/YYYY" | "M/D/YYYY" if s.split('/').nth(2).map(|part| part.len()) == Some(4) => {
                 NaiveDate::parse_from_str(s, "%m/%d/%Y")
             }
-            "MM/DD/YY" | "M/D/YY"
-                if s.split('/').nth(2).map(|part| part.len()) == Some(2) =>
-            {
+            "MM/DD/YY" | "M/D/YY" if s.split('/').nth(2).map(|part| part.len()) == Some(2) => {
                 NaiveDate::parse_from_str(s, "%m/%d/%y")
             }
             "DD/MM/YYYY" if s.split('/').nth(2).map(|part| part.len()) == Some(4) => {
@@ -1009,7 +1019,9 @@ fn duplicate_fingerprints_for_account(
         ",
     )?;
     let fingerprints = statement
-        .query_map(params![source_account, threshold], |row| row.get::<_, String>(0))?
+        .query_map(params![source_account, threshold], |row| {
+            row.get::<_, String>(0)
+        })?
         .collect::<Result<HashSet<_>, _>>()?;
     Ok(fingerprints)
 }
@@ -1045,7 +1057,11 @@ fn build_column_analysis(
                     | Some("credit")
             );
             let status = if diurnum_field.is_some() {
-                if required { "required" } else { "optional" }
+                if required {
+                    "required"
+                } else {
+                    "optional"
+                }
             } else if ignored_header(header) {
                 "ignored"
             } else {
@@ -1438,10 +1454,11 @@ mod tests {
             workspace_root_path: created.root_path.clone(),
             source_account: "Assets:Bank:Operating-Checking".to_string(),
             source_file_name: "capital-one.csv".to_string(),
-            csv_contents: "Transaction Date,Transaction Description,Transaction Type,Transaction Amount\n\
+            csv_contents:
+                "Transaction Date,Transaction Description,Transaction Type,Transaction Amount\n\
 2026-01-03,Client payment,Credit,1500.00\n\
 2026-01-04,Software subscription,Debit,29.99\n"
-                .to_string(),
+                    .to_string(),
             mapping: Some(CsvSourceMappingInput {
                 posted_date_column: "Transaction Date".to_string(),
                 description_column: "Transaction Description".to_string(),
@@ -1554,8 +1571,8 @@ mod tests {
                 .unwrap()
         };
 
-        assert_eq!(q("Capital One row"),    "2026-05-05");
-        assert_eq!(q("US four-digit row"),  "2026-05-06");
-        assert_eq!(q("ISO row"),            "2026-05-07");
+        assert_eq!(q("Capital One row"), "2026-05-05");
+        assert_eq!(q("US four-digit row"), "2026-05-06");
+        assert_eq!(q("ISO row"), "2026-05-07");
     }
 }

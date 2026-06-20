@@ -357,12 +357,11 @@ fn completion_from_history(
 ) -> Result<Option<PredictiveEntryCompletion>, WorkspaceError> {
     let Some(history) = load_history_entries(root, connection)?
         .into_iter()
-        .filter(|entry| {
+        .find(|entry| {
             account_set.contains(&entry.source_account)
                 && account_set.contains(&entry.ledger_account)
                 && history_matches(&entry.description, &trigger.description_prefix)
         })
-        .next()
     else {
         return Ok(None);
     };
