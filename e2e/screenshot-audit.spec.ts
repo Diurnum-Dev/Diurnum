@@ -16,6 +16,19 @@ function injectMockApi() {
   (window as any).__DIURNUM_TEST_API__ = {
     async createWorkspace() { return workspace; },
     async openWorkspace() { return workspace; },
+    async getWorkspaceView() {
+      return {
+        summary: workspace,
+        suggestedEntries: await this.getSuggestedEntries(),
+        knownAccounts: await this.getKnownLedgerAccounts(),
+        brokenProvenance: await this.getBrokenProvenance(),
+        categorizationRules: await this.listCategorizationRules(),
+        sourceAccounts: await this.listSourceAccounts(),
+        snapshots: await this.listSnapshots(),
+        gitStatus: await this.getWorkspaceGitStatus(),
+        gitPanel: await this.getGitPanelState(),
+      };
+    },
     async validateWorkspace() { return { status: "valid", errors: [] }; },
     async listSnapshots() { return []; },
     async restoreSnapshot() { return workspace; },
