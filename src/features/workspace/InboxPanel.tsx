@@ -7,7 +7,6 @@ import {
   accountOptions,
   bucketCounts,
   filterEntries,
-  groupEntries,
   monthOptions,
   type InboxTab,
 } from "./inboxFilters";
@@ -56,10 +55,9 @@ export function InboxPanel({
     () => filterEntries(suggestedEntries, { account, month, tab }),
     [suggestedEntries, account, month, tab],
   );
-  const groups = useMemo(() => groupEntries(filtered), [filtered]);
   const ordered = useMemo(
-    () => [...groups.needsReview, ...groups.matched],
-    [groups],
+    () => [...filtered].sort((a, b) => b.postedDate.localeCompare(a.postedDate)),
+    [filtered],
   );
 
   // Remembers where the selection sat so that when an approved row leaves the
@@ -194,14 +192,7 @@ export function InboxPanel({
                   Pending Statement Rows
                 </span>
                 <InboxGroup
-                  title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
-                  entries={groups.needsReview}
-                  selectedId={selectedEntry?.statementRowId ?? null}
-                  onSelect={setSelectedStatementRowId}
-                />
-                <InboxGroup
-                  title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
-                  entries={groups.matched}
+                  entries={ordered}
                   selectedId={selectedEntry?.statementRowId ?? null}
                   onSelect={setSelectedStatementRowId}
                 />
@@ -230,12 +221,10 @@ export function InboxPanel({
 }
 
 function InboxGroup({
-  title,
   entries,
   selectedId,
   onSelect,
 }: {
-  title: string;
   entries: SuggestedEntry[];
   selectedId: string | null;
   onSelect: (statementRowId: string) => void;
@@ -243,7 +232,6 @@ function InboxGroup({
   if (entries.length === 0) return null;
   return (
     <div className="inbox-group">
-      <div className="inbox-group-head">{title}</div>
       <div className="inbox-table">
         {entries.map((entry) => {
           const selected = entry.statementRowId === selectedId;
