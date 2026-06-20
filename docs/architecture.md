@@ -15,6 +15,7 @@ flowchart TB
 
   subgraph App[Diurnum local desktop app]
     UI[React App Shell and workspace UI]
+    Session[WorkspaceSession store]
     AppConfig[App-level recents config]
     Bridge[Tauri command bridge]
     Core[Rust workspace core]
@@ -37,17 +38,34 @@ flowchart TB
   Visitor --> Homepage
   Homepage --> User
   UI --> AppConfig
-  UI --> Bridge
+  UI --> Session
+  Session --> Bridge
   Bridge --> Core
   Core --> Ledger
   Core --> LocalState
   Core --> Manifest
   Core --> Snapshots
   Core --> GitRepo
-  Core --> UI
+  Core --> Session
+  Session --> UI
   User --> Issues
   Issues --> PRs
 ```
+
+## Workspace Session
+
+The open Workspace is owned by a single React-free store,
+`createWorkspaceSession` (`src/lib/workspace/session.ts`). It holds all derived
+Workspace data — Suggested Entries, broken provenance, Categorization Rules,
+Source Accounts, snapshots, git status — and the one invariant that this data is
+refreshed as a unit after any change. `App.tsx` subscribes via
+`useSyncExternalStore` and keeps only UI/navigation state.
+
+Each mutation command returns a single `WorkspaceView` (assembled by
+`workspace::view` in the Rust core and also available via `get_workspace_view`),
+so a change costs one round-trip plus the mutation rather than a per-slice
+read fan-out. Reports stay on-demand (cleared during Invalid Ledger State) and
+AI adapter detection stays an open-time scan, so neither rides the view.
 
 ## Product Runtime Flow
 
@@ -256,7 +274,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Import deduplication is scoped to `(source_account, import_fingerprint)` and skips duplicates even when prior rows are already accounted.
 - Imported statement rows carry a `pending_at_import` flag so approval metadata can distinguish rows that were still awaiting review when they entered the staging area.
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
-- The Inbox is the shell-native review surface for pending Statement Rows. It shows a left-hand list, a right-hand inspector, highlights rows marked `pending_at_import`, and returns to the Ledger Editor after approval with the newly written monthly file opened.
+- The Inbox is the shell-native review surface for pending Statement Rows. It uses a full-height split layout with header, filters, and grouped rows in the left work area plus a flush right-hand inspector, highlights rows marked `pending_at_import`, and returns to the Ledger Editor after approval with the newly written monthly file opened.
 - After approving a Suggested Entry or Transfer Match, the UI returns to the Ledger Editor and requests the monthly transaction file that received the new Beancount entry.
 - Categorization Rules are user-confirmed SQLite records scoped to Source Account by default, visible/editable in the Workspace overview, and used to prefill future Standard Suggested Entries before any AI suggestion layer.
 - Categorization Rules can now be edited, disabled, re-enabled, or deleted from the shell-native Settings surface, while predictive completion only considers enabled rules.

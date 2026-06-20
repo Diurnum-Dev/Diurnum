@@ -17,6 +17,7 @@ pub mod shell;
 pub mod source_accounts;
 pub mod types;
 pub mod validation;
+pub mod view;
 
 #[cfg(test)]
 mod golden_path_validation;

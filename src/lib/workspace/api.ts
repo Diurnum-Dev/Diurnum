@@ -61,14 +61,16 @@ import type {
   WorkspaceGitStatus,
   WorkspacePathStatus,
   WorkspaceSummary,
+  WorkspaceView,
 } from "./types";
 
 type WorkspaceApi = {
   createWorkspace: (input: WorkspaceCreateInput) => Promise<WorkspaceSummary>;
   openWorkspace: (path: string) => Promise<WorkspaceSummary>;
+  getWorkspaceView: (path: string) => Promise<WorkspaceView>;
   validateWorkspace: (path: string) => Promise<LedgerValidationSummary>;
   listSnapshots: (path: string) => Promise<SnapshotSummary[]>;
-  restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceSummary>;
+  restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceView>;
   saveLedgerFile: (input: SaveLedgerFileInput) => Promise<LedgerValidationSummary>;
   getLedgerEditorState: (path: string) => Promise<LedgerEditorState>;
   readLedgerFile: (input: ReadLedgerFileInput) => Promise<LedgerFileSnapshot>;
@@ -93,13 +95,13 @@ type WorkspaceApi = {
   listRecentGitCommits: (path: string) => Promise<GitCommitSummary[]>;
   getGitCommitDiff: (workspaceRootPath: string, commitHash: string) => Promise<GitCommitDiff>;
   commitGitChanges: (input: CommitGitChangesInput) => Promise<GitCommitResult>;
-  addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceSummary>;
+  addSourceAccount: (input: AddSourceAccountInput) => Promise<WorkspaceView>;
   importStatementRows: (input: CsvImportInput) => Promise<CsvImportResult>;
   getSuggestedEntries: (path: string) => Promise<SuggestedEntry[]>;
   getBrokenProvenance: (path: string) => Promise<BrokenProvenance[]>;
-  approveSuggestedEntry: (input: ApproveSuggestedEntryInput) => Promise<WorkspaceSummary>;
-  approveTransferEntry: (input: ApproveTransferEntryInput) => Promise<WorkspaceSummary>;
-  revertTransferToStandard: (input: RevertTransferToStandardInput) => Promise<WorkspaceSummary>;
+  approveSuggestedEntry: (input: ApproveSuggestedEntryInput) => Promise<WorkspaceView>;
+  approveTransferEntry: (input: ApproveTransferEntryInput) => Promise<WorkspaceView>;
+  revertTransferToStandard: (input: RevertTransferToStandardInput) => Promise<WorkspaceView>;
   getKnownLedgerAccounts: (path: string) => Promise<string[]>;
   listCategorizationRules: (path: string) => Promise<CategorizationRule[]>;
   createCategorizationRule: (
@@ -124,15 +126,15 @@ type WorkspaceApi = {
   configureAiAdapter: (input: ConfigureAiAdapterInput) => Promise<AiAdapterConfig>;
   getAiContextDisclosure: (path: string) => Promise<AiContextDisclosure>;
   getMvpReports: (input: ReportsInput) => Promise<MvpReports>;
-  updateWorkspaceMetadata: (input: WorkspaceMetadataUpdateInput) => Promise<WorkspaceSummary>;
+  updateWorkspaceMetadata: (input: WorkspaceMetadataUpdateInput) => Promise<WorkspaceView>;
   listSourceAccounts: (workspaceRootPath: string) => Promise<SourceAccountSummary[]>;
   listSourceMappings: (workspaceRootPath: string) => Promise<SourceMappingSummary[]>;
   saveSourceMapping: (input: SourceMappingUpdateInput) => Promise<SourceMappingSummary>;
-  renameSourceAccount: (input: RenameSourceAccountInput) => Promise<WorkspaceSummary>;
-  closeSourceAccount: (input: CloseSourceAccountInput) => Promise<WorkspaceSummary>;
+  renameSourceAccount: (input: RenameSourceAccountInput) => Promise<WorkspaceView>;
+  closeSourceAccount: (input: CloseSourceAccountInput) => Promise<WorkspaceView>;
   updateSourceAccountOpeningBalance: (
     input: UpdateSourceAccountOpeningBalanceInput,
-  ) => Promise<WorkspaceSummary>;
+  ) => Promise<WorkspaceView>;
   getGitIdentity: (workspaceRootPath: string) => Promise<GitIdentitySummary>;
   updateGitIdentity: (input: UpdateGitIdentityInput) => Promise<GitIdentitySummary>;
   detectAiAdapters: () => Promise<DetectedAiAdapter[]>;
@@ -164,6 +166,13 @@ export async function openWorkspace(path: string): Promise<WorkspaceSummary> {
   return invoke<WorkspaceSummary>("open_workspace", { path });
 }
 
+export async function getWorkspaceView(path: string): Promise<WorkspaceView> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getWorkspaceView(path);
+  }
+  return invoke<WorkspaceView>("get_workspace_view", { path });
+}
+
 export async function validateWorkspace(
   path: string,
 ): Promise<LedgerValidationSummary> {
@@ -182,11 +191,11 @@ export async function listSnapshots(path: string): Promise<SnapshotSummary[]> {
 
 export async function restoreSnapshot(
   input: RestoreSnapshotInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.restoreSnapshot(input);
   }
-  return invoke<WorkspaceSummary>("restore_snapshot", { input });
+  return invoke<WorkspaceView>("restore_snapshot", { input });
 }
 
 export async function saveLedgerFile(
@@ -352,20 +361,20 @@ export async function commitGitChanges(
 
 export async function addSourceAccount(
   input: AddSourceAccountInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.addSourceAccount(input);
   }
-  return invoke<WorkspaceSummary>("add_source_account", { input });
+  return invoke<WorkspaceView>("add_source_account", { input });
 }
 
 export async function updateWorkspaceMetadata(
   input: WorkspaceMetadataUpdateInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.updateWorkspaceMetadata(input);
   }
-  return invoke<WorkspaceSummary>("update_workspace_metadata", { input });
+  return invoke<WorkspaceView>("update_workspace_metadata", { input });
 }
 
 export async function listSourceAccounts(
@@ -397,29 +406,29 @@ export async function saveSourceMapping(
 
 export async function renameSourceAccount(
   input: RenameSourceAccountInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.renameSourceAccount(input);
   }
-  return invoke<WorkspaceSummary>("rename_source_account", { input });
+  return invoke<WorkspaceView>("rename_source_account", { input });
 }
 
 export async function closeSourceAccount(
   input: CloseSourceAccountInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.closeSourceAccount(input);
   }
-  return invoke<WorkspaceSummary>("close_source_account", { input });
+  return invoke<WorkspaceView>("close_source_account", { input });
 }
 
 export async function updateSourceAccountOpeningBalance(
   input: UpdateSourceAccountOpeningBalanceInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.updateSourceAccountOpeningBalance(input);
   }
-  return invoke<WorkspaceSummary>("update_source_account_opening_balance", { input });
+  return invoke<WorkspaceView>("update_source_account_opening_balance", { input });
 }
 
 export async function getGitIdentity(
@@ -483,29 +492,29 @@ export async function getBrokenProvenance(
 
 export async function approveSuggestedEntry(
   input: ApproveSuggestedEntryInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.approveSuggestedEntry(input);
   }
-  return invoke<WorkspaceSummary>("approve_suggested_entry", { input });
+  return invoke<WorkspaceView>("approve_suggested_entry", { input });
 }
 
 export async function approveTransferEntry(
   input: ApproveTransferEntryInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.approveTransferEntry(input);
   }
-  return invoke<WorkspaceSummary>("approve_transfer_entry", { input });
+  return invoke<WorkspaceView>("approve_transfer_entry", { input });
 }
 
 export async function revertTransferToStandard(
   input: RevertTransferToStandardInput,
-): Promise<WorkspaceSummary> {
+): Promise<WorkspaceView> {
   if (window.__DIURNUM_TEST_API__) {
     return window.__DIURNUM_TEST_API__.revertTransferToStandard(input);
   }
-  return invoke<WorkspaceSummary>("revert_transfer_to_standard", { input });
+  return invoke<WorkspaceView>("revert_transfer_to_standard", { input });
 }
 
 export async function getKnownLedgerAccounts(path: string): Promise<string[]> {

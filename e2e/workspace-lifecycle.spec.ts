@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { WorkspaceView } from "../src/lib/workspace/types";
 
 test("creates and reopens a Workspace through the app shell", async ({ page }) => {
   await page.addInitScript(() => {
@@ -31,7 +32,40 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       },
     ];
 
+    const buildWorkspaceView = (): WorkspaceView => ({
+      summary: workspace,
+      suggestedEntries,
+      knownAccounts: [],
+      brokenProvenance: [],
+      categorizationRules: [],
+      sourceAccounts: [
+        {
+          accountName: "Assets:Bank:Operating-Checking",
+          kind: "bank",
+          status: "open",
+          currency: "USD",
+          openingBalance: "0.00",
+          sourceMapping: null,
+          documentsFolder: "operating-checking",
+        },
+      ],
+      snapshots: [],
+      gitStatus: { isRepository: true, branchName: "main", uncommittedChangesCount: 0 },
+      gitPanel: {
+        isRepository: true,
+        branchName: "main",
+        uncommittedChangesCount: 0,
+        workingTree: [],
+        recentCommits: [],
+        warning: null,
+        hookOutput: null,
+      },
+    });
+
     window.__DIURNUM_TEST_API__ = {
+      async getWorkspaceView() {
+        return buildWorkspaceView();
+      },
       async createWorkspace() {
         return workspace;
       },
@@ -48,7 +82,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         return [];
       },
       async restoreSnapshot() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async saveLedgerFile() {
         return { status: "valid", errors: [] };
@@ -207,7 +241,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         };
       },
       async addSourceAccount() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async importStatementRows() {
         return {
@@ -224,13 +258,13 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       },
       async approveSuggestedEntry() {
         suggestedEntries = [];
-        return workspace;
+        return buildWorkspaceView();
       },
       async approveTransferEntry() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async revertTransferToStandard() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async getKnownLedgerAccounts() {
         return [];
@@ -239,7 +273,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         return [];
       },
       async updateWorkspaceMetadata() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async listSourceAccounts() {
         return [
@@ -284,13 +318,13 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
         };
       },
       async renameSourceAccount() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async closeSourceAccount() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async updateSourceAccountOpeningBalance() {
-        return workspace;
+        return buildWorkspaceView();
       },
       async getGitIdentity() {
         return {

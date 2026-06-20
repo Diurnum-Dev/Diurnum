@@ -1,5 +1,5 @@
 // src/features/workspace/InboxPanel.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
 import { InboxInspector } from "./InboxInspector";
 import { InboxToolbar } from "./InboxToolbar";
@@ -62,11 +62,25 @@ export function InboxPanel({
     [groups],
   );
 
-  const selectedEntry = useMemo(
-    () =>
-      ordered.find((entry) => entry.statementRowId === selectedStatementRowId) ?? ordered[0] ?? null,
-    [ordered, selectedStatementRowId],
-  );
+  // Remembers where the selection sat so that when an approved row leaves the
+  // list, the Founder-Operator advances to the next item and keeps triaging
+  // (ADR 0003) rather than jumping back to the top.
+  const selectedIndexRef = useRef(0);
+
+  const selectedEntry = useMemo(() => {
+    const byId = ordered.find((entry) => entry.statementRowId === selectedStatementRowId);
+    if (byId) return byId;
+    if (ordered.length === 0) return null;
+    const nextIndex = Math.min(selectedIndexRef.current, ordered.length - 1);
+    return ordered[nextIndex] ?? ordered[0] ?? null;
+  }, [ordered, selectedStatementRowId]);
+
+  useEffect(() => {
+    const index = ordered.findIndex(
+      (entry) => entry.statementRowId === selectedEntry?.statementRowId,
+    );
+    if (index >= 0) selectedIndexRef.current = index;
+  }, [ordered, selectedEntry]);
 
   useEffect(() => {
     setEditing(false);
@@ -127,63 +141,73 @@ export function InboxPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [ordered, selectedEntry, ledgerStatus, onApprove, onApproveTransfer]);
 
+  const header = (
+    <header className="page-header inbox-header">
+      <div>
+        <p className="eyebrow">Inbox</p>
+        <h1 id="inbox-title">Inbox</h1>
+        <p className="page-subtitle">
+          <span className="pill-count">{totals.pending}</span> pending
+          <span className="dot-sep">·</span>
+          <span className="pill-count">{totals.matched}</span> matched by rules
+          <span className="dot-sep">·</span>
+          <span className="pill-count">{totals.transfers}</span> possible transfer
+        </p>
+      </div>
+    </header>
+  );
+
   return (
     <section className="inbox-panel" aria-labelledby="inbox-title">
-      <header className="page-header inbox-header">
-        <div>
-          <p className="eyebrow">Inbox</p>
-          <h1 id="inbox-title">Inbox</h1>
-          <p className="page-subtitle">
-            <span className="pill-count">{totals.pending}</span> pending
-            <span className="dot-sep">·</span>
-            <span className="pill-count">{totals.matched}</span> matched by rules
-            <span className="dot-sep">·</span>
-            <span className="pill-count">{totals.transfers}</span> possible transfer
-          </p>
-        </div>
-      </header>
-
       {suggestedEntries.length === 0 ? (
-        <section className="inbox-empty-state" aria-live="polite">
-          <p className="eyebrow">Inbox</p>
-          <h2>No pending Statement Rows</h2>
-          <p>
-            Imported rows will appear here when they are waiting for review. Approved rows
-            disappear from the Inbox and return you to the Ledger Editor.
-          </p>
-        </section>
+        <>
+          {header}
+          <section className="inbox-empty-state" aria-live="polite">
+            <p className="eyebrow">Inbox</p>
+            <h2>No pending Statement Rows</h2>
+            <p>
+              Imported rows will appear here when they are waiting for review. Approving a row
+              removes it and advances you to the next one, so you can keep triaging without
+              leaving the Inbox.
+            </p>
+          </section>
+        </>
       ) : (
         <>
-          <InboxToolbar
-            accounts={accounts}
-            account={account}
-            onAccountChange={setAccount}
-            months={months}
-            month={month}
-            onMonthChange={setMonth}
-            tab={tab}
-            onTabChange={setTab}
-            counts={tabCounts}
-          />
-
           <div className="inbox-layout">
-            <section className="inbox-list-col" aria-labelledby="inbox-list-title">
-              <span id="inbox-list-title" className="sr-only">
-                Pending Statement Rows
-              </span>
-              <InboxGroup
-                title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
-                entries={groups.needsReview}
-                selectedId={selectedEntry?.statementRowId ?? null}
-                onSelect={setSelectedStatementRowId}
+            <div className="inbox-content-col">
+              {header}
+
+              <InboxToolbar
+                accounts={accounts}
+                account={account}
+                onAccountChange={setAccount}
+                months={months}
+                month={month}
+                onMonthChange={setMonth}
+                tab={tab}
+                onTabChange={setTab}
+                counts={tabCounts}
               />
-              <InboxGroup
-                title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
-                entries={groups.matched}
-                selectedId={selectedEntry?.statementRowId ?? null}
-                onSelect={setSelectedStatementRowId}
-              />
-            </section>
+
+              <section className="inbox-list-col" aria-labelledby="inbox-list-title">
+                <span id="inbox-list-title" className="sr-only">
+                  Pending Statement Rows
+                </span>
+                <InboxGroup
+                  title={`Pending · ${groups.needsReview.length} transactions · needs your review`}
+                  entries={groups.needsReview}
+                  selectedId={selectedEntry?.statementRowId ?? null}
+                  onSelect={setSelectedStatementRowId}
+                />
+                <InboxGroup
+                  title={`Matched by rules · ${groups.matched.length} transactions · auto-posted`}
+                  entries={groups.matched}
+                  selectedId={selectedEntry?.statementRowId ?? null}
+                  onSelect={setSelectedStatementRowId}
+                />
+              </section>
+            </div>
 
             <aside className="inbox-inspector" aria-label="Transaction inspector">
               {selectedEntry ? (
