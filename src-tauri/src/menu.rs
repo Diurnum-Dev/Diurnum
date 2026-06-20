@@ -22,10 +22,7 @@ pub struct AppMenuState {
 /// defaults and again from the frontend (via `sync_app_menu`) whenever the
 /// workspace/git/recents state changes. Rebuilding the whole menu is the
 /// simplest way to keep enabled states and the Open Recent list correct.
-pub fn build_app_menu<R: Runtime>(
-    app: &AppHandle<R>,
-    state: &AppMenuState,
-) -> tauri::Result<()> {
+pub fn build_app_menu<R: Runtime>(app: &AppHandle<R>, state: &AppMenuState) -> tauri::Result<()> {
     let app_menu = SubmenuBuilder::new(app, "Diurnum")
         .about(Some(AboutMetadata::default()))
         .separator()
@@ -46,11 +43,8 @@ pub fn build_app_menu<R: Runtime>(
     let mut open_recent = SubmenuBuilder::new(app, "Open Recent");
     for recent in &state.recents {
         open_recent = open_recent.item(
-            &MenuItemBuilder::with_id(
-                format!("recent:{}", recent.path),
-                &recent.display_name,
-            )
-            .build(app)?,
+            &MenuItemBuilder::with_id(format!("recent:{}", recent.path), &recent.display_name)
+                .build(app)?,
         );
     }
     let open_recent = open_recent.build()?;
@@ -106,8 +100,7 @@ pub fn build_app_menu<R: Runtime>(
     ];
     let mut view_builder = SubmenuBuilder::new(app, "View");
     for (id, label, accelerator) in screens {
-        let enabled =
-            state.workspace_open && (id != "view-git" || state.git_available);
+        let enabled = state.workspace_open && (id != "view-git" || state.git_available);
         view_builder = view_builder.item(
             &MenuItemBuilder::with_id(id, label)
                 .accelerator(accelerator)

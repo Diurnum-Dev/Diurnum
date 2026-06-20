@@ -113,9 +113,16 @@ pub fn get_documents_state(input: DocumentsStateInput) -> Result<DocumentsState,
         is_source_account_folder: false,
         absolute_path: documents_root.to_string_lossy().to_string(),
     }];
-    collect_folders(&documents_root, &documents_root, &source_folder_slugs, 1, &mut folders)?;
+    collect_folders(
+        &documents_root,
+        &documents_root,
+        &source_folder_slugs,
+        1,
+        &mut folders,
+    )?;
 
-    let selected_folder = sanitize_documents_relative_path(input.selected_folder.as_deref().unwrap_or(""))?;
+    let selected_folder =
+        sanitize_documents_relative_path(input.selected_folder.as_deref().unwrap_or(""))?;
     let folder_path = documents_root.join(&selected_folder);
     if !folder_path.is_dir() {
         return Err(WorkspaceError::new(
@@ -142,7 +149,8 @@ pub fn create_document_folder(
 ) -> Result<DocumentFolderSummary, WorkspaceError> {
     let root = Path::new(&input.workspace_root_path);
     let documents_root = documents_root(root)?;
-    let parent = sanitize_documents_relative_path(input.parent_relative_path.as_deref().unwrap_or(""))?;
+    let parent =
+        sanitize_documents_relative_path(input.parent_relative_path.as_deref().unwrap_or(""))?;
     let folder_name = sanitize_new_entry_name(&input.name)?;
     let path = documents_root.join(&parent).join(&folder_name);
     fs::create_dir_all(&path)?;
@@ -172,9 +180,7 @@ pub fn import_document_file(
     })
 }
 
-pub fn rename_document_entry(
-    input: RenameDocumentEntryInput,
-) -> Result<(), WorkspaceError> {
+pub fn rename_document_entry(input: RenameDocumentEntryInput) -> Result<(), WorkspaceError> {
     let root = Path::new(&input.workspace_root_path);
     let documents_root = documents_root(root)?;
     let source = documents_path(&documents_root, &input.relative_path)?;
@@ -187,9 +193,7 @@ pub fn rename_document_entry(
     Ok(())
 }
 
-pub fn delete_document_entry(
-    input: DeleteDocumentEntryInput,
-) -> Result<(), WorkspaceError> {
+pub fn delete_document_entry(input: DeleteDocumentEntryInput) -> Result<(), WorkspaceError> {
     let root = Path::new(&input.workspace_root_path);
     let documents_root = documents_root(root)?;
     let path = documents_path(&documents_root, &input.relative_path)?;
@@ -216,16 +220,8 @@ pub fn read_document_preview(
     let kind = preview_kind(&path);
     let bytes = fs::read(&path)?;
     let (mime_type, text_content, preview_bytes) = match kind {
-        DocumentPreviewKind::Pdf => (
-            Some("application/pdf".to_string()),
-            None,
-            Some(bytes),
-        ),
-        DocumentPreviewKind::Image => (
-            Some(image_mime_type(&path).to_string()),
-            None,
-            Some(bytes),
-        ),
+        DocumentPreviewKind::Pdf => (Some("application/pdf".to_string()), None, Some(bytes)),
+        DocumentPreviewKind::Image => (Some(image_mime_type(&path).to_string()), None, Some(bytes)),
         DocumentPreviewKind::Text => (
             Some(text_mime_type(&path).to_string()),
             Some(String::from_utf8_lossy(&bytes).to_string()),
@@ -275,7 +271,13 @@ fn collect_folders(
             absolute_path: path.to_string_lossy().to_string(),
             relative_path: relative.clone(),
         });
-        collect_folders(documents_root, &path, source_folder_slugs, depth + 1, folders)?;
+        collect_folders(
+            documents_root,
+            &path,
+            source_folder_slugs,
+            depth + 1,
+            folders,
+        )?;
     }
     Ok(())
 }
@@ -498,7 +500,8 @@ mod tests {
         assert!(state
             .folders
             .iter()
-            .any(|folder| folder.relative_path == "operating-checking" && folder.is_source_account_folder));
+            .any(|folder| folder.relative_path == "operating-checking"
+                && folder.is_source_account_folder));
 
         create_document_folder(CreateDocumentFolderInput {
             workspace_root_path: created.root_path.clone(),

@@ -13,8 +13,8 @@ use crate::workspace::data_integrity::{
     self, RestoreSnapshotInput, SaveLedgerFileInput, SnapshotSummary,
 };
 use crate::workspace::documents::{
-    self, CreateDocumentFolderInput, DeleteDocumentEntryInput, DocumentFolderSummary,
-    DocumentPreview, DocumentFileSummary, DocumentsState, DocumentsStateInput,
+    self, CreateDocumentFolderInput, DeleteDocumentEntryInput, DocumentFileSummary,
+    DocumentFolderSummary, DocumentPreview, DocumentsState, DocumentsStateInput,
     ImportDocumentFileInput, ReadDocumentPreviewInput, RenameDocumentEntryInput,
 };
 use crate::workspace::git::{
@@ -31,10 +31,9 @@ use crate::workspace::ledger_editor::{
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
 use crate::workspace::settings::{
-    self, CloseSourceAccountInput, DetectedAiAdapter, GitIdentitySummary,
-    RenameSourceAccountInput, SourceAccountSummary, SourceMappingSummary,
-    TestAiAdapterInput, UpdateGitIdentityInput, UpdateSourceAccountOpeningBalanceInput,
-    UpdateSourceMappingInput, UpdateWorkspaceMetadataInput,
+    self, CloseSourceAccountInput, DetectedAiAdapter, GitIdentitySummary, RenameSourceAccountInput,
+    SourceAccountSummary, SourceMappingSummary, TestAiAdapterInput, UpdateGitIdentityInput,
+    UpdateSourceAccountOpeningBalanceInput, UpdateSourceMappingInput, UpdateWorkspaceMetadataInput,
 };
 use crate::workspace::shell::{self, WorkspaceGitStatus, WorkspacePathStatus};
 use crate::workspace::source_accounts::{self, AddSourceAccountInput};
@@ -117,16 +116,12 @@ pub fn import_document_file(
 }
 
 #[tauri::command]
-pub fn rename_document_entry(
-    input: RenameDocumentEntryInput,
-) -> Result<(), WorkspaceError> {
+pub fn rename_document_entry(input: RenameDocumentEntryInput) -> Result<(), WorkspaceError> {
     documents::rename_document_entry(input)
 }
 
 #[tauri::command]
-pub fn delete_document_entry(
-    input: DeleteDocumentEntryInput,
-) -> Result<(), WorkspaceError> {
+pub fn delete_document_entry(input: DeleteDocumentEntryInput) -> Result<(), WorkspaceError> {
     documents::delete_document_entry(input)
 }
 
@@ -162,9 +157,7 @@ pub fn get_git_panel_state(path: String) -> Result<GitPanelState, WorkspaceError
 }
 
 #[tauri::command]
-pub fn list_recent_git_commits(
-    path: String,
-) -> Result<Vec<GitCommitSummary>, WorkspaceError> {
+pub fn list_recent_git_commits(path: String) -> Result<Vec<GitCommitSummary>, WorkspaceError> {
     git::list_recent_commits(path, 20)
 }
 
@@ -184,9 +177,7 @@ pub fn commit_git_changes(
 }
 
 #[tauri::command]
-pub fn add_source_account(
-    input: AddSourceAccountInput,
-) -> Result<WorkspaceView, WorkspaceError> {
+pub fn add_source_account(input: AddSourceAccountInput) -> Result<WorkspaceView, WorkspaceError> {
     view::load_from_summary(source_accounts::add_source_account(input)?)
 }
 
@@ -353,9 +344,7 @@ pub fn update_source_account_opening_balance(
 }
 
 #[tauri::command]
-pub fn get_git_identity(
-    workspace_root_path: String,
-) -> Result<GitIdentitySummary, WorkspaceError> {
+pub fn get_git_identity(workspace_root_path: String) -> Result<GitIdentitySummary, WorkspaceError> {
     settings::get_git_identity(workspace_root_path)
 }
 
@@ -372,7 +361,9 @@ pub fn detect_ai_adapters() -> Result<Vec<DetectedAiAdapter>, WorkspaceError> {
 }
 
 #[tauri::command]
-pub fn test_ai_adapter(input: TestAiAdapterInput) -> Result<Option<crate::workspace::ai_adapter::AiSuggestion>, WorkspaceError> {
+pub fn test_ai_adapter(
+    input: TestAiAdapterInput,
+) -> Result<Option<crate::workspace::ai_adapter::AiSuggestion>, WorkspaceError> {
     settings::test_ai_adapter(input)
 }
 

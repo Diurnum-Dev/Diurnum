@@ -30,8 +30,7 @@ pub fn render_accounts_bean(books_start_date: &str, currency: &str) -> String {
     ];
 
     let mut output =
-        "; Diurnum Starter Chart of Accounts\n; Editable by the Founder-Operator.\n\n"
-            .to_string();
+        "; Diurnum Starter Chart of Accounts\n; Editable by the Founder-Operator.\n\n".to_string();
 
     for (index, account) in accounts.iter().enumerate() {
         if matches!(index, 3 | 5 | 8 | 11) {

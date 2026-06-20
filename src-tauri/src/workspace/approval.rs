@@ -356,8 +356,7 @@ fn build_suggested_entries(
             continue;
         }
 
-        if looks_like_one_sided_transfer(row)
-            && !force_standard_ids.contains(&row.statement_row_id)
+        if looks_like_one_sided_transfer(row) && !force_standard_ids.contains(&row.statement_row_id)
         {
             let mut transfer = row.clone();
             transfer.kind = SuggestedEntryKind::Transfer;
@@ -456,14 +455,15 @@ fn open_ledger_account_if_missing(root: &Path, ledger_account: &str) -> Result<(
     {
         return Ok(());
     }
-    let manifest: WorkspaceManifest =
-        serde_json::from_str(&fs::read_to_string(root.join(".diurnum").join("workspace.json"))?)
-            .map_err(|_| {
-                WorkspaceError::new(
-                    WorkspaceErrorCode::MissingManifest,
-                    "Workspace manifest is unreadable.",
-                )
-            })?;
+    let manifest: WorkspaceManifest = serde_json::from_str(&fs::read_to_string(
+        root.join(".diurnum").join("workspace.json"),
+    )?)
+    .map_err(|_| {
+        WorkspaceError::new(
+            WorkspaceErrorCode::MissingManifest,
+            "Workspace manifest is unreadable.",
+        )
+    })?;
     let today = Utc::now().date_naive().to_string();
     atomic_append(
         accounts_path,
@@ -489,9 +489,8 @@ fn ensure_force_standard_column(connection: &Connection) -> Result<(), Workspace
 }
 
 fn load_force_standard_ids(connection: &Connection) -> Result<HashSet<String>, WorkspaceError> {
-    let mut stmt = connection.prepare(
-        "select id from statement_rows where status = 'pending' and force_standard = 1",
-    )?;
+    let mut stmt = connection
+        .prepare("select id from statement_rows where status = 'pending' and force_standard = 1")?;
     let ids = stmt
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<Result<HashSet<_>, _>>()?;
@@ -611,7 +610,10 @@ fn append_approved_entry(
         "  {}  {} USD\n",
         suggested_entry.source_account, suggested_entry.source_amount
     ));
-    entry.push_str(&format!("  {}  {:.2} USD\n", ledger_account, balancing_amount));
+    entry.push_str(&format!(
+        "  {}  {:.2} USD\n",
+        ledger_account, balancing_amount
+    ));
     atomic_append(monthly_path, &entry)
 }
 
@@ -678,7 +680,10 @@ fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceErr
     Ok(())
 }
 
-fn pending_at_import(connection: &Connection, statement_row_id: &str) -> Result<bool, WorkspaceError> {
+fn pending_at_import(
+    connection: &Connection,
+    statement_row_id: &str,
+) -> Result<bool, WorkspaceError> {
     let value: i64 = connection
         .query_row(
             "select pending_at_import from statement_rows where id = ?1",

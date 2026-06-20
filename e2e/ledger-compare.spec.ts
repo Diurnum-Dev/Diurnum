@@ -71,6 +71,19 @@ function injectMockApi() {
   const api: Record<string, any> = {
     async createWorkspace() { return workspace; },
     async openWorkspace() { return workspace; },
+    async getWorkspaceView() {
+      return {
+        summary: workspace,
+        suggestedEntries: [],
+        knownAccounts: [],
+        brokenProvenance: [],
+        categorizationRules: [],
+        sourceAccounts: [],
+        snapshots: [],
+        gitStatus: { isRepository: true, branchName: "main", uncommittedChangesCount: 3 },
+        gitPanel: { isRepository: true, branchName: "main", uncommittedChangesCount: 3, workingTree: [], recentCommits: [], warning: null, hookOutput: null },
+      };
+    },
     async validateWorkspace() { return { status: "valid", errors: [] }; },
     async listSnapshots() { return []; },
     async restoreSnapshot() { return workspace; },

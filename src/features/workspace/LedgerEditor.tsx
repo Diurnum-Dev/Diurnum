@@ -115,8 +115,16 @@ export function LedgerEditor({
         setFiles(state.files);
         onFilesChange?.(state.files);
         setRecentlyClosedTabs(state.session.recentlyClosedTabs);
+        // Honor a file the parent requested before this editor mounted (e.g.
+        // "Open file..." from another screen, which remounts this component).
+        // Without this, the async session load resolves last and clobbers the
+        // requested file back to the session's default active tab.
+        const openTabs = [...state.session.openTabs];
+        if (requestedFile && !openTabs.some((tab) => tab.relativePath === requestedFile)) {
+          openTabs.push({ relativePath: requestedFile, cursor: requestedCursor ?? 0, scrollTop: 0 });
+        }
         const snapshots = await Promise.all(
-          state.session.openTabs.map((tab) =>
+          openTabs.map((tab) =>
             readLedgerFile({
               workspaceRootPath: workspace.rootPath,
               relativePath: tab.relativePath,
@@ -125,7 +133,7 @@ export function LedgerEditor({
         );
         if (cancelled) return;
         setTabs(snapshots.length > 0 ? snapshots : []);
-        setActivePath(state.session.activeTab || MAIN_FILE);
+        setActivePath(requestedFile || state.session.activeTab || MAIN_FILE);
         setIsLoading(false);
       })
       .catch((error) => {
@@ -137,6 +145,9 @@ export function LedgerEditor({
     return () => {
       cancelled = true;
     };
+    // requestedFile/requestedCursor are read for their mount-time value only;
+    // subsequent requests are handled by the requested-file effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onError, onFilesChange, workspace.rootPath]);
 
   // Keep a ref to the latest openFile so the effect below doesn't re-run every
@@ -147,7 +158,14 @@ export function LedgerEditor({
     openFileRef.current = openFile;
   });
 
+  // Skip the mount-time request: when this editor remounts with a requested
+  // file already set (e.g. "Open file..." from another screen), the initial
+  // load handles it. Acting here too would race the load and open a duplicate
+  // tab. Only honor requests that arrive while the editor is already mounted.
+  const handledRequestVersionRef = useRef(requestedFileVersion);
   useEffect(() => {
+    if (handledRequestVersionRef.current === requestedFileVersion) return;
+    handledRequestVersionRef.current = requestedFileVersion;
     if (!requestedFile) return;
     void openFileRef.current(requestedFile, requestedCursor ?? 0);
     // Intentionally omit openFile — we use openFileRef so this only re-runs

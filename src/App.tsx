@@ -589,11 +589,21 @@ export default function App() {
     ledgerAccount: string;
   }) {
     if (!workspace) return;
+    // Capture the entry before approval clears it from session state, so we can
+    // return to the Ledger Editor on the month it landed in (as the Inbox
+    // empty-state copy promises). This navigation was dropped in the
+    // WorkspaceSession refactor; restore it here.
+    const approvedEntry = suggestedEntries.find(
+      (entry) => entry.statementRowId === input.statementRowId,
+    );
     try {
       const { ruleOffer: offer } = await session.approve({
         workspaceRootPath: workspace.rootPath,
         ...input,
       });
+      if (approvedEntry) {
+        openLedgerFile(monthlyLedgerPath(approvedEntry.postedDate), Number.MAX_SAFE_INTEGER);
+      }
       if (offer) setRuleOffer(offer);
     } catch {
       // Error is surfaced through session state.

@@ -491,7 +491,10 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await expect(page.getByRole("button", { name: /Inbox/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Git", exact: true })).toBeVisible();
   await expect(page.getByLabel("Workspace status")).toContainText("Valid");
-  await expect(page.getByLabel("Workspace status")).toContainText("Git clean - main");
+  // On the ledger screen the footer is an editor-style status bar; a clean tree
+  // is conveyed by the absence of the "uncommitted" indicator (git-clean text
+  // only renders on non-ledger screens). See AppShell status-bar branches.
+  await expect(page.getByLabel("Workspace status")).not.toContainText("uncommitted");
   await expect(page.getByRole("button", { name: /Inbox 1/ })).toBeVisible();
 
   await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
@@ -512,6 +515,9 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await page.getByRole("button", { name: /Inbox/ }).click();
   await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
   await expect(page.locator(".pending-at-import-badge").first()).toBeVisible();
+  // The redesigned inspector shows the suggested account with Accept/Edit; the
+  // Ledger Account field + Approve Entry button are revealed by entering edit mode.
+  await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Ledger Account").fill("Expenses:Software");
   await page.getByRole("button", { name: "Approve Entry" }).click();
   await expect(page.getByLabel("Ledger Editor")).toBeVisible();
@@ -526,7 +532,11 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   await expect(page.getByLabel("Ledger Editor")).toBeVisible();
 
   await page.getByRole("button", { name: "Ledger", exact: true }).click();
-  await page.getByRole("button", { name: "Close Workspace" }).click();
+  // Close Workspace now lives in the command palette and the native app menu,
+  // not as a sidebar button.
+  await page.keyboard.press("Control+K");
+  await page.getByLabel("Search commands").fill("close workspace");
+  await page.keyboard.press("Enter");
   await expect(
     page.getByRole("heading", { name: "Open your accounting Workspace" }),
   ).toBeVisible();
