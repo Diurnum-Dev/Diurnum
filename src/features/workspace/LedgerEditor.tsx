@@ -863,6 +863,7 @@ function CodeMirrorEditor({
         selection: EditorSelection.cursor(Math.min(cursor, contents.length)),
         extensions: [
           basicSetup,
+          tripleClickLineSelect,
           lintGutter(),
           bracketMatching(),
           foldGutter(),
@@ -1157,6 +1158,28 @@ function addLineDecorations(
     });
   }
 }
+
+// CM6's built-in triple-click path relies on an internal docView API that is
+// unreliable on WebKit/Tauri. This explicit mouseSelectionStyle takes over for
+// detail >= 3 and selects the full document line, with drag-extend across lines.
+const tripleClickLineSelect = EditorView.mouseSelectionStyle.of((view, event) => {
+  if (event.detail < 3) return null;
+  const anchorPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+  if (anchorPos == null) return null;
+  const anchorLine = view.state.doc.lineAt(anchorPos);
+  return {
+    get(moveEvent, _extend, _multiple) {
+      const pos = view.posAtCoords({ x: moveEvent.clientX, y: moveEvent.clientY });
+      const line = pos != null ? view.state.doc.lineAt(pos) : anchorLine;
+      const from = Math.min(anchorLine.from, line.from);
+      const to = Math.max(anchorLine.to, line.to);
+      return EditorSelection.create([
+        EditorSelection.range(from, to < view.state.doc.length ? to + 1 : to),
+      ]);
+    },
+    update(_update) {},
+  };
+});
 
 const currentTransactionHighlight = ViewPlugin.fromClass(
   class {
