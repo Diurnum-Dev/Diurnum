@@ -194,7 +194,7 @@ fn proves_the_golden_path_from_csv_setup_through_reports() {
     assert!(invalid_validation
         .errors
         .iter()
-        .any(|error| error.contains("Invalid currency CAD")));
+        .any(|error| error.contains("Invalid currency 'CAD'")));
 
     let approval_error = approve_suggested_entry(ApproveSuggestedEntryInput {
         workspace_root_path: created.root_path.clone(),

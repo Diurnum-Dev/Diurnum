@@ -34,6 +34,7 @@ pub fn validate_workspace(
         }
 
         let accounts = fs::read_to_string(&accounts_path)?;
+        let mut declared_accounts = std::collections::HashSet::new();
         for (line_number, line) in accounts.lines().enumerate() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with(';') {
@@ -43,23 +44,32 @@ pub fn validate_workspace(
             let parts = trimmed.split_whitespace().collect::<Vec<_>>();
             if parts.len() != 4 || parts[1] != "open" {
                 errors.push(format!(
-                    "accounts.bean:{} Invalid account open directive.",
-                    line_number + 1
+                    "accounts.bean:{} {}",
+                    line_number + 1,
+                    diagnose_open_directive(&parts)
                 ));
                 continue;
             }
             if validate_books_start_date(parts[0]).is_err() {
-                errors.push(format!("accounts.bean:{} Invalid date.", line_number + 1));
-            }
-            if !is_valid_account_name(parts[2]) {
                 errors.push(format!(
-                    "accounts.bean:{} Invalid account name.",
-                    line_number + 1
+                    "accounts.bean:{} Invalid date '{}' — expected YYYY-MM-DD.",
+                    line_number + 1,
+                    parts[0]
                 ));
+            }
+            if let Some(reason) = account_name_error(parts[2]) {
+                errors.push(format!(
+                    "accounts.bean:{} Invalid account name '{}': {}",
+                    line_number + 1,
+                    parts[2],
+                    reason
+                ));
+            } else {
+                declared_accounts.insert(parts[2].to_string());
             }
             if parts[3] != "USD" {
                 errors.push(format!(
-                    "accounts.bean:{} Invalid currency {}.",
+                    "accounts.bean:{} Invalid currency '{}' — only USD is supported.",
                     line_number + 1,
                     parts[3]
                 ));
@@ -76,37 +86,44 @@ pub fn validate_workspace(
             let parts = trimmed.split_whitespace().collect::<Vec<_>>();
             if parts.len() != 5 || parts[1] != "balance" {
                 errors.push(format!(
-                    "opening-balances.bean:{} Invalid opening balance directive.",
-                    line_number + 1
+                    "opening-balances.bean:{} {}",
+                    line_number + 1,
+                    diagnose_balance_directive(&parts)
                 ));
                 continue;
             }
             if validate_books_start_date(parts[0]).is_err() {
                 errors.push(format!(
-                    "opening-balances.bean:{} Invalid date.",
-                    line_number + 1
+                    "opening-balances.bean:{} Invalid date '{}' — expected YYYY-MM-DD.",
+                    line_number + 1,
+                    parts[0]
                 ));
             }
-            if !is_valid_account_name(parts[2]) {
+            if let Some(reason) = account_name_error(parts[2]) {
                 errors.push(format!(
-                    "opening-balances.bean:{} Invalid account name.",
-                    line_number + 1
+                    "opening-balances.bean:{} Invalid account name '{}': {}",
+                    line_number + 1,
+                    parts[2],
+                    reason
                 ));
             }
             if parts[3].parse::<f64>().is_err() {
                 errors.push(format!(
-                    "opening-balances.bean:{} Invalid balance amount.",
-                    line_number + 1
+                    "opening-balances.bean:{} Invalid balance amount '{}' — expected a number.",
+                    line_number + 1,
+                    parts[3]
                 ));
             }
             if parts[4] != "USD" {
                 errors.push(format!(
-                    "opening-balances.bean:{} Invalid currency {}.",
+                    "opening-balances.bean:{} Invalid currency '{}' — only USD is supported.",
                     line_number + 1,
                     parts[4]
                 ));
             }
         }
+
+        validate_transaction_accounts(root, &declared_accounts, &mut errors)?;
     }
 
     Ok(LedgerValidationSummary {
@@ -132,20 +149,143 @@ pub fn ensure_valid_workspace(
     Ok(summary)
 }
 
-fn is_valid_account_name(value: &str) -> bool {
-    let roots = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
+/// Scans every `transactions/*.bean` file and flags posting lines that reference
+/// an account which was never declared with an `open` directive in accounts.bean
+/// (the same rule the Beancount engine enforces), or whose name is malformed.
+fn validate_transaction_accounts(
+    root: &Path,
+    declared_accounts: &std::collections::HashSet<String>,
+    errors: &mut Vec<String>,
+) -> Result<(), WorkspaceError> {
+    let transactions_dir = root.join("transactions");
+    if !transactions_dir.is_dir() {
+        return Ok(());
+    }
+
+    let mut bean_files: Vec<_> = fs::read_dir(&transactions_dir)?
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("bean"))
+        .collect();
+    bean_files.sort();
+
+    for file_path in bean_files {
+        let file_name = file_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        let contents = fs::read_to_string(&file_path)?;
+        for (line_number, line) in contents.lines().enumerate() {
+            let Some(account) = posting_account(line) else {
+                continue;
+            };
+            if let Some(reason) = account_name_error(account) {
+                errors.push(format!(
+                    "transactions/{}:{} Invalid account name '{}': {}",
+                    file_name,
+                    line_number + 1,
+                    account,
+                    reason
+                ));
+            } else if !declared_accounts.contains(account) {
+                errors.push(format!(
+                    "transactions/{}:{} Account '{}' is not declared. Add an 'open' directive for it in accounts.bean.",
+                    file_name,
+                    line_number + 1,
+                    account
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Returns the account referenced by a posting line, or None for transaction
+/// headers, metadata (`key: "value"`), comments, and blank lines. A posting's
+/// first token is the account: it contains a colon but — unlike a metadata key —
+/// does not end with one.
+fn posting_account(line: &str) -> Option<&str> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with(';') {
+        return None;
+    }
+    let first = trimmed.split_whitespace().next()?;
+    if first.ends_with(':') || !first.contains(':') {
+        return None;
+    }
+    Some(first)
+}
+
+fn diagnose_open_directive(parts: &[&str]) -> String {
+    if parts.len() == 3 && parts.get(1) == Some(&"open") {
+        format!(
+            "Missing currency in 'open' directive for '{}' — expected: YYYY-MM-DD open AccountName USD.",
+            parts[2]
+        )
+    } else if parts.len() >= 2 && parts[1] != "open" {
+        format!(
+            "Expected 'open' directive but found '{}' — expected: YYYY-MM-DD open AccountName USD.",
+            parts[1]
+        )
+    } else {
+        format!(
+            "Invalid 'open' directive — expected: YYYY-MM-DD open AccountName USD. Got: '{}'.",
+            parts.join(" ")
+        )
+    }
+}
+
+fn diagnose_balance_directive(parts: &[&str]) -> String {
+    if parts.len() == 4 && parts.get(1) == Some(&"balance") {
+        format!(
+            "Missing currency in 'balance' directive for '{}' — expected: YYYY-MM-DD balance AccountName Amount USD.",
+            parts[2]
+        )
+    } else if parts.len() == 3 && parts.get(1) == Some(&"balance") {
+        format!(
+            "Missing amount and currency in 'balance' directive for '{}' — expected: YYYY-MM-DD balance AccountName Amount USD.",
+            parts[2]
+        )
+    } else if parts.len() >= 2 && parts[1] != "balance" {
+        format!(
+            "Expected 'balance' directive but found '{}' — expected: YYYY-MM-DD balance AccountName Amount USD.",
+            parts[1]
+        )
+    } else {
+        format!(
+            "Invalid 'balance' directive — expected: YYYY-MM-DD balance AccountName Amount USD. Got: '{}'.",
+            parts.join(" ")
+        )
+    }
+}
+
+fn account_name_error(value: &str) -> Option<String> {
+    const ROOTS: &[&str] = &["Assets", "Liabilities", "Equity", "Income", "Expenses"];
     let mut parts = value.split(':');
-    let Some(root) = parts.next() else {
-        return false;
-    };
-    roots.contains(&root)
-        && parts.clone().count() > 0
-        && parts.all(|part| {
-            !part.is_empty()
-                && part
-                    .chars()
-                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
-        })
+    let root = parts.next().unwrap_or("");
+    if !ROOTS.contains(&root) {
+        return Some(format!(
+            "'{}' is not a valid root account. Must be one of: {}.",
+            root,
+            ROOTS.join(", ")
+        ));
+    }
+    let sub_parts: Vec<&str> = parts.collect();
+    if sub_parts.is_empty() {
+        return Some("account name must have at least one sub-account after the root (e.g. Income:Donations).".to_string());
+    }
+    for part in &sub_parts {
+        if part.is_empty() {
+            return Some("account name contains an empty segment (double colon).".to_string());
+        }
+        if let Some(bad) = part.chars().find(|c| !c.is_ascii_alphanumeric() && *c != '-') {
+            return Some(format!(
+                "segment '{}' contains invalid character '{}'. Only letters, digits, and hyphens are allowed.",
+                part, bad
+            ));
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -208,6 +348,53 @@ mod tests {
 
         let validation = validate_workspace(summary.root_path).unwrap();
         assert_eq!(validation.status, LedgerStatus::Invalid);
+    }
+
+    #[test]
+    fn undeclared_transaction_account_is_invalid() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let summary = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        let transactions_dir = Path::new(&summary.root_path).join("transactions");
+        fs::write(
+            transactions_dir.join("2026-01.bean"),
+            "2026-01-05 * \"Deposit\"\n    Assets:Bank:Nonexistent  200.00 USD\n    Income:Sales  -200.00 USD\n",
+        )
+        .unwrap();
+
+        let validation = validate_workspace(summary.root_path).unwrap();
+        assert_eq!(validation.status, LedgerStatus::Invalid);
+        assert!(validation.errors.iter().any(|error| error
+            .contains("transactions/2026-01.bean:2")
+            && error.contains("Assets:Bank:Nonexistent")
+            && error.contains("not declared")));
+    }
+
+    #[test]
+    fn declared_transaction_accounts_validate() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let summary = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        let transactions_dir = Path::new(&summary.root_path).join("transactions");
+        fs::write(
+            transactions_dir.join("2026-01.bean"),
+            "2026-01-05 * \"Deposit\"\n    source_account: \"Assets:Bank:Madeup\"\n    Assets:Bank:Checking  200.00 USD\n    Income:Sales  -200.00 USD\n",
+        )
+        .unwrap();
+
+        let validation = validate_workspace(summary.root_path).unwrap();
+        assert_eq!(validation.status, LedgerStatus::Valid, "errors: {:?}", validation.errors);
+        assert!(validation.errors.is_empty());
     }
 
     #[test]
