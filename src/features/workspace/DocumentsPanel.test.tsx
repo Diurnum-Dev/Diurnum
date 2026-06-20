@@ -15,6 +15,18 @@ const workspace = {
   },
 };
 
+const workspaceView = {
+  summary: workspace,
+  suggestedEntries: [],
+  knownAccounts: [],
+  brokenProvenance: [],
+  categorizationRules: [],
+  sourceAccounts: [],
+  snapshots: [],
+  gitStatus: { isRepository: false, branchName: null, uncommittedChangesCount: 0 },
+  gitPanel: null,
+};
+
 afterEach(() => {
   delete window.__DIURNUM_TEST_API__;
 });
@@ -23,6 +35,9 @@ describe("DocumentsPanel", () => {
   it("loads folders and previews text files inline", async () => {
     const openExternalPath = vi.fn();
     window.__DIURNUM_TEST_API__ = {
+      async getWorkspaceView() {
+        return workspaceView;
+      },
       async createWorkspace() {
         return workspace;
       },
@@ -36,7 +51,7 @@ describe("DocumentsPanel", () => {
         return [];
       },
       async restoreSnapshot() {
-        return workspace;
+        return workspaceView;
       },
       async saveLedgerFile() {
         return workspace.ledgerValidation;
@@ -201,7 +216,7 @@ describe("DocumentsPanel", () => {
         };
       },
       async addSourceAccount() {
-        return workspace;
+        return workspaceView;
       },
       async importStatementRows() {
         return {
@@ -217,13 +232,13 @@ describe("DocumentsPanel", () => {
         return [];
       },
       async approveSuggestedEntry() {
-        return workspace;
+        return workspaceView;
       },
       async approveTransferEntry() {
-        return workspace;
+        return workspaceView;
       },
       async revertTransferToStandard() {
-        return workspace;
+        return workspaceView;
       },
       async getKnownLedgerAccounts() {
         return [];
@@ -255,7 +270,7 @@ describe("DocumentsPanel", () => {
       },
       async deleteCategorizationRule() {},
       async updateWorkspaceMetadata() {
-        return workspace;
+        return workspaceView;
       },
       async listSourceAccounts() {
         return [];
@@ -286,13 +301,13 @@ describe("DocumentsPanel", () => {
         };
       },
       async renameSourceAccount() {
-        return workspace;
+        return workspaceView;
       },
       async closeSourceAccount() {
-        return workspace;
+        return workspaceView;
       },
       async updateSourceAccountOpeningBalance() {
-        return workspace;
+        return workspaceView;
       },
       async getGitIdentity() {
         return {

@@ -62,7 +62,10 @@ mod tests {
 
     #[test]
     fn validates_business_name_after_trimming() {
-        assert_eq!(validate_business_name(" Acme Studio ").unwrap(), "Acme Studio");
+        assert_eq!(
+            validate_business_name(" Acme Studio ").unwrap(),
+            "Acme Studio"
+        );
         assert_eq!(
             validate_business_name("   ").unwrap_err().code,
             WorkspaceErrorCode::InvalidBusinessName
@@ -71,7 +74,10 @@ mod tests {
 
     #[test]
     fn validates_iso_books_start_date() {
-        assert_eq!(validate_books_start_date("2026-01-01").unwrap(), "2026-01-01");
+        assert_eq!(
+            validate_books_start_date("2026-01-01").unwrap(),
+            "2026-01-01"
+        );
         assert_eq!(
             validate_books_start_date("01/01/2026").unwrap_err().code,
             WorkspaceErrorCode::InvalidBooksStartDate

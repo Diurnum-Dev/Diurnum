@@ -1,8 +1,8 @@
 use crate::workspace::ai_adapter::{self, AiSuggestion, AiSuggestionRow};
 use crate::workspace::data_integrity::atomic_write;
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
-use crate::workspace::open::open_workspace;
 use crate::workspace::imports::CsvSourceMappingInput;
+use crate::workspace::open::open_workspace;
 use crate::workspace::source_accounts::{documents_slug_for_account, sanitize_account_segment};
 use crate::workspace::types::{WorkspaceBusiness, WorkspaceManifest, WorkspaceSummary};
 use crate::workspace::{categorization_rules, imports, shell};
@@ -215,8 +215,8 @@ pub fn save_source_mapping(
     )?;
     imports::ensure_import_tables(&sqlite)?;
     let updated_at = Utc::now().to_rfc3339();
-    let mapping_json =
-        serde_json::to_string(&input.mapping).map_err(|error| WorkspaceError::io(error.to_string()))?;
+    let mapping_json = serde_json::to_string(&input.mapping)
+        .map_err(|error| WorkspaceError::io(error.to_string()))?;
     sqlite.execute(
         "
         insert into source_mappings (source_account, mapping_json, updated_at)
@@ -241,7 +241,13 @@ pub fn rename_source_account(
     let manifest = read_manifest(root)?;
     let new_segment = sanitize_account_segment(&input.new_name)?;
     let new_account_name = rename_account_name(&input.source_account, &new_segment)?;
-    rewrite_accounts_file(root, &manifest, &input.source_account, &new_account_name, None)?;
+    rewrite_accounts_file(
+        root,
+        &manifest,
+        &input.source_account,
+        &new_account_name,
+        None,
+    )?;
     rewrite_opening_balances_file(
         root,
         &manifest,
@@ -298,7 +304,11 @@ pub fn get_git_identity(
     let local_email = git_config_value(Some(root), "user.email")?;
     let global_name = git_config_value(None, "user.name")?;
     let global_email = git_config_value(None, "user.email")?;
-    let warning = if local_name.is_none() && local_email.is_none() && global_name.is_none() && global_email.is_none() {
+    let warning = if local_name.is_none()
+        && local_email.is_none()
+        && global_name.is_none()
+        && global_email.is_none()
+    {
         Some("No git identity is configured locally or globally.".to_string())
     } else {
         None
@@ -371,15 +381,14 @@ pub fn list_source_mappings_from_connection(
     let rows = statement
         .query_map([], |row| {
             let mapping_json: String = row.get(1)?;
-            let mapping = serde_json::from_str::<CsvSourceMappingInput>(&mapping_json).map_err(
-                |error| {
+            let mapping =
+                serde_json::from_str::<CsvSourceMappingInput>(&mapping_json).map_err(|error| {
                     rusqlite::Error::FromSqlConversionFailure(
                         1,
                         rusqlite::types::Type::Text,
                         Box::new(error),
                     )
-                },
-            )?;
+                })?;
             Ok(SourceMappingSummary {
                 source_account: row.get(0)?,
                 mapping,
@@ -391,8 +400,10 @@ pub fn list_source_mappings_from_connection(
 }
 
 fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
-    serde_json::from_str(&fs::read_to_string(root.join(".diurnum").join("workspace.json"))?)
-        .map_err(|error| WorkspaceError::io(error.to_string()))
+    serde_json::from_str(&fs::read_to_string(
+        root.join(".diurnum").join("workspace.json"),
+    )?)
+    .map_err(|error| WorkspaceError::io(error.to_string()))
 }
 
 fn write_manifest(root: &Path, manifest: &WorkspaceManifest) -> Result<(), WorkspaceError> {
@@ -463,10 +474,7 @@ fn update_workspace_metadata_rows(
 fn opening_balance_for_account(contents: &str, account_name: &str) -> Option<String> {
     contents.lines().find_map(|line| {
         let parts = line.split_whitespace().collect::<Vec<_>>();
-        if parts.len() >= 5
-            && parts[1] == "balance"
-            && parts[2] == account_name
-        {
+        if parts.len() >= 5 && parts[1] == "balance" && parts[2] == account_name {
             Some(parts[3].to_string())
         } else {
             None
@@ -488,7 +496,10 @@ fn rewrite_accounts_file(
 
     for line in contents.lines() {
         let parts = line.split_whitespace().collect::<Vec<_>>();
-        if parts.len() >= 4 && (parts[1] == "open" || parts[1] == "close") && parts[2] == source_account {
+        if parts.len() >= 4
+            && (parts[1] == "open" || parts[1] == "close")
+            && parts[2] == source_account
+        {
             let directive = close_directive.unwrap_or(parts[1]);
             let date = if directive == "close" {
                 Utc::now().date_naive().to_string()
@@ -623,7 +634,9 @@ fn rename_documents_folder(
     source_account: &str,
     new_account_name: &str,
 ) -> Result<(), WorkspaceError> {
-    let old_folder = root.join("documents").join(documents_slug_for_account(source_account));
+    let old_folder = root
+        .join("documents")
+        .join(documents_slug_for_account(source_account));
     let new_folder = root
         .join("documents")
         .join(documents_slug_for_account(new_account_name));
@@ -670,7 +683,11 @@ fn which(command: &str) -> Option<String> {
         return None;
     }
     let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
 }
 
 fn git_config_value(root: Option<&Path>, key: &str) -> Result<Option<String>, WorkspaceError> {
@@ -689,11 +706,7 @@ fn git_config_value(root: Option<&Path>, key: &str) -> Result<Option<String>, Wo
     Ok(if value.is_empty() { None } else { Some(value) })
 }
 
-fn set_git_config_value(
-    root: &Path,
-    key: &str,
-    value: Option<&str>,
-) -> Result<(), WorkspaceError> {
+fn set_git_config_value(root: &Path, key: &str, value: Option<&str>) -> Result<(), WorkspaceError> {
     let mut command = Command::new("git");
     command.arg("-C").arg(root).arg("config").arg("--local");
     if let Some(value) = value {

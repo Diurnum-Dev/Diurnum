@@ -9,7 +9,12 @@ permissions:
   contents: write
 
 jobs:
+  # Gate: the release will not build or publish unless CI passes.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: ci
     runs-on: macos-14
 
     steps:

@@ -4,7 +4,9 @@ use crate::workspace::types::{LedgerStatus, LedgerValidationSummary};
 use std::fs;
 use std::path::Path;
 
-pub fn validate_workspace(path: impl AsRef<Path>) -> Result<LedgerValidationSummary, WorkspaceError> {
+pub fn validate_workspace(
+    path: impl AsRef<Path>,
+) -> Result<LedgerValidationSummary, WorkspaceError> {
     let root = path.as_ref();
     let mut errors = Vec::new();
 
@@ -50,7 +52,10 @@ pub fn validate_workspace(path: impl AsRef<Path>) -> Result<LedgerValidationSumm
                 errors.push(format!("accounts.bean:{} Invalid date.", line_number + 1));
             }
             if !is_valid_account_name(parts[2]) {
-                errors.push(format!("accounts.bean:{} Invalid account name.", line_number + 1));
+                errors.push(format!(
+                    "accounts.bean:{} Invalid account name.",
+                    line_number + 1
+                ));
             }
             if parts[3] != "USD" {
                 errors.push(format!(
@@ -114,7 +119,9 @@ pub fn validate_workspace(path: impl AsRef<Path>) -> Result<LedgerValidationSumm
     })
 }
 
-pub fn ensure_valid_workspace(path: impl AsRef<Path>) -> Result<LedgerValidationSummary, WorkspaceError> {
+pub fn ensure_valid_workspace(
+    path: impl AsRef<Path>,
+) -> Result<LedgerValidationSummary, WorkspaceError> {
     let summary = validate_workspace(path)?;
     if summary.status == LedgerStatus::Invalid {
         return Err(WorkspaceError::new(
@@ -177,7 +184,10 @@ mod tests {
 
         let validation = validate_workspace(summary.root_path).unwrap();
         assert_eq!(validation.status, LedgerStatus::Invalid);
-        assert!(validation.errors.iter().any(|error| error.contains("accounts.bean")));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|error| error.contains("accounts.bean")));
     }
 
     #[test]

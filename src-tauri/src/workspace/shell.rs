@@ -90,8 +90,8 @@ mod tests {
             tempdir.path().join("missing").to_string_lossy().to_string(),
         ]);
 
-        assert_eq!(statuses[0].exists, true);
-        assert_eq!(statuses[1].exists, false);
+        assert!(statuses[0].exists);
+        assert!(!statuses[1].exists);
     }
 
     #[test]

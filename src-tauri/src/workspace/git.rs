@@ -164,7 +164,16 @@ pub fn get_commit_diff(
     let short_hash = parts.next().unwrap_or_default().to_string();
     let committed_at = parts.next().unwrap_or_default().to_string();
     let summary = parts.next().unwrap_or_default().to_string();
-    let diff = git_stdout(root, ["show", "--format=", "--unified=3", "--no-color", commit_hash])?;
+    let diff = git_stdout(
+        root,
+        [
+            "show",
+            "--format=",
+            "--unified=3",
+            "--no-color",
+            commit_hash,
+        ],
+    )?;
 
     Ok(GitCommitDiff {
         hash,
@@ -183,7 +192,10 @@ pub fn commit_workspace_changes(
         return Ok(GitCommitResult {
             committed: false,
             commit_hash: None,
-            warning: Some("Git Integration is unavailable because this Workspace is not a git repository.".to_string()),
+            warning: Some(
+                "Git Integration is unavailable because this Workspace is not a git repository."
+                    .to_string(),
+            ),
             hook_output: None,
         });
     }
@@ -280,7 +292,10 @@ fn stage_paths(root: &Path, paths: &[String]) -> Result<(), WorkspaceError> {
 }
 
 fn list_working_tree_entries(root: &Path) -> Result<Vec<GitWorkingTreeEntry>, WorkspaceError> {
-    let output = git_stdout(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])?;
+    let output = git_stdout(
+        root,
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    )?;
     let mut records = output.split('\0').peekable();
     let mut entries = Vec::new();
     while let Some(record) = records.next() {
@@ -332,7 +347,10 @@ fn git_stdout<const N: usize>(root: &Path, args: [&str; N]) -> Result<String, Wo
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-fn run_git<const N: usize>(root: &Path, args: [&str; N]) -> Result<std::process::Output, WorkspaceError> {
+fn run_git<const N: usize>(
+    root: &Path,
+    args: [&str; N],
+) -> Result<std::process::Output, WorkspaceError> {
     let output = Command::new("git")
         .arg("-C")
         .arg(root)

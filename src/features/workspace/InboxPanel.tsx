@@ -1,5 +1,5 @@
 // src/features/workspace/InboxPanel.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
 import { InboxInspector } from "./InboxInspector";
 import { InboxToolbar } from "./InboxToolbar";
@@ -62,11 +62,25 @@ export function InboxPanel({
     [groups],
   );
 
-  const selectedEntry = useMemo(
-    () =>
-      ordered.find((entry) => entry.statementRowId === selectedStatementRowId) ?? ordered[0] ?? null,
-    [ordered, selectedStatementRowId],
-  );
+  // Remembers where the selection sat so that when an approved row leaves the
+  // list, the Founder-Operator advances to the next item and keeps triaging
+  // (ADR 0003) rather than jumping back to the top.
+  const selectedIndexRef = useRef(0);
+
+  const selectedEntry = useMemo(() => {
+    const byId = ordered.find((entry) => entry.statementRowId === selectedStatementRowId);
+    if (byId) return byId;
+    if (ordered.length === 0) return null;
+    const nextIndex = Math.min(selectedIndexRef.current, ordered.length - 1);
+    return ordered[nextIndex] ?? ordered[0] ?? null;
+  }, [ordered, selectedStatementRowId]);
+
+  useEffect(() => {
+    const index = ordered.findIndex(
+      (entry) => entry.statementRowId === selectedEntry?.statementRowId,
+    );
+    if (index >= 0) selectedIndexRef.current = index;
+  }, [ordered, selectedEntry]);
 
   useEffect(() => {
     setEditing(false);

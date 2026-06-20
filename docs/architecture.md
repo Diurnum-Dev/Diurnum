@@ -15,6 +15,7 @@ flowchart TB
 
   subgraph App[Diurnum local desktop app]
     UI[React App Shell and workspace UI]
+    Session[WorkspaceSession store]
     AppConfig[App-level recents config]
     Bridge[Tauri command bridge]
     Core[Rust workspace core]
@@ -37,17 +38,34 @@ flowchart TB
   Visitor --> Homepage
   Homepage --> User
   UI --> AppConfig
-  UI --> Bridge
+  UI --> Session
+  Session --> Bridge
   Bridge --> Core
   Core --> Ledger
   Core --> LocalState
   Core --> Manifest
   Core --> Snapshots
   Core --> GitRepo
-  Core --> UI
+  Core --> Session
+  Session --> UI
   User --> Issues
   Issues --> PRs
 ```
+
+## Workspace Session
+
+The open Workspace is owned by a single React-free store,
+`createWorkspaceSession` (`src/lib/workspace/session.ts`). It holds all derived
+Workspace data — Suggested Entries, broken provenance, Categorization Rules,
+Source Accounts, snapshots, git status — and the one invariant that this data is
+refreshed as a unit after any change. `App.tsx` subscribes via
+`useSyncExternalStore` and keeps only UI/navigation state.
+
+Each mutation command returns a single `WorkspaceView` (assembled by
+`workspace::view` in the Rust core and also available via `get_workspace_view`),
+so a change costs one round-trip plus the mutation rather than a per-slice
+read fan-out. Reports stay on-demand (cleared during Invalid Ledger State) and
+AI adapter detection stays an open-time scan, so neither rides the view.
 
 ## Product Runtime Flow
 

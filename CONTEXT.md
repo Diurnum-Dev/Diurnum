@@ -72,6 +72,10 @@ _Avoid_: Imported ledger, arbitrary Beancount project, external workspace
 The `.ledgerly/workspace.json` file that records Workspace metadata and restorable UI state such as display name, editor tabs, active tab, cursor positions, and Source Account setup references.
 _Avoid_: Canonical ledger, app-level recents, hidden cloud profile
 
+**Workspace Session**:
+The live in-memory state of the currently open Workspace — the loaded summary plus all derived data (Suggested Entries, broken provenance, Categorization Rules, Source Accounts, snapshots, git status) — together with the invariant that this derived data refreshes as one unit after any change Diurnum makes, owned by a single module the UI subscribes to.
+_Avoid_: Per-screen ad hoc refetching, partially refreshed derived state, UI/navigation state in the session, canonical ledger storage
+
 **Statement Row**:
 A raw transaction-like row imported from a bank-downloaded CSV statement before Diurnum turns it into accounting data.
 _Avoid_: Transaction, ledger transaction, entry
@@ -390,6 +394,8 @@ _Avoid_: Anonymous usage analytics, hidden telemetry, server-side bookkeeping
 - Diurnum imports **Statement Rows** from bank-downloaded CSV files.
 - Diurnum creates **Suggested Entries** from **Statement Rows**.
 - An **Approval** turns a **Suggested Entry** into canonical ledger data.
+- After an **Approval**, Diurnum keeps the Founder-Operator in the **Inbox** and advances to the next item for continued triage, rather than navigating to the **Ledger Editor**.
+- The **Workspace Session** is the single owner of derived Workspace data; every Approval, CSV Import, or edit refreshes the whole session view as one unit so no screen sees partially stale data.
 - In the **MVP**, each non-transfer **Statement Row** maps to exactly one **Suggested Entry**.
 - A **Transfer Entry** may link two **Statement Rows** from different **Source Accounts** to one **Suggested Entry**.
 - Diurnum may suggest a **Transfer Match** by date, amount, and description, but the Founder-Operator approves it.
