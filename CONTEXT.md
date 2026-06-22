@@ -160,6 +160,22 @@ _Avoid_: AI ledger write, AI reconciliation, AI report, autonomous bookkeeping
 The product stance that AI is a capability for grounded suggestions, completion, and future query translation, not the core brand or source of accounting truth.
 _Avoid_: AI-first positioning, autonomous bookkeeping, generated financial facts
 
+**Entry Completion**:
+Context-aware help in the Ledger Editor for writing a Beancount entry by hand: completing account names, payees, and narrations, or inferring a whole entry, based on where the cursor is in the entry. In-process and tiered, not a language server (ADR-0004).
+_Avoid_: LSP sidecar, language server, autocomplete-as-a-plugin, AI-only completion
+
+**Completion Tier**:
+The latency class of an Entry Completion source. The Instant tier (accounts, payees, narrations) filters an in-memory list with no per-keystroke backend call; the Deferred tier (AI whole-entry inference) is a debounced async call.
+_Avoid_: One uniform completion path, per-keystroke backend lookup for accounts
+
+**Completion Ghost**:
+The single best Entry Completion shown inline at the cursor, accepted with Tab. The default presentation; a dropdown opens only when several candidates are plausible.
+_Avoid_: Always-on dropdown, modal completion picker, committed text before acceptance
+
+**Block Context Hint**:
+Ranked account suggestions for the current transaction block, derived once per block from Categorization Rules and history (debit/credit aware) and cached, used to reorder Instant-tier account candidates so the contextually-right account sorts first.
+_Avoid_: Per-keystroke ranking call, AI-gated ranking, semantic type inference
+
 **Ledger-Grounded AI**:
 The rule that AI-produced numbers, categories, completions, insights, and future query answers must be derived from actual ledger or Workspace data, with cited source entries when numbers or claims are surfaced.
 _Avoid_: Prompt-only arithmetic, hallucinated accounts, uncited financial claims
