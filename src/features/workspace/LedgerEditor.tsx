@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
+import type React from "react";
 import { MENU_SAVE_EVENT } from "../../lib/menu";
 import { basicSetup } from "codemirror";
 import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
@@ -7,6 +8,15 @@ import type { DecorationSet } from "@codemirror/view";
 import { bracketMatching, foldGutter, foldKeymap, foldService } from "@codemirror/language";
 import { searchKeymap } from "@codemirror/search";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
+import {
+  autocompletion,
+  completionStatus,
+  acceptCompletion,
+  startCompletion,
+  closeCompletion,
+  type CompletionSource,
+} from "@codemirror/autocomplete";
+import { filterAccounts, accountAt, postingPosition } from "./ledger-completions";
 import type {
   LedgerEditorSession,
   LedgerEditorTabSession,
@@ -35,6 +45,7 @@ type LedgerEditorProps = {
   onSaved?: (relativePath: string) => void | Promise<void>;
   onError: (message: string | null) => void;
   onCursorChange?: (cursor: { line: number; column: number }) => void;
+  knownAccounts?: string[];
 };
 
 type OpenTab = LedgerEditorTabSession & {
@@ -62,6 +73,7 @@ export function LedgerEditor({
   onSaved,
   onError,
   onCursorChange,
+  knownAccounts = [],
 }: LedgerEditorProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -546,6 +558,8 @@ export function LedgerEditor({
             scrollTop={activeTab.scrollTop}
             validationErrors={validationErrorsForFile(validationErrors, activePath)}
             completionText={predictiveCompletion?.insertText ?? null}
+            knownAccounts={knownAccounts}
+            workspaceRootPath={workspace.rootPath}
             onChange={updateActiveContents}
             onSave={saveActiveFile}
             onCloseTab={() => closeTab()}
@@ -829,6 +843,8 @@ type CodeMirrorEditorProps = {
   scrollTop: number;
   validationErrors: FileValidationError[];
   completionText: string | null;
+  knownAccounts: string[];
+  workspaceRootPath: string;
   onChange: (contents: string, cursor: number, scrollTop: number) => void;
   onSave: () => void;
   onCloseTab: () => void;
@@ -838,12 +854,64 @@ type CodeMirrorEditorProps = {
   onCursorChange?: (cursor: { line: number; column: number }) => void;
 };
 
+function buildInstantCompletion(
+  knownAccountsRef: React.MutableRefObject<string[]>,
+  contextHintsRef: React.MutableRefObject<string[]>,
+): import("@codemirror/state").Extension {
+  const accountSource: CompletionSource = (context) => {
+    const match = accountAt(context);
+    if (!match) return null;
+    const accounts = knownAccountsRef.current;
+    const hints = new Set(contextHintsRef.current);
+    const candidates = filterAccounts(accounts, match.prefix);
+    if (!candidates.length && !context.explicit) return null;
+
+    // Rank: hinted accounts first, then debit/credit-position bias, then chart order
+    const pos = postingPosition(context.state, context.pos);
+    const debitPreferred = pos === "first"; // first posting → Expenses/Income; balancing → Assets/Liabilities
+    const sorted = [...candidates].sort((a, b) => {
+      const aHint = hints.has(a) ? 0 : 1;
+      const bHint = hints.has(b) ? 0 : 1;
+      if (aHint !== bHint) return aHint - bHint;
+      const aBias = (debitPreferred ? isExpenseOrIncome(a) : isAssetOrLiability(a)) ? 0 : 1;
+      const bBias = (debitPreferred ? isExpenseOrIncome(b) : isAssetOrLiability(b)) ? 0 : 1;
+      return aBias - bBias;
+    });
+
+    return {
+      from: match.from,
+      options: sorted.map((account) => ({
+        label: account,
+        type: "variable",
+        apply: (view: EditorView, _completion: import("@codemirror/autocomplete").Completion, from: number, to: number) => {
+          view.dispatch({
+            changes: { from, to, insert: account + "  " },
+            selection: EditorSelection.cursor(from + account.length + 2),
+          });
+        },
+      })),
+      validFor: /[\w:]*/,
+    };
+  };
+  return autocompletion({ override: [accountSource] });
+}
+
+function isExpenseOrIncome(account: string): boolean {
+  return account.startsWith("Expenses:") || account.startsWith("Income:");
+}
+
+function isAssetOrLiability(account: string): boolean {
+  return account.startsWith("Assets:") || account.startsWith("Liabilities:");
+}
+
 function CodeMirrorEditor({
   contents,
   cursor,
   scrollTop,
   validationErrors,
   completionText,
+  knownAccounts,
+  workspaceRootPath,
   onChange,
   onSave,
   onCloseTab,
@@ -856,8 +924,12 @@ function CodeMirrorEditor({
   const viewRef = useRef<EditorView | null>(null);
   const lintCompartment = useRef(new Compartment());
   const completionCompartment = useRef(new Compartment());
+  const knownAccountsCompartment = useRef(new Compartment());
+  const knownAccountsRef = useRef<string[]>(knownAccounts);
+  const contextHintsRef = useRef<string[]>([]);
   const callbacksRef = useRef({
     completionText,
+    workspaceRootPath,
     onChange,
     onSave,
     onCloseTab,
@@ -870,6 +942,7 @@ function CodeMirrorEditor({
   useEffect(() => {
     callbacksRef.current = {
       completionText,
+      workspaceRootPath,
       onChange,
       onSave,
       onCloseTab,
@@ -878,7 +951,19 @@ function CodeMirrorEditor({
       onDismissCompletion,
       onCursorChange,
     };
-  }, [completionText, onChange, onSave, onCloseTab, onReopenTab, onOpenInclude, onDismissCompletion, onCursorChange]);
+  }, [completionText, workspaceRootPath, onChange, onSave, onCloseTab, onReopenTab, onOpenInclude, onDismissCompletion, onCursorChange]);
+
+  // Sync prop → ref and reconfigure the completion extension
+  useEffect(() => {
+    knownAccountsRef.current = knownAccounts;
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: knownAccountsCompartment.current.reconfigure(
+        buildInstantCompletion(knownAccountsRef, contextHintsRef),
+      ),
+    });
+  }, [knownAccounts]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -897,6 +982,9 @@ function CodeMirrorEditor({
           beanDecorations((relativePath) => callbacksRef.current.onOpenInclude(relativePath)),
           currentTransactionHighlight,
           completionCompartment.current.of(ghostCompletion(completionText)),
+          knownAccountsCompartment.current.of(
+            buildInstantCompletion(knownAccountsRef, contextHintsRef),
+          ),
           lintCompartment.current.of(
             linter((view) => diagnosticsFromErrors(validationErrors, view.state)),
           ),
@@ -904,6 +992,9 @@ function CodeMirrorEditor({
             {
               key: "Tab",
               run: (view) => {
+                if (completionStatus(view.state) === "active") {
+                  return acceptCompletion(view);
+                }
                 const text = callbacksRef.current.completionText;
                 if (!text) return false;
                 const cursor = view.state.selection.main.head;
@@ -916,8 +1007,19 @@ function CodeMirrorEditor({
               },
             },
             {
+              key: "Ctrl-Space",
+              run: (view) => {
+                startCompletion(view);
+                return true;
+              },
+            },
+            {
               key: "Escape",
-              run: () => {
+              run: (view) => {
+                if (completionStatus(view.state) !== null) {
+                  closeCompletion(view);
+                  return true;
+                }
                 if (!callbacksRef.current.completionText) return false;
                 callbacksRef.current.onDismissCompletion();
                 return true;
