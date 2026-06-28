@@ -283,6 +283,32 @@ export function LedgerEditor({
     return () => window.removeEventListener(MENU_SAVE_EVENT, handleMenuSave);
   }, [saveActiveFile]);
 
+  // Refs so blur handler always calls the latest version of saveActiveFile and reads latest isDirty
+  const saveActiveFileRef = useRef(saveActiveFile);
+  useEffect(() => {
+    saveActiveFileRef.current = saveActiveFile;
+  }, [saveActiveFile]);
+
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    function handleBlur() {
+      if (activeTabRef.current?.isDirty) void saveActiveFileRef.current();
+    }
+    function handleVisibility() {
+      if (document.visibilityState === "hidden") void saveActiveFileRef.current();
+    }
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   useEffect(() => {
     if (!activeTab?.isDirty) return;
     const timeout = window.setTimeout(() => void saveActiveFile(), 2000);

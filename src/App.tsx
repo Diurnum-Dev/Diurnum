@@ -540,9 +540,9 @@ export default function App() {
     setView("start");
   }
 
-  function handleLedgerValidationChange(validation: LedgerValidationSummary) {
+  const handleLedgerValidationChange = useCallback((validation: LedgerValidationSummary) => {
     session.applyLedgerValidation(validation);
-  }
+  }, [session]);
 
   async function handleReveal() {
     if (!workspace) return;
@@ -557,9 +557,9 @@ export default function App() {
     await session.validate().catch(() => undefined);
   }
 
-  async function handleLedgerFileSaved() {
+  const handleLedgerFileSaved = useCallback(async () => {
     await session.notifyLedgerSaved().catch(() => undefined);
-  }
+  }, [session]);
 
   async function handleAddSourceAccount(input: {
     kind: SourceAccountKind;
