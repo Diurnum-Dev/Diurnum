@@ -932,8 +932,7 @@ function buildInstantCompletion(
     };
   };
 
-  // @ts-expect-error -- ghostText is a valid CM6 autocompletion option; added after current @types snapshot
-  return autocompletion({ override: [accountSource, payeeSource], ghostText: true });
+  return autocompletion({ override: [accountSource, payeeSource] });
 }
 
 function isExpenseOrIncome(account: string): boolean {
@@ -942,6 +941,83 @@ function isExpenseOrIncome(account: string): boolean {
 
 function isAssetOrLiability(account: string): boolean {
   return account.startsWith("Assets:") || account.startsWith("Liabilities:");
+}
+
+function buildInstantGhost(
+  knownAccountsRef: React.MutableRefObject<string[]>,
+  contextHintsRef: React.MutableRefObject<string[]>,
+  payeeDescriptionsRef: React.MutableRefObject<EntryDescription[]>,
+): import("@codemirror/state").Extension {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      constructor(view: EditorView) {
+        this.decorations = this.compute(view);
+      }
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.selectionSet || update.viewportChanged) {
+          this.decorations = this.compute(update.view);
+        }
+      }
+      compute(view: EditorView): DecorationSet {
+        // Don't show instant ghost when the dropdown is already open
+        if (completionStatus(view.state) !== null) return Decoration.set([]);
+        const pos = view.state.selection.main.head;
+        if (!view.state.selection.main.empty) return Decoration.set([]);
+        const line = view.state.doc.lineAt(pos);
+        const beforeCursor = line.text.slice(0, pos - line.from);
+
+        // Account context: indented line, cursor in account token
+        if (/^\s/.test(line.text) && !/\S\s{2,}$/.test(beforeCursor)) {
+          const tokenMatch = beforeCursor.match(/([\w:]+)$/);
+          const prefix = tokenMatch?.[1] ?? "";
+          if (prefix || view.state.selection.main.empty) {
+            const accounts = knownAccountsRef.current;
+            const hints = new Set(contextHintsRef.current);
+            const candidates = filterAccounts(accounts, prefix);
+            if (candidates.length) {
+              const sorted = [...candidates].sort((a, b) => {
+                if (hints.has(a) && !hints.has(b)) return -1;
+                if (!hints.has(a) && hints.has(b)) return 1;
+                return 0;
+              });
+              const ghostText = sorted[0].slice(prefix.length);
+              if (ghostText) {
+                return Decoration.set([
+                  Decoration.widget({ widget: new GhostCompletionWidget(ghostText), side: 1 }).range(pos),
+                ]);
+              }
+            }
+          }
+        }
+
+        // Payee context: inside quoted string on date header line
+        if (/^\d{4}-\d{2}-\d{2}\s/.test(line.text)) {
+          const quotesBefore = (beforeCursor.match(/"/g) ?? []).length;
+          if (quotesBefore % 2 !== 0) {
+            const lastQuote = beforeCursor.lastIndexOf('"');
+            const typedPrefix = beforeCursor.slice(lastQuote + 1);
+            const descriptions = payeeDescriptionsRef.current;
+            const candidates = descriptions.filter(d =>
+              d.text.toLowerCase().startsWith(typedPrefix.toLowerCase()),
+            );
+            if (candidates.length) {
+              const top = candidates[0].text;
+              if (top.length > typedPrefix.length) {
+                const ghost = top.slice(typedPrefix.length);
+                return Decoration.set([
+                  Decoration.widget({ widget: new GhostCompletionWidget(ghost), side: 1 }).range(pos),
+                ]);
+              }
+            }
+          }
+        }
+
+        return Decoration.set([]);
+      }
+    },
+    { decorations: p => p.decorations },
+  );
 }
 
 function CodeMirrorEditor({
@@ -1039,6 +1115,7 @@ function CodeMirrorEditor({
           knownAccountsCompartment.current.of(
             buildInstantCompletion(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
           ),
+          buildInstantGhost(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
           lintCompartment.current.of(
             linter((view) => diagnosticsFromErrors(validationErrors, view.state)),
           ),
