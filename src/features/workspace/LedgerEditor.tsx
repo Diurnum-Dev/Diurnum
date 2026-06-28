@@ -324,7 +324,9 @@ export function LedgerEditor({
       if (activeTabRef.current?.isDirty) void saveActiveFileRef.current();
     }
     function handleVisibility() {
-      if (document.visibilityState === "hidden") void saveActiveFileRef.current();
+      if (document.visibilityState === "hidden" && activeTabRef.current?.isDirty) {
+        void saveActiveFileRef.current();
+      }
     }
     window.addEventListener("blur", handleBlur);
     document.addEventListener("visibilitychange", handleVisibility);
@@ -930,7 +932,8 @@ function buildInstantCompletion(
     };
   };
 
-  return autocompletion({ override: [accountSource, payeeSource] });
+  // @ts-expect-error -- ghostText is a valid CM6 autocompletion option; added after current @types snapshot
+  return autocompletion({ override: [accountSource, payeeSource], ghostText: true });
 }
 
 function isExpenseOrIncome(account: string): boolean {
@@ -1115,7 +1118,7 @@ function CodeMirrorEditor({
               callbacksRef.current.onCursorChange?.({ line: lineNumber, column });
             }
             // Fetch per-block context hints when the cursor enters a new transaction block
-            if (update.selectionSet || update.docChanged) {
+            if (update.selectionSet) {
               const description = blockDescriptionAt(
                 update.state,
                 update.state.selection.main.head,
