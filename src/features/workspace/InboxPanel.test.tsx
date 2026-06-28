@@ -54,13 +54,17 @@ const entries: SuggestedEntry[] = [
 ];
 
 describe("InboxPanel", () => {
-  it("groups rows into needs-review and matched", () => {
+  it("lists pending and matched rows with category chips", () => {
     render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
 
-    expect(screen.getByText(/needs your review/)).toBeInTheDocument();
-    expect(screen.getByText(/auto-posted/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toBeInTheDocument();
+    const lyft = screen.getByRole("button", { name: /LYFT \*RIDE/ });
+    const openai = screen.getByRole("button", { name: /OPENAI \*CHATGPT/ });
+    expect(lyft).toBeInTheDocument();
+    expect(openai).toBeInTheDocument();
+    // The redesigned Inbox distinguishes buckets with per-row chips, not section
+    // headings: an uncategorized pending row vs. a rule-matched account.
+    expect(within(lyft).getByText("Uncategorized")).toBeInTheDocument();
+    expect(within(openai).getByText("Expenses:Software")).toBeInTheDocument();
   });
 
   it("filters by tab", async () => {
@@ -111,13 +115,14 @@ describe("InboxPanel", () => {
     const user = userEvent.setup();
     render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
 
-    // First entry in flat order (needs-review group first) starts selected.
+    // Rows are a single date-sorted list: LYFT, OPENAI, Transfer. The first
+    // row starts selected.
     expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await user.keyboard("j");
-    expect(screen.getByRole("button", { name: /Transfer to savings/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -127,9 +132,10 @@ describe("InboxPanel", () => {
     const user = userEvent.setup();
     render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
 
-    // LYFT is selected by default; press j to move down, then k to move back up.
+    // LYFT is selected by default; press j to move down to OPENAI, then k to
+    // move back up to LYFT.
     await user.keyboard("j");
-    expect(screen.getByRole("button", { name: /Transfer to savings/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /OPENAI \*CHATGPT/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

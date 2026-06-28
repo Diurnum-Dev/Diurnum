@@ -278,7 +278,10 @@ fn account_name_error(value: &str) -> Option<String> {
         if part.is_empty() {
             return Some("account name contains an empty segment (double colon).".to_string());
         }
-        if let Some(bad) = part.chars().find(|c| !c.is_ascii_alphanumeric() && *c != '-') {
+        if let Some(bad) = part
+            .chars()
+            .find(|c| !c.is_ascii_alphanumeric() && *c != '-')
+        {
             return Some(format!(
                 "segment '{}' contains invalid character '{}'. Only letters, digits, and hyphens are allowed.",
                 part, bad
@@ -369,10 +372,12 @@ mod tests {
 
         let validation = validate_workspace(summary.root_path).unwrap();
         assert_eq!(validation.status, LedgerStatus::Invalid);
-        assert!(validation.errors.iter().any(|error| error
-            .contains("transactions/2026-01.bean:2")
-            && error.contains("Assets:Bank:Nonexistent")
-            && error.contains("not declared")));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|error| error.contains("transactions/2026-01.bean:2")
+                && error.contains("Assets:Bank:Nonexistent")
+                && error.contains("not declared")));
     }
 
     #[test]
@@ -393,7 +398,12 @@ mod tests {
         .unwrap();
 
         let validation = validate_workspace(summary.root_path).unwrap();
-        assert_eq!(validation.status, LedgerStatus::Valid, "errors: {:?}", validation.errors);
+        assert_eq!(
+            validation.status,
+            LedgerStatus::Valid,
+            "errors: {:?}",
+            validation.errors
+        );
         assert!(validation.errors.is_empty());
     }
 
