@@ -542,6 +542,11 @@ export type WorkspaceView = {
   gitPanel: GitPanelState | null;
 };
 
+export type EntryDescription = {
+  text: string;
+  kind: "payee" | "narration";
+};
+
 export type WorkspaceErrorCode =
   | "invalidBusinessName"
   | "invalidBooksStartDate"

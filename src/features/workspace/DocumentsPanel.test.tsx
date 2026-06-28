@@ -338,6 +338,9 @@ describe("DocumentsPanel", () => {
       async getAccountContextHints() {
         return [];
       },
+      async listEntryDescriptions() {
+        return [];
+      },
       async createCategorizationRule() {
         throw new Error("not used");
       },

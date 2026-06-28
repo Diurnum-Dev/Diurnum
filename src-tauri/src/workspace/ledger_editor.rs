@@ -49,6 +49,13 @@ pub struct PredictiveEntryCompletionInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EntryDescription {
+    pub text: String,
+    pub kind: String, // "payee" or "narration"
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AccountContextHintsInput {
     pub workspace_root_path: String,
     pub description: String,
@@ -300,6 +307,63 @@ pub fn get_account_context_hints(
     }
 
     Ok(hints)
+}
+
+pub fn list_entry_descriptions(
+    workspace_root_path: impl AsRef<Path>,
+) -> Result<Vec<EntryDescription>, WorkspaceError> {
+    let root = workspace_root_path.as_ref();
+    let files = ledger_files(root)?;
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    let mut result: Vec<EntryDescription> = Vec::new();
+
+    for relative_path in files {
+        let path = root.join(&relative_path);
+        let Ok(contents) = fs::read_to_string(&path) else {
+            continue;
+        };
+        for line in contents.lines() {
+            // Only transaction header lines start with a digit (date)
+            if !line.starts_with(|c: char| c.is_ascii_digit()) {
+                continue;
+            }
+            // Extract all quoted strings from the line
+            let strings: Vec<&str> = {
+                let mut found = Vec::new();
+                let mut rest = line;
+                while let Some(start) = rest.find('"') {
+                    rest = &rest[start + 1..];
+                    if let Some(end) = rest.find('"') {
+                        found.push(&rest[..end]);
+                        rest = &rest[end + 1..];
+                    } else {
+                        break;
+                    }
+                }
+                found
+            };
+            match strings.as_slice() {
+                [payee, narration, ..] => {
+                    let payee = payee.trim();
+                    let narration = narration.trim();
+                    if !payee.is_empty() && seen.insert(("payee".into(), payee.to_string())) {
+                        result.push(EntryDescription { text: payee.to_string(), kind: "payee".into() });
+                    }
+                    if !narration.is_empty() && seen.insert(("narration".into(), narration.to_string())) {
+                        result.push(EntryDescription { text: narration.to_string(), kind: "narration".into() });
+                    }
+                }
+                [narration] => {
+                    let narration = narration.trim();
+                    if !narration.is_empty() && seen.insert(("narration".into(), narration.to_string())) {
+                        result.push(EntryDescription { text: narration.to_string(), kind: "narration".into() });
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(result)
 }
 
 fn file_modified_at(path: &Path) -> Result<u64, WorkspaceError> {

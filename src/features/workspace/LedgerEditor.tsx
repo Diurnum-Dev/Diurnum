@@ -16,8 +16,9 @@ import {
   closeCompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
-import { filterAccounts, accountAt, postingPosition, blockDescriptionAt } from "./ledger-completions";
+import { filterAccounts, accountAt, payeeAt, postingPosition, blockDescriptionAt } from "./ledger-completions";
 import type {
+  EntryDescription,
   LedgerEditorSession,
   LedgerEditorTabSession,
   LedgerFileSnapshot,
@@ -29,6 +30,7 @@ import {
   getPredictiveEntryCompletion,
   getAccountContextHints,
   getLedgerEditorState,
+  listEntryDescriptions,
   readLedgerFile,
   saveLedgerEditorSession,
   saveLedgerFile,
@@ -88,6 +90,7 @@ export function LedgerEditor({
   const [validationErrors, setValidationErrors] = useState(workspace.ledgerValidation.errors);
   const [predictiveCompletion, setPredictiveCompletion] =
     useState<PredictiveEntryCompletion | null>(null);
+  const [payeeDescriptions, setPayeeDescriptions] = useState<EntryDescription[]>([]);
 
   const activeTab = tabs.find((tab) => tab.relativePath === activePath) ?? null;
   const activeLineRef = useRef(1);
@@ -162,6 +165,12 @@ export function LedgerEditor({
     // subsequent requests are handled by the requested-file effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onError, onFilesChange, workspace.rootPath]);
+
+  useEffect(() => {
+    void listEntryDescriptions(workspace.rootPath)
+      .then(setPayeeDescriptions)
+      .catch(() => undefined);
+  }, [workspace.rootPath]);
 
   // Keep a ref to the latest openFile so the effect below doesn't re-run every
   // time a new tab is opened (which recreates openFile due to `tabs` in its deps).
@@ -271,6 +280,9 @@ export function LedgerEditor({
             : candidate,
         ),
       );
+      void listEntryDescriptions(workspace.rootPath)
+        .then(setPayeeDescriptions)
+        .catch(() => undefined);
       setValidationErrors(validation.errors);
       onValidationChange(validation);
       await onSaved?.(tab.relativePath);
@@ -560,6 +572,7 @@ export function LedgerEditor({
             validationErrors={validationErrorsForFile(validationErrors, activePath)}
             completionText={predictiveCompletion?.insertText ?? null}
             knownAccounts={knownAccounts}
+            payeeDescriptions={payeeDescriptions}
             workspaceRootPath={workspace.rootPath}
             onChange={updateActiveContents}
             onSave={saveActiveFile}
@@ -845,6 +858,7 @@ type CodeMirrorEditorProps = {
   validationErrors: FileValidationError[];
   completionText: string | null;
   knownAccounts: string[];
+  payeeDescriptions: EntryDescription[];
   workspaceRootPath: string;
   onChange: (contents: string, cursor: number, scrollTop: number) => void;
   onSave: () => void;
@@ -858,6 +872,7 @@ type CodeMirrorEditorProps = {
 function buildInstantCompletion(
   knownAccountsRef: React.MutableRefObject<string[]>,
   contextHintsRef: React.MutableRefObject<string[]>,
+  payeeDescriptionsRef: React.MutableRefObject<EntryDescription[]>,
 ): import("@codemirror/state").Extension {
   const accountSource: CompletionSource = (context) => {
     const match = accountAt(context);
@@ -894,7 +909,28 @@ function buildInstantCompletion(
       validFor: /[\w:]*/,
     };
   };
-  return autocompletion({ override: [accountSource] });
+
+  const payeeSource: CompletionSource = (context) => {
+    const match = payeeAt(context);
+    if (!match) return null;
+    const descriptions = payeeDescriptionsRef.current;
+    const prefix = match.prefix.toLowerCase();
+    const candidates = descriptions.filter((d) =>
+      d.text.toLowerCase().includes(prefix),
+    );
+    if (!candidates.length && !context.explicit) return null;
+    return {
+      from: match.from,
+      options: candidates.map((d) => ({
+        label: d.text,
+        detail: d.kind,
+        type: "text",
+      })),
+      validFor: /[^"]*/,
+    };
+  };
+
+  return autocompletion({ override: [accountSource, payeeSource] });
 }
 
 function isExpenseOrIncome(account: string): boolean {
@@ -912,6 +948,7 @@ function CodeMirrorEditor({
   validationErrors,
   completionText,
   knownAccounts,
+  payeeDescriptions,
   workspaceRootPath,
   onChange,
   onSave,
@@ -928,6 +965,7 @@ function CodeMirrorEditor({
   const knownAccountsCompartment = useRef(new Compartment());
   const knownAccountsRef = useRef<string[]>(knownAccounts);
   const contextHintsRef = useRef<string[]>([]);
+  const payeeDescriptionsRef = useRef<EntryDescription[]>(payeeDescriptions);
   const lastFetchedDescriptionRef = useRef<string | null>(null);
   const callbacksRef = useRef({
     completionText,
@@ -962,10 +1000,21 @@ function CodeMirrorEditor({
     if (!view) return;
     view.dispatch({
       effects: knownAccountsCompartment.current.reconfigure(
-        buildInstantCompletion(knownAccountsRef, contextHintsRef),
+        buildInstantCompletion(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
       ),
     });
   }, [knownAccounts]);
+
+  useEffect(() => {
+    payeeDescriptionsRef.current = payeeDescriptions;
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: knownAccountsCompartment.current.reconfigure(
+        buildInstantCompletion(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
+      ),
+    });
+  }, [payeeDescriptions]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -985,7 +1034,7 @@ function CodeMirrorEditor({
           currentTransactionHighlight,
           completionCompartment.current.of(ghostCompletion(completionText)),
           knownAccountsCompartment.current.of(
-            buildInstantCompletion(knownAccountsRef, contextHintsRef),
+            buildInstantCompletion(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
           ),
           lintCompartment.current.of(
             linter((view) => diagnosticsFromErrors(validationErrors, view.state)),

@@ -15,6 +15,7 @@ import type {
   CategorizationRule,
   CsvImportAnalysis,
   CsvImportAnalysisInput,
+  EntryDescription,
   GitCommitDiff,
   GitCommitResult,
   GitCommitSummary,
@@ -140,6 +141,7 @@ type WorkspaceApi = {
   detectAiAdapters: () => Promise<DetectedAiAdapter[]>;
   testAiAdapter: (input: TestAiAdapterInput) => Promise<unknown>;
   getAccountContextHints: (workspaceRootPath: string, description: string) => Promise<string[]>;
+  listEntryDescriptions: (workspaceRootPath: string) => Promise<EntryDescription[]>;
   pickDirectory: () => Promise<string | null>;
   revealWorkspace: (path: string) => Promise<void>;
   openExternalPath: (path: string) => Promise<void>;
@@ -624,6 +626,15 @@ export async function getAccountContextHints(
   return invoke<string[]>("get_account_context_hints", {
     input: { workspaceRootPath, description },
   });
+}
+
+export async function listEntryDescriptions(
+  workspaceRootPath: string,
+): Promise<EntryDescription[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.listEntryDescriptions?.(workspaceRootPath) ?? [];
+  }
+  return invoke<EntryDescription[]>("list_entry_descriptions", { workspaceRootPath });
 }
 
 export async function pickDirectory(): Promise<string | null> {

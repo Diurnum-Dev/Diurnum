@@ -355,6 +355,9 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async getAccountContextHints() {
         return [];
       },
+      async listEntryDescriptions() {
+        return [];
+      },
       async createCategorizationRule() {
         return {
           id: "rule-1",

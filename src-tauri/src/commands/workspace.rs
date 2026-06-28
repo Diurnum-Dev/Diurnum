@@ -25,8 +25,9 @@ use crate::workspace::imports::{
     self, CsvImportAnalysis, CsvImportAnalysisInput, CsvImportInput, CsvImportResult,
 };
 use crate::workspace::ledger_editor::{
-    self, AccountContextHintsInput, LedgerEditorState, LedgerFileSnapshot, PredictiveEntryCompletion,
-    PredictiveEntryCompletionInput, ReadLedgerFileInput, SaveLedgerEditorSessionInput,
+    self, AccountContextHintsInput, EntryDescription, LedgerEditorState, LedgerFileSnapshot,
+    PredictiveEntryCompletion, PredictiveEntryCompletionInput, ReadLedgerFileInput,
+    SaveLedgerEditorSessionInput,
 };
 use crate::workspace::open;
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
@@ -144,6 +145,13 @@ pub fn get_account_context_hints(
     input: AccountContextHintsInput,
 ) -> Result<Vec<String>, WorkspaceError> {
     ledger_editor::get_account_context_hints(&input.workspace_root_path, &input.description)
+}
+
+#[tauri::command]
+pub fn list_entry_descriptions(
+    workspace_root_path: String,
+) -> Result<Vec<EntryDescription>, WorkspaceError> {
+    ledger_editor::list_entry_descriptions(&workspace_root_path)
 }
 
 #[tauri::command]

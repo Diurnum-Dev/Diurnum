@@ -228,6 +228,9 @@ describe("GitPanel", () => {
       async getAccountContextHints() {
         return [];
       },
+      async listEntryDescriptions() {
+        return [];
+      },
       async pickDirectory() {
         throw new Error("not used");
       },
