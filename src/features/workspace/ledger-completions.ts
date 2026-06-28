@@ -33,7 +33,7 @@ export function accountAt(context: CompletionContext): { from: number; prefix: s
   if (!/^\s/.test(line.text)) return null; // posting lines are indented
   const beforeCursor = line.text.slice(0, context.pos - line.from);
   // If cursor is past two consecutive spaces the user is typing the amount
-  if (/\S\s{2,}$/.test(beforeCursor) || /\s{2,}\S/.test(beforeCursor)) return null;
+  if (/\S\s{2,}$/.test(beforeCursor)) return null;
   const match = context.matchBefore(/[\w:]+/);
   if (!match && !context.explicit) return null;
   return { from: match?.from ?? context.pos, prefix: match?.text ?? "" };
