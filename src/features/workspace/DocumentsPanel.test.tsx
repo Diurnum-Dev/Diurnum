@@ -335,6 +335,9 @@ describe("DocumentsPanel", () => {
       async testAiAdapter() {
         return null;
       },
+      async getAccountContextHints() {
+        return [];
+      },
       async createCategorizationRule() {
         throw new Error("not used");
       },

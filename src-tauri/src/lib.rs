@@ -72,7 +72,8 @@ pub fn run() {
             commands::workspace::get_git_identity,
             commands::workspace::update_git_identity,
             commands::workspace::detect_ai_adapters,
-            commands::workspace::test_ai_adapter
+            commands::workspace::test_ai_adapter,
+            commands::workspace::get_account_context_hints
         ])
         .run(tauri::generate_context!())
         .expect("error while running Diurnum");

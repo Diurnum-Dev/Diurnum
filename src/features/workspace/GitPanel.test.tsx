@@ -225,6 +225,9 @@ describe("GitPanel", () => {
       async testAiAdapter() {
         throw new Error("not used");
       },
+      async getAccountContextHints() {
+        return [];
+      },
       async pickDirectory() {
         throw new Error("not used");
       },

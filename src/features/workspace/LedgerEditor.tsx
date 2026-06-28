@@ -16,7 +16,7 @@ import {
   closeCompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
-import { filterAccounts, accountAt, postingPosition } from "./ledger-completions";
+import { filterAccounts, accountAt, postingPosition, blockDescriptionAt } from "./ledger-completions";
 import type {
   LedgerEditorSession,
   LedgerEditorTabSession,
@@ -27,6 +27,7 @@ import type {
 } from "../../lib/workspace/types";
 import {
   getPredictiveEntryCompletion,
+  getAccountContextHints,
   getLedgerEditorState,
   readLedgerFile,
   saveLedgerEditorSession,
@@ -927,6 +928,7 @@ function CodeMirrorEditor({
   const knownAccountsCompartment = useRef(new Compartment());
   const knownAccountsRef = useRef<string[]>(knownAccounts);
   const contextHintsRef = useRef<string[]>([]);
+  const lastFetchedDescriptionRef = useRef<string | null>(null);
   const callbacksRef = useRef({
     completionText,
     workspaceRootPath,
@@ -1062,6 +1064,24 @@ function CodeMirrorEditor({
               const lineNumber = cursorLine.number;
               const column = head - cursorLine.from + 1;
               callbacksRef.current.onCursorChange?.({ line: lineNumber, column });
+            }
+            // Fetch per-block context hints when the cursor enters a new transaction block
+            if (update.selectionSet || update.docChanged) {
+              const description = blockDescriptionAt(
+                update.state,
+                update.state.selection.main.head,
+              );
+              if (description !== null && description !== lastFetchedDescriptionRef.current) {
+                lastFetchedDescriptionRef.current = description;
+                void getAccountContextHints(
+                  callbacksRef.current.workspaceRootPath,
+                  description,
+                )
+                  .then((hints) => {
+                    contextHintsRef.current = hints;
+                  })
+                  .catch(() => undefined);
+              }
             }
           }),
         ],

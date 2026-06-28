@@ -49,6 +49,13 @@ pub struct PredictiveEntryCompletionInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AccountContextHintsInput {
+    pub workspace_root_path: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PredictiveEntryCompletion {
     pub insert_text: String,
     pub source: PredictiveEntryCompletionSource,
@@ -255,6 +262,44 @@ fn read_chart_of_accounts(root: &Path) -> Result<Vec<String>, WorkspaceError> {
             }
         })
         .collect())
+}
+
+pub fn get_account_context_hints(
+    workspace_root_path: impl AsRef<Path>,
+    description: &str,
+) -> Result<Vec<String>, WorkspaceError> {
+    let root = workspace_root_path.as_ref();
+    let connection = open_connection(root)?;
+    let accounts = read_chart_of_accounts(root)?;
+    let account_set: HashSet<String> = accounts.into_iter().collect();
+    let mut hints: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    // Rule-based hints (highest priority)
+    let rules = categorization_rules::list_categorization_rules_from_connection(&connection)?;
+    for rule in &rules {
+        if rule.enabled
+            && account_set.contains(&rule.ledger_account)
+            && rule_matches(&rule.match_text, description)
+            && seen.insert(rule.ledger_account.clone())
+        {
+            hints.push(rule.ledger_account.clone());
+        }
+    }
+
+    // History-based hints
+    if let Ok(entries) = load_history_entries(root, &connection) {
+        for entry in entries {
+            if account_set.contains(&entry.ledger_account)
+                && history_matches(&entry.description, description)
+                && seen.insert(entry.ledger_account.clone())
+            {
+                hints.push(entry.ledger_account.clone());
+            }
+        }
+    }
+
+    Ok(hints)
 }
 
 fn file_modified_at(path: &Path) -> Result<u64, WorkspaceError> {

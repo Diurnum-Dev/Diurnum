@@ -139,6 +139,7 @@ type WorkspaceApi = {
   updateGitIdentity: (input: UpdateGitIdentityInput) => Promise<GitIdentitySummary>;
   detectAiAdapters: () => Promise<DetectedAiAdapter[]>;
   testAiAdapter: (input: TestAiAdapterInput) => Promise<unknown>;
+  getAccountContextHints: (workspaceRootPath: string, description: string) => Promise<string[]>;
   pickDirectory: () => Promise<string | null>;
   revealWorkspace: (path: string) => Promise<void>;
   openExternalPath: (path: string) => Promise<void>;
@@ -611,6 +612,18 @@ export async function getMvpReports(input: ReportsInput): Promise<MvpReports> {
     return window.__DIURNUM_TEST_API__.getMvpReports(input);
   }
   return invoke<MvpReports>("get_mvp_reports", { input });
+}
+
+export async function getAccountContextHints(
+  workspaceRootPath: string,
+  description: string,
+): Promise<string[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return window.__DIURNUM_TEST_API__.getAccountContextHints?.(workspaceRootPath, description) ?? [];
+  }
+  return invoke<string[]>("get_account_context_hints", {
+    input: { workspaceRootPath, description },
+  });
 }
 
 export async function pickDirectory(): Promise<string | null> {

@@ -352,6 +352,9 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
       async testAiAdapter() {
         return null;
       },
+      async getAccountContextHints() {
+        return [];
+      },
       async createCategorizationRule() {
         return {
           id: "rule-1",
