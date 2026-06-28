@@ -890,6 +890,7 @@ export default function App() {
             onSaved={handleLedgerFileSaved}
             onError={session.setError}
             onCursorChange={setLedgerCursor}
+            knownAccounts={knownAccounts}
           />
         ) : activeScreen === "inbox" ? (
           <InboxPanel
