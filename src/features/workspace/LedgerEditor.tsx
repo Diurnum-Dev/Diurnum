@@ -6,6 +6,7 @@ import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
 import { EditorView, Decoration, keymap, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { bracketMatching, foldGutter, foldKeymap, foldService } from "@codemirror/language";
+import { insertTab } from "@codemirror/commands";
 import { searchKeymap } from "@codemirror/search";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import {
@@ -1127,7 +1128,7 @@ function CodeMirrorEditor({
                   return acceptCompletion(view);
                 }
                 const text = callbacksRef.current.completionText;
-                if (!text) return false;
+                if (!text) return insertTab(view);
                 const cursor = view.state.selection.main.head;
                 view.dispatch({
                   changes: { from: cursor, to: cursor, insert: text },
