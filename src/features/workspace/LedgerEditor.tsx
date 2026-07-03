@@ -948,6 +948,7 @@ function buildInstantGhost(
   knownAccountsRef: React.MutableRefObject<string[]>,
   contextHintsRef: React.MutableRefObject<string[]>,
   payeeDescriptionsRef: React.MutableRefObject<EntryDescription[]>,
+  applyRef: React.MutableRefObject<((view: EditorView) => boolean) | null>,
 ): import("@codemirror/state").Extension {
   return ViewPlugin.fromClass(
     class {
@@ -961,6 +962,7 @@ function buildInstantGhost(
         }
       }
       compute(view: EditorView): DecorationSet {
+        applyRef.current = null;
         // Don't show instant ghost when the dropdown is already open
         if (completionStatus(view.state) !== null) return Decoration.set([]);
         const pos = view.state.selection.main.head;
@@ -984,6 +986,15 @@ function buildInstantGhost(
               });
               const ghostText = sorted[0].slice(prefix.length);
               if (ghostText) {
+                const from = pos - prefix.length;
+                const fullAccount = sorted[0];
+                applyRef.current = (v: EditorView) => {
+                  v.dispatch({
+                    changes: { from, to: pos, insert: fullAccount + "  " },
+                    selection: EditorSelection.cursor(from + fullAccount.length + 2),
+                  });
+                  return true;
+                };
                 return Decoration.set([
                   Decoration.widget({ widget: new GhostCompletionWidget(ghostText), side: 1 }).range(pos),
                 ]);
@@ -1006,6 +1017,13 @@ function buildInstantGhost(
               const top = candidates[0].text;
               if (top.length > typedPrefix.length) {
                 const ghost = top.slice(typedPrefix.length);
+                applyRef.current = (v: EditorView) => {
+                  v.dispatch({
+                    changes: { from: pos, to: pos, insert: ghost },
+                    selection: EditorSelection.cursor(pos + ghost.length),
+                  });
+                  return true;
+                };
                 return Decoration.set([
                   Decoration.widget({ widget: new GhostCompletionWidget(ghost), side: 1 }).range(pos),
                 ]);
@@ -1043,6 +1061,7 @@ function CodeMirrorEditor({
   const lintCompartment = useRef(new Compartment());
   const completionCompartment = useRef(new Compartment());
   const knownAccountsCompartment = useRef(new Compartment());
+  const instantGhostApplyRef = useRef<((view: EditorView) => boolean) | null>(null);
   const knownAccountsRef = useRef<string[]>(knownAccounts);
   const contextHintsRef = useRef<string[]>([]);
   const payeeDescriptionsRef = useRef<EntryDescription[]>(payeeDescriptions);
@@ -1116,7 +1135,7 @@ function CodeMirrorEditor({
           knownAccountsCompartment.current.of(
             buildInstantCompletion(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
           ),
-          buildInstantGhost(knownAccountsRef, contextHintsRef, payeeDescriptionsRef),
+          buildInstantGhost(knownAccountsRef, contextHintsRef, payeeDescriptionsRef, instantGhostApplyRef),
           lintCompartment.current.of(
             linter((view) => diagnosticsFromErrors(validationErrors, view.state)),
           ),
@@ -1127,6 +1146,8 @@ function CodeMirrorEditor({
                 if (completionStatus(view.state) === "active") {
                   return acceptCompletion(view);
                 }
+                const applyGhost = instantGhostApplyRef.current;
+                if (applyGhost) return applyGhost(view);
                 const text = callbacksRef.current.completionText;
                 if (!text) return insertTab(view);
                 const cursor = view.state.selection.main.head;
