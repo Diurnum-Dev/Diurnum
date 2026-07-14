@@ -1,10 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { matchesAccount, filterAccounts } from "./ledger-completions";
+import { matchesAccount, filterAccounts, isMidToken } from "./ledger-completions";
 
 // NOTE: accountAt() depends on a real CodeMirror 6 CompletionContext (EditorState +
 // document). Its guard-regex behaviour (returning non-null for "  Expenses:Util" and
 // null for "  Expenses:Utilities  ") is covered by integration / browser testing.
 // The segment-aware matching logic is exercised fully by matchesAccount tests below.
+
+describe("isMidToken", () => {
+  const line = "    Expenses:6700-Fundraising:6750:Events  -66 USD";
+
+  it("is true with the cursor inside an account word", () => {
+    expect(isMidToken(line, "    Expenses:6700-Fundrai".length)).toBe(true);
+  });
+
+  it("is true between the segments of an account", () => {
+    expect(isMidToken(line, "    Expenses".length)).toBe(true); // next char is ":"
+    expect(isMidToken(line, "    Expenses:6700".length)).toBe(true); // next char is "-"
+  });
+
+  it("is false at the end of the account token", () => {
+    expect(isMidToken(line, "    Expenses:6700-Fundraising:6750:Events".length)).toBe(false);
+  });
+
+  it("is false at the end of the line", () => {
+    expect(isMidToken("    Expenses:Food", 17)).toBe(false);
+  });
+
+  it("is false before a closing quote in a payee", () => {
+    expect(isMidToken('2026-05-07 * "Test"', 18)).toBe(false);
+  });
+
+  it("is true inside a quoted payee", () => {
+    expect(isMidToken('2026-05-07 * "Test"', 16)).toBe(true);
+  });
+});
 
 describe("matchesAccount", () => {
   it("matches by direct substring (case-insensitive)", () => {

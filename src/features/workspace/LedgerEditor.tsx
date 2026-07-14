@@ -17,7 +17,7 @@ import {
   closeCompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
-import { filterAccounts, accountAt, payeeAt, postingPosition, blockDescriptionAt } from "./ledger-completions";
+import { filterAccounts, accountAt, isMidToken, payeeAt, postingPosition, blockDescriptionAt } from "./ledger-completions";
 import type {
   EntryDescription,
   LedgerEditorSession,
@@ -986,7 +986,10 @@ function buildInstantGhost(
         const pos = view.state.selection.main.head;
         if (!view.state.selection.main.empty) return Decoration.set([]);
         const line = view.state.doc.lineAt(pos);
-        const beforeCursor = line.text.slice(0, pos - line.from);
+        const offset = pos - line.from;
+        // Never suggest with the cursor parked inside an existing word
+        if (isMidToken(line.text, offset)) return Decoration.set([]);
+        const beforeCursor = line.text.slice(0, offset);
 
         // Account context: indented line, cursor in account token
         if (/^\s/.test(line.text) && !/\S\s{2,}$/.test(beforeCursor)) {

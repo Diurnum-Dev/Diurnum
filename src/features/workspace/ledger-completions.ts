@@ -24,14 +24,26 @@ export function filterAccounts(accounts: string[], query: string): string[] {
 }
 
 /**
+ * True when the character right after `offset` continues the token the cursor sits in.
+ * Completing there would splice a suggestion into the middle of an existing word.
+ */
+export function isMidToken(lineText: string, offset: number): boolean {
+  const next = lineText[offset];
+  return next !== undefined && /[\w:-]/.test(next);
+}
+
+/**
  * If the cursor is on an indented posting line and in the account token position,
  * returns { from: absolute start of account token, prefix: typed text }.
- * Returns null otherwise (e.g. cursor is past 2+ spaces in the amount position).
+ * Returns null otherwise (e.g. cursor is past 2+ spaces in the amount position, or
+ * parked in the middle of an already-typed account).
  */
 export function accountAt(context: CompletionContext): { from: number; prefix: string } | null {
   const line = context.state.doc.lineAt(context.pos);
   if (!/^\s/.test(line.text)) return null; // posting lines are indented
-  const beforeCursor = line.text.slice(0, context.pos - line.from);
+  const offset = context.pos - line.from;
+  if (!context.explicit && isMidToken(line.text, offset)) return null;
+  const beforeCursor = line.text.slice(0, offset);
   // If cursor is past two consecutive spaces the user is typing the amount
   if (/\S\s{2,}$/.test(beforeCursor)) return null;
   const match = context.matchBefore(/[\w:]+/);
@@ -46,7 +58,9 @@ export function accountAt(context: CompletionContext): { from: number; prefix: s
 export function payeeAt(context: CompletionContext): { from: number; prefix: string } | null {
   const line = context.state.doc.lineAt(context.pos);
   if (!/^\d{4}-\d{2}-\d{2}\s/.test(line.text)) return null;
-  const textBeforePos = line.text.slice(0, context.pos - line.from);
+  const offset = context.pos - line.from;
+  if (!context.explicit && isMidToken(line.text, offset)) return null;
+  const textBeforePos = line.text.slice(0, offset);
   const quotesBefore = (textBeforePos.match(/"/g) ?? []).length;
   if (quotesBefore % 2 === 0) return null; // cursor is outside all quoted strings
   const lastQuoteIndex = textBeforePos.lastIndexOf('"');
