@@ -347,16 +347,29 @@ pub fn list_entry_descriptions(
                     let payee = payee.trim();
                     let narration = narration.trim();
                     if !payee.is_empty() && seen.insert(("payee".into(), payee.to_string())) {
-                        result.push(EntryDescription { text: payee.to_string(), kind: "payee".into() });
+                        result.push(EntryDescription {
+                            text: payee.to_string(),
+                            kind: "payee".into(),
+                        });
                     }
-                    if !narration.is_empty() && seen.insert(("narration".into(), narration.to_string())) {
-                        result.push(EntryDescription { text: narration.to_string(), kind: "narration".into() });
+                    if !narration.is_empty()
+                        && seen.insert(("narration".into(), narration.to_string()))
+                    {
+                        result.push(EntryDescription {
+                            text: narration.to_string(),
+                            kind: "narration".into(),
+                        });
                     }
                 }
                 [narration] => {
                     let narration = narration.trim();
-                    if !narration.is_empty() && seen.insert(("narration".into(), narration.to_string())) {
-                        result.push(EntryDescription { text: narration.to_string(), kind: "narration".into() });
+                    if !narration.is_empty()
+                        && seen.insert(("narration".into(), narration.to_string()))
+                    {
+                        result.push(EntryDescription {
+                            text: narration.to_string(),
+                            kind: "narration".into(),
+                        });
                     }
                 }
                 _ => {}
