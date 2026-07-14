@@ -39,7 +39,7 @@ use crate::workspace::settings::{
 use crate::workspace::shell::{self, WorkspaceGitStatus, WorkspacePathStatus};
 use crate::workspace::source_accounts::{self, AddSourceAccountInput};
 use crate::workspace::types::{CreateWorkspaceInput, LedgerValidationSummary, WorkspaceSummary};
-use crate::workspace::validation;
+use crate::workspace::validation::{self, ValidateLedgerBufferInput};
 use crate::workspace::view::{self, WorkspaceView};
 use crate::workspace::WorkspaceError;
 
@@ -61,6 +61,13 @@ pub fn open_workspace(path: String) -> Result<WorkspaceSummary, WorkspaceError> 
 #[tauri::command]
 pub fn validate_workspace(path: String) -> Result<LedgerValidationSummary, WorkspaceError> {
     validation::validate_workspace(path)
+}
+
+#[tauri::command]
+pub fn validate_ledger_buffer(
+    input: ValidateLedgerBufferInput,
+) -> Result<LedgerValidationSummary, WorkspaceError> {
+    validation::validate_ledger_buffer(input)
 }
 
 #[tauri::command]
