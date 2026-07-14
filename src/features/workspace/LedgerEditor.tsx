@@ -35,6 +35,7 @@ import {
   readLedgerFile,
   saveLedgerEditorSession,
   saveLedgerFile,
+  validateLedgerBuffer,
   validateWorkspace,
 } from "../../lib/workspace/api";
 
@@ -240,21 +241,38 @@ export function LedgerEditor({
     return () => window.clearTimeout(timeout);
   }, [activePath, isLoading, persistSession, tabs]);
 
-  const runValidation = useCallback(async () => {
-    try {
-      const validation = await validateWorkspace(workspace.rootPath);
-      setValidationErrors(validation.errors);
-      onValidationChange(validation);
-    } catch (error) {
-      onError(errorMessage(error));
-    }
-  }, [onError, onValidationChange, workspace.rootPath]);
+  // While a tab is dirty the file on disk is stale, so validate the buffer
+  // itself — otherwise errors you are typing (an unbalanced transaction, an
+  // undeclared account) stay invisible until the next save.
+  const runValidation = useCallback(
+    async (buffer?: { relativePath: string; contents: string }) => {
+      try {
+        const validation = buffer
+          ? await validateLedgerBuffer({
+              workspaceRootPath: workspace.rootPath,
+              relativePath: buffer.relativePath,
+              contents: buffer.contents,
+            })
+          : await validateWorkspace(workspace.rootPath);
+        setValidationErrors(validation.errors);
+        onValidationChange(validation);
+      } catch (error) {
+        onError(errorMessage(error));
+      }
+    },
+    [onError, onValidationChange, workspace.rootPath],
+  );
 
+  const dirtyPath = activeTab?.isDirty ? activeTab.relativePath : null;
+  const dirtyContents = activeTab?.isDirty ? activeTab.contents : null;
   useEffect(() => {
-    if (!activeTab?.isDirty) return;
-    const timeout = window.setTimeout(() => void runValidation(), 300);
+    if (dirtyPath === null || dirtyContents === null) return;
+    const timeout = window.setTimeout(
+      () => void runValidation({ relativePath: dirtyPath, contents: dirtyContents }),
+      300,
+    );
     return () => window.clearTimeout(timeout);
-  }, [activeTab?.contents, activeTab?.isDirty, runValidation]);
+  }, [dirtyContents, dirtyPath, runValidation]);
 
   const saveActiveFile = useCallback(async () => {
     const tab = tabs.find((candidate) => candidate.relativePath === activePath);
@@ -1339,7 +1357,7 @@ type FileValidationError = {
   message: string;
 };
 
-function validationErrorsForFile(
+export function validationErrorsForFile(
   errors: string[],
   relativePath: string,
 ): FileValidationError[] {

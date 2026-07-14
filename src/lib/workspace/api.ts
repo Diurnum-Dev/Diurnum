@@ -53,6 +53,7 @@ import type {
   SourceMappingUpdateInput,
   SnapshotSummary,
   SuggestedEntry,
+  ValidateLedgerBufferInput,
   TestAiAdapterInput,
   UpdateCategorizationRuleInput,
   UpdateGitIdentityInput,
@@ -70,6 +71,10 @@ type WorkspaceApi = {
   openWorkspace: (path: string) => Promise<WorkspaceSummary>;
   getWorkspaceView: (path: string) => Promise<WorkspaceView>;
   validateWorkspace: (path: string) => Promise<LedgerValidationSummary>;
+  // Optional so existing test doubles keep working; falls back to validateWorkspace.
+  validateLedgerBuffer?: (
+    input: ValidateLedgerBufferInput,
+  ) => Promise<LedgerValidationSummary>;
   listSnapshots: (path: string) => Promise<SnapshotSummary[]>;
   restoreSnapshot: (input: RestoreSnapshotInput) => Promise<WorkspaceView>;
   saveLedgerFile: (input: SaveLedgerFileInput) => Promise<LedgerValidationSummary>;
@@ -183,6 +188,20 @@ export async function validateWorkspace(
     return window.__DIURNUM_TEST_API__.validateWorkspace(path);
   }
   return invoke<LedgerValidationSummary>("validate_workspace", { path });
+}
+
+/// Validates the Workspace as if `contents` were already saved, so the Ledger
+/// Editor can lint a dirty buffer instead of the stale file on disk.
+export async function validateLedgerBuffer(
+  input: ValidateLedgerBufferInput,
+): Promise<LedgerValidationSummary> {
+  if (window.__DIURNUM_TEST_API__) {
+    const testApi = window.__DIURNUM_TEST_API__;
+    return testApi.validateLedgerBuffer
+      ? testApi.validateLedgerBuffer(input)
+      : testApi.validateWorkspace(input.workspaceRootPath);
+  }
+  return invoke<LedgerValidationSummary>("validate_ledger_buffer", { input });
 }
 
 export async function listSnapshots(path: string): Promise<SnapshotSummary[]> {

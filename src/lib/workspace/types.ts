@@ -327,6 +327,12 @@ export type SaveLedgerFileInput = {
   expectedModifiedAt?: number | null;
 };
 
+export type ValidateLedgerBufferInput = {
+  workspaceRootPath: string;
+  relativePath: string;
+  contents: string;
+};
+
 export type LedgerEditorTabSession = {
   relativePath: string;
   cursor: number;

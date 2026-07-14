@@ -24,6 +24,7 @@ pub fn run() {
             commands::workspace::open_workspace,
             commands::workspace::get_workspace_view,
             commands::workspace::validate_workspace,
+            commands::workspace::validate_ledger_buffer,
             commands::workspace::list_snapshots,
             commands::workspace::restore_snapshot,
             commands::workspace::save_ledger_file,
