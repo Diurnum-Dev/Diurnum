@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diurnum — AI Assist Review (Momentum Flow)</title>
+<style>
+  :root {
+    --bg: #FEFCF8;
+    --bg-muted: #FBF6EC;
+    --bg-subtle: #FCF9F2;
+    --text: #1C1A17;
+    --text-muted: #6B6051;
+    --text-subtle: #938775;
+    --border: #EDEAE4;
+    --border-strong: #E0DBD3;
+    --accent: #243B6B;
+    --accent-bg: #E4E8F1;
+    --accent-strong: #2F4E8C;
+    --accent-hover: #1C2F56;
+    --destructive: #A03228;
+    --destructive-strong: #C94034;
+    --destructive-bg: #F2E0DB;
+    --highlight: #B68A3E;
+    --highlight-bg: #F2E7CD;
+    --highlight-ink: #7A5A20;
+
+    --serif: Spectral, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+    --shadow-window: 0 24px 64px rgba(28,26,23,0.28), 0 4px 16px rgba(28,26,23,0.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: #DCD6CB;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { display: flex; justify-content: center; padding: 48px 24px; }
+
+  /* ── Window frame ─────────────────────────────── */
+  .window {
+    width: 1440px;
+    height: 920px;
+    background: var(--bg);
+    border-radius: 10px;
+    box-shadow: var(--shadow-window);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .window-body { flex: 1; display: flex; min-height: 0; }
+
+  /* ── Sidebar ──────────────────────────────────── */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--bg-muted);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .traffic { display: flex; gap: 8px; padding: 20px 16px 16px; }
+  .traffic span { width: 12px; height: 12px; border-radius: 50%; }
+  .traffic .r { background: #EC6A5E; } .traffic .y { background: #F4BF4F; } .traffic .g { background: #61C554; }
+
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    padding: 4px 16px 2px;
+    letter-spacing: 0.01em;
+  }
+  .wordmark em { font-style: normal; color: var(--highlight); }
+  .workspace-name {
+    padding: 0 16px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .nav { padding: 0 8px; display: flex; flex-direction: column; gap: 2px; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px;
+    height: 32px; padding: 0 12px;
+    border-radius: 9999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text); text-decoration: none;
+  }
+  .nav a:hover { background: var(--bg-subtle); }
+  .nav a.active { background: var(--accent-bg); color: var(--accent); }
+  .nav svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
+  .nav .count {
+    margin-left: auto;
+    background: var(--accent-bg); color: var(--accent);
+    font-size: 11px; font-weight: 600;
+    border-radius: 9999px;
+    padding: 1px 8px;
+    line-height: 16px;
+  }
+  .nav a.active .count { background: var(--bg); }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-subtle);
+    line-height: 1.5;
+  }
+
+  /* ── Main pane ────────────────────────────────── */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+
+  .pane-header {
+    height: 48px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pane-header h1 {
+    font-family: var(--serif);
+    font-size: 20px; font-weight: 500; line-height: 1.35;
+    white-space: nowrap;
+  }
+  .completion {
+    font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .completion .dot-sep { color: var(--border-strong); }
+  .completion strong { color: var(--text); font-weight: 600; }
+  .eye-flag { color: var(--destructive); font-weight: 500; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 14px; font-weight: 500;
+    height: 32px; padding: 0 16px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--bg-muted); }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { background: var(--bg-muted); }
+  .btn-sm { height: 24px; padding: 0 10px; font-size: 12px; }
+
+  kbd {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 2px;
+    padding: 1px 5px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .btn-primary kbd { background: rgba(254,252,248,0.16); border-color: rgba(254,252,248,0.35); color: var(--bg); }
+
+  .header-spacer { flex: 1; }
+
+  /* ── Flow layout: rail + stage ────────────────── */
+  .flow { flex: 1; display: flex; min-height: 0; }
+
+  /* Progress rail */
+  .rail {
+    width: 292px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--bg-subtle);
+    overflow-y: auto;
+    padding: 20px 16px 16px;
+    display: flex; flex-direction: column;
+  }
+  .rail-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-bottom: 10px;
+  }
+  .momentum { margin-bottom: 6px; }
+  .momentum-count {
+    font-family: var(--serif);
+    font-size: 24px; font-weight: 500; line-height: 1.25;
+  }
+  .momentum-count .of { color: var(--text-subtle); }
+  .momentum-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .meter {
+    display: flex; gap: 3px;
+    margin: 12px 0 20px;
+  }
+  .meter span { flex: 1; height: 3px; border-radius: 2px; background: var(--border-strong); }
+  .meter span.done { background: var(--accent); }
+  .meter span.current { background: var(--accent-bg); border: 1px solid var(--accent); height: 3px; box-sizing: content-box; margin-top: -1px; }
+
+  .rail-steps { display: flex; flex-direction: column; gap: 2px; }
+  .step {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 3px;
+  }
+  .step-marker {
+    width: 18px; height: 18px; flex-shrink: 0;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600;
+    margin-top: 1px;
+  }
+  .step.done .step-marker { background: var(--accent); color: var(--bg); }
+  .step.current .step-marker { background: var(--bg); color: var(--accent); border: 1.5px solid var(--accent); }
+  .step.upcoming .step-marker { background: transparent; color: var(--text-subtle); border: 1px solid var(--border-strong); }
+
+  .step-body { min-width: 0; flex: 1; }
+  .step-name {
+    font-family: var(--mono);
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .step-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .step-sub .rule-mini { color: var(--text-subtle); }
+  .step.done .step-name { color: var(--text-muted); }
+  .step.current {
+    background: var(--accent-bg);
+  }
+  .step.current .step-name { color: var(--accent); font-weight: 600; }
+  .step.current .step-sub { color: var(--accent); opacity: 0.85; }
+  .step.upcoming .step-name { color: var(--text-subtle); }
+  .step.upcoming .step-sub { color: var(--text-subtle); }
+
+  .amt { font-family: var(--mono); }
+  .amt.pos { color: var(--accent); }
+
+  /* Needs-your-eye rail block */
+  .step-eye {
+    margin-top: 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    background: var(--bg);
+    padding: 10px 12px;
+  }
+  .step-eye-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600;
+  }
+  .eye-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--destructive-strong); flex-shrink: 0; }
+  .step-eye-head .n { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--destructive); background: var(--destructive-bg); border-radius: 9999px; padding: 0 8px; line-height: 17px; }
+  .step-eye-sub { font-size: 11px; color: var(--text-muted); margin: 3px 0 8px; }
+  .eye-peek { list-style: none; display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .eye-peek li { display: flex; align-items: baseline; gap: 6px; font-size: 11px; color: var(--text-muted); }
+  .eye-peek .who { color: var(--text); font-weight: 500; white-space: nowrap; }
+  .eye-peek .why { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-style: italic; }
+  .eye-peek .amt { margin-left: auto; flex-shrink: 0; }
+  .eye-peek .failed { color: var(--destructive); font-style: normal; }
+  .retry-link {
+    color: var(--destructive); font-weight: 500; font-size: 11px;
+    text-decoration: none; border-bottom: 1px solid var(--destructive-bg);
+  }
+
+  /* Signing step */
+  .step-sign {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-strong);
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .sign-marker {
+    width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+    border-radius: 50%;
+    border: 1px dashed var(--text-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text-subtle);
+  }
+  .step-sign .step-name { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--text); }
+  .step-sign .step-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* ── Stage (current group card) ───────────────── */
+  .stage {
+    flex: 1; min-width: 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 40px 24px;
+  }
+  .stage-inner { width: 100%; max-width: 780px; display: flex; flex-direction: column; min-height: 100%; }
+
+  .stage-eyebrow {
+    display: flex; align-items: baseline; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .stage-eyebrow .lbl {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+  .stage-eyebrow .hint { margin-left: auto; font-size: 12px; color: var(--text-subtle); display: flex; gap: 14px; }
+  .stage-eyebrow .hint span { display: inline-flex; gap: 6px; align-items: center; }
+
+  .group-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+
+  .group-head { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+  .group-title {
+    font-family: var(--serif);
+    font-size: 32px; font-weight: 500; line-height: 1.2;
+    letter-spacing: -0.005em;
+  }
+  .group-title .seg-sep { color: var(--text-subtle); font-weight: 400; }
+  .group-meta {
+    margin-top: 6px;
+    font-size: 13px; color: var(--text-muted);
+    display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  }
+  .group-meta .sep { color: var(--border-strong); }
+  .group-live {
+    margin-top: 10px;
+    font-size: 13px; font-weight: 500;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .group-live .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-strong); }
+
+  /* Proposed rules */
+  .rules { border-bottom: 1px solid var(--border); background: var(--accent-bg); }
+  .rule-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .rule-row + .rule-row { border-top: 1px solid rgba(36,59,107,0.14); }
+  .rule-row .bolt { flex-shrink: 0; font-size: 12px; }
+  .rule-row .rule-text { flex: 1; min-width: 0; }
+  .rule-row .match-text { font-family: var(--mono); font-size: 12px; background: var(--bg); border-radius: 2px; padding: 0 4px; }
+  .rule-row .acct { font-family: var(--mono); font-size: 12px; }
+  .rule-row .meta { color: var(--accent); opacity: 0.75; }
+  .rule-row input { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; }
+  .rule-row.off { color: var(--text-subtle); }
+  .rule-row.off .match-text, .rule-row.off .acct { color: var(--text-subtle); }
+
+  /* Rows */
+  .rows { overflow-y: auto; max-height: 384px; }
+  .txn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: default;
+  }
+  .txn:last-child { border-bottom: none; }
+  .txn:hover { background: var(--bg-muted); }
+  .txn input { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; }
+  .txn-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .txn-payee { font-size: 13px; font-weight: 500; }
+  .txn-was {
+    font-size: 11px; color: var(--text-subtle);
+    font-family: var(--mono);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .txn-was .was-lbl { font-family: var(--sans); font-style: italic; }
+  .txn-date { font-size: 12px; color: var(--text-muted); width: 52px; flex-shrink: 0; text-align: right; }
+  .txn-amt { font-family: var(--mono); font-size: 13px; width: 90px; flex-shrink: 0; text-align: right; }
+  .txn-edit {
+    visibility: hidden;
+    font-size: 11px; color: var(--accent);
+    text-decoration: none; flex-shrink: 0; font-weight: 500;
+  }
+  .txn:hover .txn-edit { visibility: visible; }
+  .txn.excluded .txn-payee, .txn.excluded .txn-amt, .txn.excluded .txn-date { color: var(--text-subtle); }
+  .txn.excluded .txn-payee { font-weight: 400; }
+  .excl-tag {
+    display: none;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle);
+    border: 1px solid var(--border-strong); border-radius: 2px;
+    padding: 0 5px; line-height: 15px; flex-shrink: 0;
+  }
+  .txn.excluded .excl-tag { display: inline-block; }
+
+  /* Card footer */
+  .group-foot {
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-subtle);
+    border-radius: 0 0 3px 3px;
+  }
+  .group-foot .foot-note { font-size: 12px; color: var(--text-subtle); }
+  .group-foot .spring { flex: 1; }
+
+  /* Under-card whisper */
+  .up-next {
+    margin-top: 14px;
+    font-size: 12px; color: var(--text-subtle);
+    text-align: center;
+  }
+  .up-next .mono { font-family: var(--mono); color: var(--text-muted); }
+
+  /* ── Staging footer ───────────────────────────── */
+  .staging-bar {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+  }
+  .staging-note { font-size: 12px; color: var(--text-subtle); }
+  .staging-note strong { color: var(--text-muted); font-weight: 500; }
+  .staging-count { margin-left: auto; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .staging-count strong { color: var(--text); font-weight: 600; }
+
+  /* ── Status bar ───────────────────────────────── */
+  .status-bar {
+    height: 28px; flex-shrink: 0;
+    background: var(--bg-muted);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .status-bar .mono { font-family: var(--mono); font-size: 11px; }
+  .status-bar .right { margin-left: auto; display: flex; gap: 16px; }
+  .status-ok::before { content: "✓ "; color: var(--accent-strong); }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="window-body">
+
+    <!-- ═══ Sidebar ═══ -->
+    <aside class="sidebar">
+      <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="wordmark">Diurnum<em>.</em></div>
+      <div class="workspace-name">Acorn Hill Academy</div>
+      <nav class="nav">
+        <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 2.5h10v11H3z"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/></svg>Ledger</a>
+        <a href="#" class="active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 8.5 4 3.5h8l2 5v4H2v-4z"/><path d="M2 8.5h4l1 2h2l1-2h4"/></svg>Inbox<span class="count">177</span></a>
+        <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 13.5v-4M6.5 13.5v-7M10.5 13.5v-10M14 13.5H2"/></svg>Reports</a>
+        <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M9.5 2.5V5H12"/></svg>Documents</a>
+        <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 2.5v8M5 7.5l3 3 3-3M2.5 13.5h11"/></svg>Import</a>
+        <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.8 3.8l1.4 1.4M10.8 10.8l1.4 1.4M12.2 3.8l-1.4 1.4M5.2 10.8l-1.4 1.4"/></svg>Settings</a>
+      </nav>
+      <div class="sidebar-foot">books.beancount<br>Last commit 9:41 AM</div>
+    </aside>
+
+    <!-- ═══ Main pane ═══ -->
+    <main class="main">
+
+      <header class="pane-header">
+        <h1>AI Assist review</h1>
+        <div class="completion">
+          <span><strong>164 of 177</strong> categorized</span>
+          <span class="dot-sep">·</span>
+          <span class="eye-flag">13 need your eye</span>
+        </div>
+        <div class="header-spacer"></div>
+        <button class="btn btn-ghost">Dismiss results</button>
+      </header>
+
+      <div class="flow">
+
+        <!-- ── Progress rail ── -->
+        <aside class="rail">
+          <div class="rail-label">Review by group</div>
+          <div class="momentum">
+            <div class="momentum-count">2 <span class="of">of 7</span></div>
+            <div class="momentum-sub">groups reviewed — keep going</div>
+          </div>
+          <div class="meter" aria-hidden="true">
+            <span class="done"></span><span class="done"></span><span class="current"></span>
+            <span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="rail-steps">
+            <div class="step done">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <div class="step-name">Income:Tuition</div>
+                <div class="step-sub">11 of 14 accepted · <span class="amt pos">+$33,264.16</span> <span class="rule-mini">· ⚡2 rules</span></div>
+              </div>
+            </div>
+            <div class="step done">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <div class="step-name">Expenses:Payroll:Fees</div>
+                <div class="step-sub">8 of 9 accepted · <span class="amt">−$471.58</span> <span class="rule-mini">· ⚡1 rule</span></div>
+              </div>
+            </div>
+            <div class="step current">
+              <div class="step-marker">3</div>
+              <div class="step-body">
+                <div class="step-name">Expenses:Software</div>
+                <div class="step-sub" id="railCurrentSub">Reviewing now · 21 of 23 accepted</div>
+              </div>
+            </div>
+            <div class="step upcoming">
+              <div class="step-marker">4</div>
+              <div class="step-body">
+                <div class="step-name">Expenses:Payroll:Wages</div>
+                <div class="step-sub">6 entries · <span class="amt">−$1,373.64</span> <span class="rule-mini">· ⚡1 rule</span></div>
+              </div>
+            </div>
+            <div class="step upcoming">
+              <div class="step-marker">5</div>
+              <div class="step-body">
+                <div class="step-name">Expenses:Education</div>
+                <div class="step-sub">4 entries · <span class="amt">−$2,487.50</span></div>
+              </div>
+            </div>
+            <div class="step upcoming">
+              <div class="step-marker">6</div>
+              <div class="step-body">
+                <div class="step-name">Income:Donations</div>
+                <div class="step-sub">108 entries · <span class="amt pos">+$24,318.77</span> <span class="rule-mini">· ⚡1 rule</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Needs your eye — always last -->
+          <div class="step-eye">
+            <div class="step-eye-head"><span class="eye-dot"></span>Needs your eye<span class="n">13</span></div>
+            <div class="step-eye-sub">Held back — nothing here is auto-accepted. Reviewed last, one at a time.</div>
+            <ul class="eye-peek">
+              <li><span class="who">Mobile Deposit</span><span class="why">AI unsure — deposit source?</span><span class="amt pos">+$2,500.00</span></li>
+              <li><span class="who">Check #1041</span><span class="why">no payee on memo</span><span class="amt">−$750.00</span></li>
+              <li><span class="who">Check #1046</span><span class="why">no payee on memo</span><span class="amt">−$325.00</span></li>
+              <li><span class="why failed">+8 more · 2 failed</span><a class="retry-link" href="#">Retry 2 rows</a></li>
+            </ul>
+          </div>
+
+          <!-- Signing summary — the finale -->
+          <div class="step-sign">
+            <div class="sign-marker">✦</div>
+            <div class="step-body">
+              <div class="step-name">Sign &amp; approve</div>
+              <div class="step-sub" id="signSub">Approve 158 entries · 7 new rules · one commit</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ── Stage: current group card ── -->
+        <section class="stage">
+          <div class="stage-inner">
+
+            <div class="stage-eyebrow">
+              <span class="lbl">Group 3 of 7 · AI suggested</span>
+              <span class="hint">
+                <span><kbd>↵</kbd> accept group</span>
+                <span><kbd>E</kbd> edit</span>
+                <span><kbd>Space</kbd> toggle row</span>
+              </span>
+            </div>
+
+            <div class="group-card">
+              <div class="group-head">
+                <div class="group-title">Expenses<span class="seg-sep">:</span>Software</div>
+                <div class="group-meta">
+                  <span>23 entries</span><span class="sep">·</span>
+                  <span>net <span class="amt">−$1,204.11</span></span><span class="sep">·</span>
+                  <span>Jan 2 – Jun 9, 2026</span><span class="sep">·</span>
+                  <span>avg confidence 0.94</span>
+                </div>
+                <div class="group-live"><span class="live-dot"></span><span id="cardLive">21 accepted · −$1,084.13 will be written</span></div>
+              </div>
+
+              <!-- Proposed rules for this group -->
+              <div class="rules">
+                <label class="rule-row">
+                  <input type="checkbox" class="rule-cb" checked>
+                  <span class="bolt">⚡</span>
+                  <span class="rule-text">New rule: <span class="match-text">WEB PMTS Autobooks</span> → <span class="acct">Expenses:Software</span> <span class="meta">· matches 6 rows · future imports auto-match</span></span>
+                </label>
+                <label class="rule-row">
+                  <input type="checkbox" class="rule-cb" checked>
+                  <span class="bolt">⚡</span>
+                  <span class="rule-text">New rule: <span class="match-text">SQSP* CMPGNS</span> → <span class="acct">Expenses:Software</span> <span class="meta">· matches 3 rows</span></span>
+                </label>
+              </div>
+
+              <!-- Rows -->
+              <div class="rows" id="rowlist">
+                <label class="txn"><input type="checkbox" data-amt="-2160" checked><div class="txn-main"><span class="txn-payee">Google Workspace</span><span class="txn-was"><span class="was-lbl">was:</span> GOOGLE *WORKSPACE_acornhill</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jan 2</span><span class="txn-amt">−$21.60</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jan 5</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1066" checked><div class="txn-main"><span class="txn-payee">Squarespace</span><span class="txn-was"><span class="was-lbl">was:</span> SQSP* CMPGNS#232 NEW YORK,N</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jan 12</span><span class="txn-amt">−$10.66</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1623" checked><div class="txn-main"><span class="txn-payee">Zoom</span><span class="txn-was"><span class="was-lbl">was:</span> ZOOM.US 888-799-9666 CA</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jan 15</span><span class="txn-amt">−$16.23</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-2160" checked><div class="txn-main"><span class="txn-payee">Google Workspace</span><span class="txn-was"><span class="was-lbl">was:</span> GOOGLE *WORKSPACE_acornhill</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Feb 2</span><span class="txn-amt">−$21.60</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Feb 4</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-864" checked><div class="txn-main"><span class="txn-payee">X Corp</span><span class="txn-was"><span class="was-lbl">was:</span> X CORP. PAID FEA BASTROP,TX</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Feb 9</span><span class="txn-amt">−$8.64</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1623" checked><div class="txn-main"><span class="txn-payee">Zoom</span><span class="txn-was"><span class="was-lbl">was:</span> ZOOM.US 888-799-9666 CA</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Feb 15</span><span class="txn-amt">−$16.23</span></label>
+                <label class="txn excluded"><input type="checkbox" data-amt="-5999"><div class="txn-main"><span class="txn-payee">Adobe Creative Cloud</span><span class="txn-was"><span class="was-lbl">was:</span> ADOBE *CREATIVE CLD 408-536-6000</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Feb 22</span><span class="txn-amt">−$59.99</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-2160" checked><div class="txn-main"><span class="txn-payee">Google Workspace</span><span class="txn-was"><span class="was-lbl">was:</span> GOOGLE *WORKSPACE_acornhill</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Mar 2</span><span class="txn-amt">−$21.60</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Mar 4</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1066" checked><div class="txn-main"><span class="txn-payee">Squarespace</span><span class="txn-was"><span class="was-lbl">was:</span> SQSP* CMPGNS#232 NEW YORK,N</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Mar 12</span><span class="txn-amt">−$10.66</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1623" checked><div class="txn-main"><span class="txn-payee">Zoom</span><span class="txn-was"><span class="was-lbl">was:</span> ZOOM.US 888-799-9666 CA</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Mar 16</span><span class="txn-amt">−$16.23</span></label>
+                <label class="txn excluded"><input type="checkbox" data-amt="-5999"><div class="txn-main"><span class="txn-payee">Adobe Creative Cloud</span><span class="txn-was"><span class="was-lbl">was:</span> ADOBE *CREATIVE CLD 408-536-6000</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Mar 22</span><span class="txn-amt">−$59.99</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-2160" checked><div class="txn-main"><span class="txn-payee">Google Workspace</span><span class="txn-was"><span class="was-lbl">was:</span> GOOGLE *WORKSPACE_acornhill</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Apr 2</span><span class="txn-amt">−$21.60</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Apr 3</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-864" checked><div class="txn-main"><span class="txn-payee">X Corp</span><span class="txn-was"><span class="was-lbl">was:</span> X CORP. PAID FEA BASTROP,TX</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Apr 9</span><span class="txn-amt">−$8.64</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-9600" checked><div class="txn-main"><span class="txn-payee">Notion Labs</span><span class="txn-was"><span class="was-lbl">was:</span> NOTION LABS, INC. SAN FRANCISCO</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Apr 18</span><span class="txn-amt">−$96.00</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">May 5</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-1066" checked><div class="txn-main"><span class="txn-payee">Squarespace</span><span class="txn-was"><span class="was-lbl">was:</span> SQSP* CMPGNS#232 NEW YORK,N</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">May 12</span><span class="txn-amt">−$10.66</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-79214" checked><div class="txn-main"><span class="txn-payee">Descript — annual</span><span class="txn-was"><span class="was-lbl">was:</span> DESCRIPT* ANNUAL 888-4157291 CA</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">May 27</span><span class="txn-amt">−$792.14</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-50" checked><div class="txn-main"><span class="txn-payee">Autobooks</span><span class="txn-was"><span class="was-lbl">was:</span> WEB PMTS Autobooks, Inc. WEB</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jun 3</span><span class="txn-amt">−$0.50</span></label>
+                <label class="txn"><input type="checkbox" data-amt="-864" checked><div class="txn-main"><span class="txn-payee">X Corp</span><span class="txn-was"><span class="was-lbl">was:</span> X CORP. PAID FEA BASTROP,TX</span></div><span class="excl-tag">Excluded</span><a class="txn-edit" href="#">Edit</a><span class="txn-date">Jun 9</span><span class="txn-amt">−$8.64</span></label>
+              </div>
+
+              <div class="group-foot">
+                <span class="foot-note">Unchecked rows stay in the Inbox — nothing is lost.</span>
+                <span class="spring"></span>
+                <button class="btn btn-ghost">Skip for now</button>
+                <button class="btn btn-secondary">Edit rows <kbd>E</kbd></button>
+                <button class="btn btn-primary" id="nextBtn">Looks right — next group <kbd>↵</kbd></button>
+              </div>
+            </div>
+
+            <div class="up-next">Up next: <span class="mono">Expenses:Payroll:Wages</span> · 6 entries, all Gusto — should take about four seconds.</div>
+
+          </div>
+        </section>
+      </div>
+
+      <!-- Staging footer -->
+      <div class="staging-bar">
+        <span class="staging-note"><strong>Approvals are staged.</strong> Nothing touches the ledger until you sign at the final step — a git snapshot is taken first, and the whole batch can be reverted in one click.</span>
+        <span class="staging-count"><strong id="stagedCount">158</strong> entries accepted across 7 groups · <strong id="ruleCount">7</strong> new rules → signing summary</span>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="mono">books.beancount</span>
+        <span class="status-ok">bean-check passed</span>
+        <span class="right">
+          <span>AI pass finished 9:41 AM · 5 chunks · 0 retries pending</span>
+          <span class="mono">snapshot a41c9e2</span>
+        </span>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Accepted counts locked in from the other six groups (reviewed + upcoming defaults):
+  // Tuition 11 + Payroll:Fees 8 + Wages 6 + Education 4 + Donations 108 = 137
+  var OTHER_GROUPS_ACCEPTED = 137;
+  var OTHER_GROUPS_RULES = 5; // 2 tuition + 1 fees + 1 wages + 1 donations
+  var TOTAL_ROWS = 23;
+
+  var rowCbs  = Array.prototype.slice.call(document.querySelectorAll('#rowlist input[type=checkbox]'));
+  var ruleCbs = Array.prototype.slice.call(document.querySelectorAll('.rule-cb'));
+
+  function money(cents) {
+    var abs = Math.abs(cents);
+    var s = (abs / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (cents < 0 ? '−$' : '+$') + s;
+  }
+
+  function update() {
+    var accepted = 0, net = 0;
+    rowCbs.forEach(function (cb) {
+      var row = cb.closest('.txn');
+      if (cb.checked) { accepted++; net += parseInt(cb.dataset.amt, 10); row.classList.remove('excluded'); }
+      else { row.classList.add('excluded'); }
+    });
+    var rules = OTHER_GROUPS_RULES + ruleCbs.filter(function (cb) { return cb.checked; }).length;
+    var totalStaged = OTHER_GROUPS_ACCEPTED + accepted;
+
+    document.getElementById('cardLive').textContent =
+      accepted + ' accepted · ' + money(net) + ' will be written';
+    document.getElementById('railCurrentSub').textContent =
+      'Reviewing now · ' + accepted + ' of ' + TOTAL_ROWS + ' accepted';
+    document.getElementById('stagedCount').textContent = totalStaged;
+    document.getElementById('ruleCount').textContent = rules;
+    document.getElementById('signSub').textContent =
+      'Approve ' + totalStaged + ' entries · ' + rules + ' new rules · one commit';
+    document.getElementById('nextBtn').childNodes[0].textContent =
+      'Looks right — next group ';
+    ruleCbs.forEach(function (cb) { cb.closest('.rule-row').classList.toggle('off', !cb.checked); });
+  }
+
+  rowCbs.concat(ruleCbs).forEach(function (cb) { cb.addEventListener('change', update); });
+  update();
+})();
+</script>
+
+</body>
+</html>

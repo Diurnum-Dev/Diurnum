@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diurnum — AI Assist Review (A · Editorial Ledger)</title>
+<style>
+  /* ── Diurnum design tokens (DESIGN.md) ─────────────────────────── */
+  :root {
+    --bg:            #FEFCF8;
+    --bg-muted:      #FBF6EC;
+    --bg-subtle:     #FCF9F2;
+    --text:          #1C1A17;
+    --text-muted:    #6B6051;
+    --text-subtle:   #938775;
+    --border:        #EDEAE4;
+    --border-strong: #E0DBD3;
+    --accent:        #243B6B;
+    --accent-bg:     #E4E8F1;
+    --accent-strong: #2F4E8C;
+    --accent-hover:  #1C2F56;
+    --destructive:   #A03228;
+    --destructive-strong: #C94034;
+    --destructive-bg:#F2E0DB;
+    --highlight:     #B68A3E;
+    --highlight-bg:  #F2E7CD;
+
+    --serif: "Spectral", Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans:  -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+    --shadow-window: 0 24px 64px rgba(28,26,23,.28), 0 2px 8px rgba(28,26,23,.16);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    background: #DCD6CA;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Window frame ──────────────────────────────────────────────── */
+  .window {
+    width: 1440px;
+    max-width: 100%;
+    height: 920px;
+    background: var(--bg);
+    border-radius: 10px;
+    box-shadow: var(--shadow-window);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────────────── */
+  .sidebar {
+    background: var(--bg-muted);
+    border-right: 1px solid var(--border-strong);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .traffic { display: flex; gap: 8px; padding: 20px 16px 14px; }
+  .traffic i {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: .5px solid rgba(28,26,23,.12);
+  }
+  .traffic i:nth-child(1) { background: #EC6A5E; }
+  .traffic i:nth-child(2) { background: #F4BF4F; }
+  .traffic i:nth-child(3) { background: #61C554; }
+
+  .brand { display: flex; align-items: baseline; gap: 6px; padding: 4px 16px 16px; }
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 17px; font-weight: 600; letter-spacing: .01em;
+  }
+  .brand-name .tittle { color: var(--highlight); }
+  .brand-sub { font-size: 11px; color: var(--text-subtle); }
+
+  .nav { padding: 0 8px; display: flex; flex-direction: column; gap: 1px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    height: 32px; padding: 0 12px;
+    border: 0; background: transparent; border-radius: 9999px;
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    color: var(--text); cursor: pointer; text-align: left; width: 100%;
+  }
+  .nav-item svg { color: var(--text-muted); flex: none; }
+  .nav-item:hover { background: var(--bg-subtle); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); }
+  .nav-item.active svg { color: var(--accent); }
+  .nav-item .label { flex: 1; }
+  .count-badge {
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+    background: var(--accent-bg); color: var(--accent);
+    border-radius: 9999px; padding: 1px 7px;
+  }
+  .nav-item.active .count-badge { background: var(--bg); }
+
+  .sidebar-foot {
+    margin-top: auto; padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-subtle); line-height: 1.5;
+  }
+  .sidebar-foot .ws { color: var(--text-muted); font-weight: 500; }
+
+  /* ── Main column ───────────────────────────────────────────────── */
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
+
+  /* Review header */
+  .review-header {
+    height: 48px; flex: none;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .review-title {
+    font-family: var(--serif);
+    font-size: 20px; font-weight: 500; line-height: 1.35;
+    white-space: nowrap;
+  }
+  .review-status {
+    font-size: 12px; color: var(--text-muted); line-height: 1.45;
+    display: flex; align-items: center; gap: 7px;
+    margin-left: 6px; white-space: nowrap;
+  }
+  .review-status .done-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-strong); flex: none;
+  }
+  .review-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    height: 32px; padding: 0 16px; border-radius: 2px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-ghost {
+    background: transparent; border: 0; color: var(--text);
+  }
+  .btn-ghost:hover { background: var(--bg-muted); }
+  .btn-primary {
+    background: var(--accent); border: 0; color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:focus-visible, .btn-primary.pulse {
+    outline: 2px solid var(--accent-bg); outline-offset: 1px;
+  }
+  .btn-primary:disabled { opacity: .45; cursor: default; }
+
+  /* ── Journal scroll region ─────────────────────────────────────── */
+  .journal-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+  .journal {
+    max-width: 940px; margin: 0 auto;
+    padding: 32px 48px 48px;
+  }
+
+  .journal-caps {
+    font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-subtle);
+    display: flex; align-items: baseline; gap: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border-strong);
+  }
+  .journal-caps .right { margin-left: auto; font-weight: 400; letter-spacing: .04em; }
+
+  /* ── Groups ────────────────────────────────────────────────────── */
+  .group { margin-top: 24px; }
+  .ghead {
+    display: flex; align-items: baseline; gap: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ghead .acct {
+    font-family: var(--serif);
+    font-size: 17px; font-weight: 500; line-height: 1.35;
+    letter-spacing: .005em;
+  }
+  .gmeta {
+    margin-left: auto; font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: baseline; gap: 6px; white-space: nowrap;
+  }
+  .gmeta .net {
+    font-family: var(--mono); font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  /* Checkboxes — proofreader's tick */
+  input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 13px; height: 13px; flex: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 2px; background: var(--bg);
+    cursor: pointer; position: relative;
+    vertical-align: -2px;
+  }
+  input[type="checkbox"]:hover { border-color: var(--text-subtle); }
+  input[type="checkbox"]:checked {
+    background: var(--accent); border-color: var(--accent);
+  }
+  input[type="checkbox"]:checked::after {
+    content: ""; position: absolute; left: 3.5px; top: 1px;
+    width: 3px; height: 6.5px;
+    border: solid var(--bg); border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+  }
+  input[type="checkbox"]:indeterminate {
+    background: var(--accent); border-color: var(--accent);
+  }
+  input[type="checkbox"]:indeterminate::after {
+    content: ""; position: absolute; left: 2.5px; top: 5px;
+    width: 6px; height: 1.5px; background: var(--bg);
+  }
+  input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent-bg); outline-offset: 1px;
+  }
+  .ghead input[type="checkbox"] { align-self: center; }
+
+  /* ── Rows ──────────────────────────────────────────────────────── */
+  .rows { list-style: none; }
+  .row {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 4px 6px 4px 0;
+    border-bottom: 1px dotted var(--border);
+  }
+  .rows .row:last-child { border-bottom: 0; }
+  .row:hover { background: var(--bg-subtle); }
+  .row.cursor { background: var(--accent-bg); }
+  .row input[type="checkbox"] { align-self: center; }
+  .payee { font-weight: 500; white-space: nowrap; }
+  .was {
+    font-family: var(--mono); font-size: 11.5px;
+    color: var(--text-subtle);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0;
+  }
+  .was::before {
+    content: "was: ";
+    font-family: var(--sans); font-style: italic; font-size: 11px;
+    color: var(--text-subtle);
+  }
+  .rdate {
+    font-family: var(--mono); font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted); width: 52px; flex: none; text-align: right;
+  }
+  .amt {
+    font-family: var(--mono); font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    width: 108px; flex: none; text-align: right;
+  }
+
+  /* footnote-style AI remarks on needs-eye rows */
+  .aside-note {
+    font-size: 11.5px; font-style: italic; color: var(--text-subtle);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .aside-note::before { content: "† "; font-style: normal; }
+  .retry {
+    font-size: 11.5px; font-weight: 500; color: var(--accent);
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font-family: var(--sans); white-space: nowrap;
+  }
+  .retry:hover { text-decoration: underline; }
+  .failed-mark { color: var(--destructive); font-style: italic; font-size: 11.5px; white-space: nowrap; }
+
+  /* ── Inline proposed rule ──────────────────────────────────────── */
+  .rule-line {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 5px 6px 5px 23px;
+    border-top: 1px dotted var(--border);
+    font-size: 12px; color: var(--text-muted);
+  }
+  .rule-line input[type="checkbox"] { align-self: center; margin-left: -23px; margin-right: 0; }
+  .rule-line .bolt { color: var(--highlight); font-style: normal; }
+  .rule-line .match {
+    font-family: var(--mono); font-size: 11.5px; color: var(--text);
+    background: var(--bg-muted); padding: 0 4px; border-radius: 2px;
+  }
+  .rule-line .target { font-family: var(--mono); font-size: 11.5px; color: var(--text); }
+  .rule-line .hits { margin-left: auto; font-size: 11.5px; color: var(--text-subtle); white-space: nowrap; }
+
+  /* ── Condensed groups ──────────────────────────────────────────── */
+  .group.condensed { margin-top: 14px; }
+  .group.condensed .acct { font-size: 15px; }
+  .elide {
+    padding: 3px 6px 0 23px;
+    font-size: 11.5px; color: var(--text-subtle); font-style: italic;
+  }
+  .elide a { color: var(--text-subtle); }
+
+  /* ── Needs your eye ────────────────────────────────────────────── */
+  .group.attention { margin-top: 40px; }
+  .group.attention .ghead {
+    border-top: 3px double var(--border-strong);
+    padding-top: 14px;
+  }
+  .group.attention .acct { font-style: italic; }
+  .attention-sub {
+    font-size: 11.5px; font-style: italic; color: var(--text-subtle);
+    padding: 4px 0 2px 23px;
+  }
+
+  /* ── Signature block ───────────────────────────────────────────── */
+  .signature {
+    margin-top: 44px;
+    border-top: 3px double var(--border-strong);
+    padding-top: 16px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .signature .legend {
+    font-size: 12px; color: var(--text-muted); line-height: 1.5; max-width: 460px;
+  }
+  .signature .legend em { color: var(--text-subtle); }
+  .signature .sig-action { margin-left: auto; text-align: right; }
+  .signature .sig-rule {
+    border-bottom: 1px solid var(--border-strong);
+    width: 280px; margin-bottom: 8px; margin-left: auto;
+    display: flex; justify-content: flex-end;
+  }
+  .signature .sig-x {
+    font-family: var(--serif); font-style: italic; font-size: 12px;
+    color: var(--text-subtle); padding-bottom: 2px;
+  }
+
+  /* pass footnote */
+  .pass-note {
+    margin-top: 28px;
+    font-size: 11px; color: var(--text-subtle); line-height: 1.6;
+  }
+  .pass-note::before {
+    content: ""; display: block; width: 96px;
+    border-top: 1px solid var(--border-strong); margin-bottom: 6px;
+  }
+
+  /* ── Status bar / keyboard hints ───────────────────────────────── */
+  .status-bar {
+    flex: none; height: 28px;
+    background: var(--bg-muted);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .hint { display: flex; align-items: center; gap: 5px; }
+  kbd {
+    font-family: var(--sans); font-size: 10px; font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg); border: 1px solid var(--border-strong);
+    border-radius: 2px; padding: 0 4px; min-width: 15px;
+    text-align: center; line-height: 15px; display: inline-block;
+  }
+  .status-right { margin-left: auto; display: flex; gap: 14px; color: var(--text-subtle); }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<div class="window">
+
+  <!-- ═════ Sidebar ═════ -->
+  <aside class="sidebar">
+    <div class="traffic"><i></i><i></i><i></i></div>
+    <div class="brand">
+      <span class="brand-name">Diurnum<span class="tittle">.</span></span>
+      <span class="brand-sub">Acton Ledger</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="label">Ledger</span>
+      </button>
+      <button class="nav-item active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+        <span class="label">Inbox</span>
+        <span class="count-badge">177</span>
+      </button>
+      <button class="nav-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <span class="label">Reports</span>
+      </button>
+      <button class="nav-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span class="label">Documents</span>
+      </button>
+      <button class="nav-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+        <span class="label">Import</span>
+      </button>
+      <button class="nav-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="label">Settings</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="ws">main.bean · clean</div>
+      <div>Snapshot taken before write</div>
+    </div>
+  </aside>
+
+  <!-- ═════ Main ═════ -->
+  <section class="main">
+
+    <!-- Review-mode header -->
+    <header class="review-header">
+      <h1 class="review-title">AI Assist review</h1>
+      <span class="review-status">
+        <span class="done-dot"></span>
+        Pass complete · 164 of 177 categorized · 13 need your eye
+      </span>
+      <div class="review-actions">
+        <button class="btn btn-ghost" type="button">Dismiss results</button>
+        <button class="btn btn-primary" id="approveBtn" type="button">Approve 164 entries</button>
+      </div>
+    </header>
+
+    <div class="journal-scroll" id="scroll">
+      <main class="journal">
+
+        <div class="journal-caps">
+          <span>Journal of proposed entries</span>
+          <span class="right">Chase Business ····1873 &nbsp;·&nbsp; April – June 2026 &nbsp;·&nbsp; drafted, not yet booked</span>
+        </div>
+
+        <!-- ── Expenses:Software ── -->
+        <section class="group" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck aria-label="Toggle group Expenses:Software">
+            <h2 class="acct">Expenses:Software</h2>
+            <span class="gmeta">23 entries · net <span class="net">−254.46</span></span>
+          </header>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Autobooks</span><span class="was">WEB PMTS Autobooks, Inc. WEB</span><span class="rdate">Jun 30</span><span class="amt">−0.50</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Squarespace</span><span class="was">SQSP* CMPGNS#232 NEW YORK,N</span><span class="rdate">Jun 28</span><span class="amt">−10.66</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">X Corp</span><span class="was">X CORP. PAID FEA BASTROP,TX</span><span class="rdate">Jun 27</span><span class="amt">−8.64</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">GitHub</span><span class="was">GITHUB INC. HTTPSGITHUB.C</span><span class="rdate">Jun 24</span><span class="amt">−4.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Zoom</span><span class="was">ZOOM.US 888-799-9666 WWW.ZOOM.U</span><span class="rdate">Jun 21</span><span class="amt">−16.10</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Canva</span><span class="was">CANVA* 04329-4319 DE</span><span class="rdate">Jun 18</span><span class="amt">−14.99</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Google Workspace</span><span class="was">GOOGLE *GSUITE_acton CC@GOOGLE.C</span><span class="rdate">Jun 15</span><span class="amt">−21.60</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Notion</span><span class="was">NOTION LABS, INC. SAN FRANCISCO</span><span class="rdate">Jun 12</span><span class="amt">−12.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">1Password</span><span class="was">1PASSWORD 1PASSWORD.CO ON</span><span class="rdate">Jun 09</span><span class="amt">−7.99</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Dropbox</span><span class="was">DROPBOX*4XJ2L9 DROPBOX.COM</span><span class="rdate">Jun 05</span><span class="amt">−11.99</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Autobooks</span><span class="was">WEB PMTS Autobooks, Inc. WEB</span><span class="rdate">May 30</span><span class="amt">−0.50</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Squarespace</span><span class="was">SQSP* CMPGNS#219 NEW YORK,N</span><span class="rdate">May 28</span><span class="amt">−10.66</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">X Corp</span><span class="was">X CORP. PAID FEA BASTROP,TX</span><span class="rdate">May 27</span><span class="amt">−8.64</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">GitHub</span><span class="was">GITHUB INC. HTTPSGITHUB.C</span><span class="rdate">May 24</span><span class="amt">−4.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Zoom</span><span class="was">ZOOM.US 888-799-9666 WWW.ZOOM.U</span><span class="rdate">May 21</span><span class="amt">−16.10</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Canva</span><span class="was">CANVA* 04217-8841 DE</span><span class="rdate">May 18</span><span class="amt">−14.99</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Google Workspace</span><span class="was">GOOGLE *GSUITE_acton CC@GOOGLE.C</span><span class="rdate">May 15</span><span class="amt">−21.60</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Notion</span><span class="was">NOTION LABS, INC. SAN FRANCISCO</span><span class="rdate">May 12</span><span class="amt">−12.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Autobooks</span><span class="was">WEB PMTS Autobooks, Inc. WEB</span><span class="rdate">Apr 30</span><span class="amt">−0.50</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Squarespace</span><span class="was">SQSP* CMPGNS#204 NEW YORK,N</span><span class="rdate">Apr 28</span><span class="amt">−10.66</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">X Corp</span><span class="was">X CORP. PAID FEA BASTROP,TX</span><span class="rdate">Apr 27</span><span class="amt">−8.64</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Zoom</span><span class="was">ZOOM.US 888-799-9666 WWW.ZOOM.U</span><span class="rdate">Apr 21</span><span class="amt">−16.10</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Google Workspace</span><span class="was">GOOGLE *GSUITE_acton CC@GOOGLE.C</span><span class="rdate">Apr 15</span><span class="amt">−21.60</span></li>
+          </ul>
+          <div class="rule-line">
+            <input type="checkbox" checked data-rule aria-label="Create rule WEB PMTS Autobooks">
+            <span class="bolt">⚡</span> New rule
+            <span class="match">WEB PMTS Autobooks</span> → <span class="target">Expenses:Software</span>
+            <span class="hits">matches 3 rows in this import</span>
+          </div>
+        </section>
+
+        <!-- ── Expenses:Payroll:Fees ── -->
+        <section class="group" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck aria-label="Toggle group Expenses:Payroll:Fees">
+            <h2 class="acct">Expenses:Payroll:Fees</h2>
+            <span class="gmeta">9 entries · net <span class="net">−376.71</span></span>
+          </header>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">FEE 122111 GUSTO CCD</span><span class="rdate">Jun 15</span><span class="amt">−65.02</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 170933 GUSTO CCD</span><span class="rdate">Jun 15</span><span class="amt">−37.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 168420 GUSTO CCD</span><span class="rdate">Jun 01</span><span class="amt">−22.61</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">FEE 119004 GUSTO CCD</span><span class="rdate">May 15</span><span class="amt">−65.02</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 166112 GUSTO CCD</span><span class="rdate">May 15</span><span class="amt">−37.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 163987 GUSTO CCD</span><span class="rdate">May 01</span><span class="amt">−22.61</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">FEE 115890 GUSTO CCD</span><span class="rdate">Apr 15</span><span class="amt">−65.02</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 161233 GUSTO CCD</span><span class="rdate">Apr 15</span><span class="amt">−37.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">TAX 158764 GUSTO CCD</span><span class="rdate">Apr 01</span><span class="amt">−22.61</span></li>
+          </ul>
+          <div class="rule-line">
+            <input type="checkbox" checked data-rule aria-label="Create rule FEE GUSTO CCD">
+            <span class="bolt">⚡</span> New rule
+            <span class="match">FEE&nbsp;·&nbsp;GUSTO CCD</span> → <span class="target">Expenses:Payroll:Fees</span>
+            <span class="hits">matches 3 rows in this import</span>
+          </div>
+          <div class="rule-line">
+            <input type="checkbox" checked data-rule aria-label="Create rule TAX GUSTO CCD">
+            <span class="bolt">⚡</span> New rule
+            <span class="match">TAX&nbsp;·&nbsp;GUSTO CCD</span> → <span class="target">Expenses:Payroll:Fees</span>
+            <span class="hits">matches 6 rows in this import</span>
+          </div>
+        </section>
+
+        <!-- ── Expenses:Payroll:Wages ── -->
+        <section class="group" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck aria-label="Toggle group Expenses:Payroll:Wages">
+            <h2 class="acct">Expenses:Payroll:Wages</h2>
+            <span class="gmeta">6 entries · net <span class="net">−6,213.12</span></span>
+          </header>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 175569 GUSTO CCD</span><span class="rdate">Jun 15</span><span class="amt">−228.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 175570 GUSTO CCD</span><span class="rdate">Jun 15</span><span class="amt">−1,842.10</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 172201 GUSTO CCD</span><span class="rdate">May 15</span><span class="amt">−228.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 172202 GUSTO CCD</span><span class="rdate">May 15</span><span class="amt">−1,842.10</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 168834 GUSTO CCD</span><span class="rdate">Apr 15</span><span class="amt">−228.94</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Gusto</span><span class="was">NET 168835 GUSTO CCD</span><span class="rdate">Apr 15</span><span class="amt">−1,842.10</span></li>
+          </ul>
+          <div class="rule-line">
+            <input type="checkbox" checked data-rule aria-label="Create rule NET GUSTO CCD">
+            <span class="bolt">⚡</span> New rule
+            <span class="match">NET&nbsp;·&nbsp;GUSTO CCD</span> → <span class="target">Expenses:Payroll:Wages</span>
+            <span class="hits">matches 6 rows in this import</span>
+          </div>
+        </section>
+
+        <!-- ── Income:Tuition ── -->
+        <section class="group" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck aria-label="Toggle group Income:Tuition">
+            <h2 class="acct">Income:Tuition</h2>
+            <span class="gmeta">14 entries · net <span class="net">+45,030.00</span></span>
+          </header>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 4 FACTS CCD Chesterto</span><span class="rdate">Jun 27</span><span class="amt">+25.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 7 FACTS CCD Chesterto</span><span class="rdate">Jun 20</span><span class="amt">+1,250.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 3 FACTS CCD Chesterto</span><span class="rdate">Jun 13</span><span class="amt">+625.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 9 FACTS CCD Chesterto</span><span class="rdate">Jun 06</span><span class="amt">+1,875.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Deposit</span><span class="was">DEPOSIT ID NUMBER 88422</span><span class="rdate">Jun 02</span><span class="amt">+31,205.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 4 FACTS CCD Chesterto</span><span class="rdate">May 30</span><span class="amt">+25.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 7 FACTS CCD Chesterto</span><span class="rdate">May 23</span><span class="amt">+1,250.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 3 FACTS CCD Chesterto</span><span class="rdate">May 16</span><span class="amt">+625.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 12 FACTS CCD Chesterto</span><span class="rdate">May 09</span><span class="amt">+2,500.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 9 FACTS CCD Chesterto</span><span class="rdate">May 02</span><span class="amt">+1,875.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 4 FACTS CCD Chesterto</span><span class="rdate">Apr 25</span><span class="amt">+25.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 7 FACTS CCD Chesterto</span><span class="rdate">Apr 18</span><span class="amt">+1,250.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 3 FACTS CCD Chesterto</span><span class="rdate">Apr 11</span><span class="amt">+625.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">FACTS</span><span class="was">Remit 9 FACTS CCD Chesterto</span><span class="rdate">Apr 04</span><span class="amt">+1,875.00</span></li>
+          </ul>
+          <div class="rule-line">
+            <input type="checkbox" checked data-rule aria-label="Create rule FACTS CCD">
+            <span class="bolt">⚡</span> New rule
+            <span class="match">FACTS CCD</span> → <span class="target">Income:Tuition</span>
+            <span class="hits">matches 13 rows in this import</span>
+          </div>
+        </section>
+
+        <!-- ── Expenses:Education ── -->
+        <section class="group" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck aria-label="Toggle group Expenses:Education">
+            <h2 class="acct">Expenses:Education</h2>
+            <span class="gmeta">4 entries · net <span class="net">−2,514.00</span></span>
+          </header>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Cognia</span><span class="was">COGNIA 6783922285,GA CARD#5889</span><span class="rdate">Jun 18</span><span class="amt">−1,400.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">CSN Cohort</span><span class="was">CSN COHORT PMT 2199 WEB</span><span class="rdate">Jun 10</span><span class="amt">−675.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Heroic Ventures</span><span class="was">HEROIC VENTURES LLC AUSTIN TX</span><span class="rdate">May 22</span><span class="amt">−250.00</span></li>
+            <li class="row"><input type="checkbox" checked data-count="1"><span class="payee">Alcuin Curriculum</span><span class="was">ALCUIN CURRIC 8332201 TX</span><span class="rdate">Apr 29</span><span class="amt">−189.00</span></li>
+          </ul>
+        </section>
+
+        <!-- ── Condensed groups ── -->
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="24" aria-label="Toggle group Expenses:Office:Supplies">
+            <h2 class="acct">Expenses:Office:Supplies</h2>
+            <span class="gmeta">24 entries · net <span class="net">−1,982.15</span></span>
+          </header>
+          <p class="elide">24 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="21" aria-label="Toggle group Expenses:Bank:Fees">
+            <h2 class="acct">Expenses:Bank:Fees</h2>
+            <span class="gmeta">21 entries · net <span class="net">−312.40</span></span>
+          </header>
+          <p class="elide">21 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="18" aria-label="Toggle group Expenses:Facilities:Utilities">
+            <h2 class="acct">Expenses:Facilities:Utilities</h2>
+            <span class="gmeta">18 entries · net <span class="net">−2,148.77</span></span>
+          </header>
+          <p class="elide">18 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="16" aria-label="Toggle group Expenses:Meals">
+            <h2 class="acct">Expenses:Meals</h2>
+            <span class="gmeta">16 entries · net <span class="net">−743.28</span></span>
+          </header>
+          <p class="elide">16 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="12" aria-label="Toggle group Expenses:Travel">
+            <h2 class="acct">Expenses:Travel</h2>
+            <span class="gmeta">12 entries · net <span class="net">−1,610.44</span></span>
+          </header>
+          <p class="elide">12 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="11" aria-label="Toggle group Income:Fees:Enrollment">
+            <h2 class="acct">Income:Fees:Enrollment</h2>
+            <span class="gmeta">11 entries · net <span class="net">+4,125.00</span></span>
+          </header>
+          <p class="elide">11 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <section class="group condensed" data-group>
+          <header class="ghead">
+            <input type="checkbox" checked data-gcheck data-count="6" aria-label="Toggle group Expenses:Insurance">
+            <h2 class="acct">Expenses:Insurance</h2>
+            <span class="gmeta">6 entries · net <span class="net">−1,254.00</span></span>
+          </header>
+          <p class="elide">6 rows set aside on this page — open the group to read them.</p>
+        </section>
+
+        <!-- ── Needs your eye ── -->
+        <section class="group attention" data-group>
+          <header class="ghead">
+            <input type="checkbox" data-gcheck aria-label="Toggle group Needs your eye">
+            <h2 class="acct">Needs your eye</h2>
+            <span class="gmeta">13 rows · 2 rows failed — <button class="retry" type="button">Retry</button></span>
+          </header>
+          <p class="attention-sub">Left unchecked on purpose. Anything you don’t settle here simply stays in the Inbox — it never blocks the batch.</p>
+          <ul class="rows">
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Mobile Deposit</span><span class="was">MOBILE DEPOSIT 0625</span><span class="aside-note">AI unsure — deposit source?</span><span class="rdate">Jun 25</span><span class="amt">+2,500.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Check #1042</span><span class="was">CHECK 1042</span><span class="aside-note">AI unsure — no payee on image</span><span class="rdate">Jun 19</span><span class="amt">−750.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Check #1038</span><span class="was">CHECK 1038</span><span class="aside-note">AI unsure — no payee on image</span><span class="rdate">Jun 12</span><span class="amt">−325.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Zelle — J. Marsh</span><span class="was">ZELLE FROM MARSH JONATHAN</span><span class="aside-note">AI unsure — tuition or reimbursement?</span><span class="rdate">Jun 08</span><span class="amt">+180.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Venmo</span><span class="was">VENMO PAYMENT 32199 WEB</span><span class="failed-mark">AI failed —</span> <button class="retry" type="button">Retry</button><span class="rdate">Jun 05</span><span class="amt">−96.40</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">PayPal</span><span class="was">PAYPAL INST XFER 4471</span><span class="failed-mark">AI failed —</span> <button class="retry" type="button">Retry</button><span class="rdate">Jun 03</span><span class="amt">−212.05</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Amazon</span><span class="was">AMZN Mktp US*RT4TZ</span><span class="aside-note">AI unsure — supplies or curriculum?</span><span class="rdate">May 28</span><span class="amt">−148.63</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">ATM Withdrawal</span><span class="was">ATM WITHDRAWAL #2201</span><span class="aside-note">AI unsure — cash purpose unknown</span><span class="rdate">May 21</span><span class="amt">−400.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Wire Out</span><span class="was">WIRE OUT 0522 FBO</span><span class="aside-note">AI unsure — recipient unclear</span><span class="rdate">May 15</span><span class="amt">−1,000.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Sam’s Club</span><span class="was">SAMSCLUB #6421 CEDAR PARK</span><span class="aside-note">AI unsure — supplies or meals?</span><span class="rdate">May 09</span><span class="amt">−233.91</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Check #1031</span><span class="was">CHECK 1031</span><span class="aside-note">AI unsure — no payee on image</span><span class="rdate">Apr 30</span><span class="amt">−500.00</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Stripe Transfer</span><span class="was">STRIPE TRANSFER ST-K3P</span><span class="aside-note">AI unsure — which income account?</span><span class="rdate">Apr 22</span><span class="amt">+1,977.35</span></li>
+            <li class="row"><input type="checkbox" data-count="1"><span class="payee">Cognia — Refund</span><span class="was">COGNIA REFUND 678392</span><span class="aside-note">AI unsure — refund or credit?</span><span class="rdate">Apr 16</span><span class="amt">+75.00</span></li>
+          </ul>
+        </section>
+
+        <!-- ── Signature ── -->
+        <div class="signature">
+          <p class="legend">
+            Approving books <strong id="sigEntries">164 entries</strong> and creates
+            <span id="sigRules">5 rules</span> in one signed commit.
+            <em>A snapshot is taken first; the whole batch can be reverted from History.</em>
+          </p>
+          <div class="sig-action">
+            <div class="sig-rule"><span class="sig-x">signed on approval</span></div>
+            <button class="btn btn-primary" id="approveBtn2" type="button">Approve 164 entries</button>
+          </div>
+        </div>
+
+        <p class="pass-note">
+          Pass p-2026-07-14-0912 · adapter: claude-code (batch protocol v1) · 5 chunks ·
+          suggestions kept until approved or dismissed · nothing reaches the ledger without your signature.
+        </p>
+
+      </main>
+    </div>
+
+    <!-- Status bar with keyboard hints -->
+    <footer class="status-bar">
+      <span class="hint"><kbd>J</kbd><kbd>K</kbd> navigate</span>
+      <span class="hint"><kbd>Space</kbd> toggle</span>
+      <span class="hint"><kbd>↵</kbd> approve</span>
+      <span class="hint"><kbd>E</kbd> edit in inspector</span>
+      <span class="status-right">
+        <span>AI Assist review · 177 pending</span>
+        <span>main.bean · bean-check ok</span>
+      </span>
+    </footer>
+
+  </section>
+</div>
+
+<script>
+(function () {
+  const groups = Array.from(document.querySelectorAll('[data-group]'));
+  const approveBtns = [document.getElementById('approveBtn'), document.getElementById('approveBtn2')];
+  const sigEntries = document.getElementById('sigEntries');
+  const sigRules = document.getElementById('sigRules');
+
+  function countChecked() {
+    let n = 0;
+    document.querySelectorAll('input[data-count]').forEach(cb => {
+      if (cb.checked) n += parseInt(cb.dataset.count, 10);
+    });
+    return n;
+  }
+  function countRules() {
+    return document.querySelectorAll('input[data-rule]:checked').length;
+  }
+
+  function render() {
+    const n = countChecked();
+    const r = countRules();
+    approveBtns.forEach(b => {
+      b.textContent = 'Approve ' + n + (n === 1 ? ' entry' : ' entries');
+      b.disabled = n === 0;
+    });
+    sigEntries.textContent = n + (n === 1 ? ' entry' : ' entries');
+    sigRules.textContent = r + (r === 1 ? ' rule' : ' rules');
+  }
+
+  function syncGroupHead(group) {
+    const head = group.querySelector('[data-gcheck]');
+    const rows = group.querySelectorAll('.rows input[data-count]');
+    if (!rows.length) return; // condensed group: head carries its own count
+    const checked = group.querySelectorAll('.rows input[data-count]:checked').length;
+    head.checked = checked === rows.length;
+    head.indeterminate = checked > 0 && checked < rows.length;
+  }
+
+  groups.forEach(group => {
+    const head = group.querySelector('[data-gcheck]');
+
+    head.addEventListener('change', () => {
+      head.indeterminate = false;
+      // cascade to rows and to this group's proposed rules
+      group.querySelectorAll('.rows input[data-count]').forEach(cb => { cb.checked = head.checked; });
+      group.querySelectorAll('input[data-rule]').forEach(cb => { cb.checked = head.checked; });
+      render();
+    });
+
+    group.querySelectorAll('.rows input[data-count]').forEach(cb => {
+      cb.addEventListener('change', () => { syncGroupHead(group); render(); });
+    });
+
+    group.querySelectorAll('input[data-rule]').forEach(cb => {
+      cb.addEventListener('change', render);
+    });
+  });
+
+  /* ── Keyboard: J/K navigate, Space toggle, Enter approve ── */
+  const rows = Array.from(document.querySelectorAll('.row'));
+  let cur = -1;
+  function setCursor(i) {
+    if (cur >= 0) rows[cur].classList.remove('cursor');
+    cur = Math.max(0, Math.min(rows.length - 1, i));
+    rows[cur].classList.add('cursor');
+    rows[cur].scrollIntoView({ block: 'nearest' });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' && e.key === ' ') return; // native toggle
+    if (e.key === 'j' || e.key === 'J') { setCursor(cur + 1); e.preventDefault(); }
+    else if (e.key === 'k' || e.key === 'K') { setCursor(cur - 1); e.preventDefault(); }
+    else if (e.key === ' ' && cur >= 0) {
+      const cb = rows[cur].querySelector('input[data-count]');
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+      e.preventDefault();
+    }
+    else if (e.key === 'Enter') {
+      const b = approveBtns[0];
+      b.classList.add('pulse');
+      setTimeout(() => b.classList.remove('pulse'), 600);
+      e.preventDefault();
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>

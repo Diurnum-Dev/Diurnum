@@ -35,7 +35,7 @@ Decisions made during design:
 | Rule learning | AI proposes durable Categorization Rules as part of the pass |
 | Trigger | Explicit button ("AI Assist"), never automatic |
 | Draft scope | Ledger account + cleaned payee + narration + proposed rules |
-| Review UX | Results grouped by proposed category, needs-attention tail |
+| Review UX | Category-at-a-time momentum flow: progress rail, one group card at a time, signing summary (mockup: `docs/html-mockups/ai-assist-review-c-flow.html`) |
 | Undo | Batch is a first-class unit: git snapshot + batch revert + per-entry revert |
 | Batch shape | Chunked batch protocol (~40 rows/invocation), sequential, resumable |
 
@@ -119,31 +119,46 @@ Diurnum ships a documented prompt/wrapper for Claude Code CLI (the harness
 AI Adapter Detection already discovers), so configuring the adapter is
 paste-one-command, not write-your-own-script.
 
-## Review screen
+## Review screen: the momentum flow
 
 The review screen is a **mode of the Inbox** (not a separate route) that
-replaces the list body while a pass's results exist.
+replaces the list body while a pass's results exist. Rather than one long
+grouped list, results are reviewed **one category group at a time**.
+Canonical mockup: `docs/html-mockups/ai-assist-review-c-flow.html`.
 
-- Rows group under their **proposed ledger account**. Group headers show
-  count and net amount. Rows show cleaned payee, `was: <raw memo>`, and
-  amount. Everything AI-suggested starts **checked**; group and row
-  checkboxes cascade.
-- Clicking a row opens the existing Inspector for per-row edits; changing
-  the account there moves the row to that group.
-- A **"Needs your eye" group** pins to the bottom: rows flagged
+- **Progress rail (left).** A table of contents listing every proposed
+  group with state: reviewed ✓ (with accepted tally and net), current,
+  upcoming, then "Needs your eye" quarantined last, then a final
+  "Sign & approve" step. A running "N of M groups reviewed" cue gives
+  momentum. The rail allows jumping ahead — including straight to the
+  signing step for users who trust the whole pass.
+- **Group card (main pane).** One group at a time, full width: the proposed
+  ledger account as the display heading, count and net amount, and the
+  group's rows — cleaned payee, `was: <raw memo>`, date, amount — each with
+  a checkbox, **checked by default**. One primary action: "Looks right —
+  next group ↵". Secondary: "Skip for now". Clicking a row opens the
+  existing Inspector for per-row edits; changing the account there moves
+  the row to the target group.
+- **Proposed rules render inside their group card** ("⚡ New rule:
+  'WEB PMTS Autobooks' → Expenses:Software · matches 6 rows"), checked by
+  default. A rule whose rows the user unchecks is auto-unchecked. A
+  proposed rule duplicating an existing enabled rule (same source account +
+  match text) is not proposed.
+- **"Needs your eye" is reviewed last**: rows flagged
   `needsHumanAttention`, low-confidence suggestions (below ~0.6),
   failed-chunk rows, and boundary-validation rejects. These start
   **unchecked** and remain in the normal Inbox after approval — the tail
   never blocks the batch. Failed rows show "N rows failed — Retry", which
   re-runs only those rows.
-- **Proposed rules render inline inside their group** ("⚡ New rule:
-  'WEB PMTS Autobooks' → Expenses:Software · matches 6 rows"), checked by
-  default. A rule whose group the user unchecks is auto-unchecked. A
-  proposed rule duplicating an existing enabled rule (same source account +
-  match text) is not proposed.
-- Header shows **"Approve N entries"** with a live count, plus a
-  **"Dismiss results"** action that returns to the plain Inbox (suggestions
-  stay in SQLite, marked dismissed).
+- **Signing summary (final step).** Everything accepted across groups,
+  totals, the snapshot/reversibility notice, and one **"Approve N
+  entries"** button with a live count. A **"Dismiss results"** action is
+  available throughout and returns to the plain Inbox (suggestions stay in
+  SQLite, marked dismissed).
+- **Keyboard-first:** ↵ accepts the current group, E edits the selected
+  row, J/K move between rows, Space toggles a checkbox.
+- No confidence percentages are displayed; the only user-facing
+  distinction is accepted vs. needs-your-eye.
 
 ## Bulk write (atomic)
 
@@ -192,9 +207,12 @@ replaces the list body while a pass's results exist.
   rolls back); batch revert (entries removed, rows re-pending, rules
   removed); duplicate-rule suppression. Fake adapter is a shell script,
   matching the existing `ai_adapter.rs` test pattern.
-- **UI tests:** grouping and cascade-check behavior; live approve count;
-  needs-attention starts unchecked; rule checkbox follows its group;
-  dismiss restores the plain Inbox.
+- **UI tests:** group card accept advances to the next group and updates
+  the rail; rail jump-ahead (including straight to signing); live approve
+  count across groups; row checkbox toggling within the current card;
+  needs-your-eye starts unchecked and is ordered last; rule checkbox
+  follows its rows; signing summary totals match accepted rows; dismiss
+  restores the plain Inbox.
 - **E2E golden path:** import CSV → run AI Assist against a scripted
   adapter → review → bulk approve → `bean-check` passes → revert batch →
   rows return to pending.

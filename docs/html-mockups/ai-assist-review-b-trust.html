@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diurnum — AI Assist Review (B: Trust Dashboard)</title>
+<style>
+  :root {
+    --bg: #FEFCF8;
+    --bg-muted: #FBF6EC;
+    --bg-subtle: #FCF9F2;
+    --text: #1C1A17;
+    --text-muted: #6B6051;
+    --text-subtle: #938775;
+    --border: #EDEAE4;
+    --border-strong: #E0DBD3;
+    --accent: #243B6B;
+    --accent-bg: #E4E8F1;
+    --accent-strong: #2F4E8C;
+    --accent-hover: #1C2F56;
+    --destructive: #A03228;
+    --destructive-strong: #C94034;
+    --destructive-bg: #F2E0DB;
+    --highlight: #B68A3E;
+    --diff-add-bg: #E7EBF3;
+    --diff-add-text: #243B6B;
+    --diff-del-bg: #F3E2DD;
+    --diff-del-text: #A03228;
+    --serif: Spectral, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    --shadow-modal: 0 24px 60px rgba(28,26,23,0.22), 0 4px 16px rgba(28,26,23,0.10);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    background: #E6E1D7;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ Window frame ============ */
+  .window {
+    width: 1440px;
+    height: 920px;
+    background: var(--bg);
+    border-radius: 10px;
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-strong);
+  }
+  .window-body { flex: 1; display: flex; min-height: 0; }
+
+  /* ============ Sidebar ============ */
+  .sidebar {
+    width: 200px;
+    flex: 0 0 200px;
+    background: var(--bg-muted);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0 8px 12px;
+  }
+  .traffic { display: flex; gap: 8px; padding: 20px 8px 18px; }
+  .traffic span { width: 12px; height: 12px; border-radius: 9999px; display: block; }
+  .traffic .r { background: #F0645A; } .traffic .y { background: #F5BE4F; } .traffic .g { background: #61C454; }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 500;
+    padding: 0 8px 18px;
+    letter-spacing: 0.01em;
+  }
+  .wordmark .dot { color: var(--highlight); }
+  .nav-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle); padding: 4px 12px 6px;
+  }
+  .nav a {
+    display: flex; align-items: center; gap: 9px;
+    height: 32px; padding: 0 12px;
+    border-radius: 2px;
+    color: var(--text); text-decoration: none;
+    font-size: 13px; font-weight: 500;
+  }
+  .nav a:hover { background: var(--bg-subtle); }
+  .nav a.active { background: var(--accent-bg); color: var(--accent); }
+  .nav .ico { width: 15px; text-align: center; opacity: 0.75; font-size: 12px; }
+  .nav .count {
+    margin-left: auto;
+    background: var(--accent-bg); color: var(--accent);
+    font-size: 11px; font-weight: 600;
+    border-radius: 9999px; padding: 1px 8px;
+  }
+  .nav a.active .count { background: var(--bg); }
+  .sidebar-foot {
+    margin-top: auto; padding: 10px 12px 0;
+    font-size: 12px; color: var(--text-subtle);
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-foot b { display: block; font-weight: 600; color: var(--text-muted); font-size: 12px; }
+
+  /* ============ Main pane ============ */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+
+  .main-header {
+    height: 48px; flex: 0 0 48px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .main-header h1 { font-family: var(--serif); font-size: 20px; font-weight: 500; line-height: 1.35; }
+  .pass-meta { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+  .header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    height: 32px; padding: 0 16px; border-radius: 2px;
+    border: 1px solid transparent; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:focus-visible { outline: 2px solid var(--accent-bg); outline-offset: 1px; border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--bg-muted); }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { background: var(--bg-muted); }
+  .btn-sm { height: 24px; padding: 0 10px; font-size: 12px; }
+
+  /* ============ Audit strip (trust dashboard) ============ */
+  .audit {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 1.5fr 1fr 1.2fr;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+  }
+  .audit-cell { padding: 12px 20px; border-right: 1px solid var(--border); min-width: 0; }
+  .audit-cell:last-child { border-right: none; }
+  .audit-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle); margin-bottom: 4px;
+  }
+  .audit-big { font-family: var(--serif); font-size: 20px; font-weight: 500; line-height: 1.25; }
+  .audit-big small { font-family: var(--sans); font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+  .audit-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tier-bar { display: flex; height: 6px; border-radius: 2px; overflow: hidden; margin: 8px 0 6px; border: 1px solid var(--border-strong); }
+  .tier-bar i { display: block; height: 100%; }
+  .t-high { background: var(--accent); } .t-med { background: #9AA9C9; }
+  .t-low { background: var(--border-strong); } .t-fail { background: var(--destructive); }
+  .tier-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
+  .tier-legend .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+  .tier-legend b { color: var(--text); font-weight: 600; }
+  .snapshot-note { font-size: 12px; color: var(--text-muted); }
+  .snapshot-note b { color: var(--text); font-weight: 600; }
+  .snapshot-note .mono { font-family: var(--mono); font-size: 11px; color: var(--text-subtle); }
+
+  /* ============ Review list ============ */
+  .list { flex: 1; overflow-y: auto; padding: 16px 20px 32px; }
+
+  .group { border: 1px solid var(--border); border-radius: 3px; background: var(--bg); margin-bottom: 12px; }
+  .group-h {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px;
+    background: var(--bg-muted);
+    border-bottom: 1px solid var(--border);
+    cursor: default;
+  }
+  .group.collapsed .group-h { border-bottom: none; }
+  .group-h .chev { color: var(--text-subtle); font-size: 10px; width: 10px; }
+  .acct { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .gmeta { font-size: 12px; color: var(--text-muted); }
+  .gnet { margin-left: auto; font-family: var(--mono); font-size: 13px; }
+  input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; flex: 0 0 14px; cursor: pointer; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 14px 64px minmax(0,1fr) 56px 110px;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: var(--bg-subtle); }
+  .row.selected { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
+  .confcell { display: flex; align-items: center; gap: 6px; }
+  .meter { width: 34px; height: 5px; background: var(--bg-muted); border: 1px solid var(--border-strong); border-radius: 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .meter.low i { background: var(--text-subtle); }
+  .confnum { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .paycell { min-width: 0; }
+  .clean { font-weight: 500; font-size: 13px; }
+  .was {
+    font-family: var(--mono); font-size: 11px; color: var(--text-subtle);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+  }
+  .was em { font-style: normal; color: var(--text-subtle); }
+  .why {
+    display: none;
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 3px; padding-left: 10px;
+    border-left: 2px solid var(--border-strong);
+  }
+  .row:hover .why, .row.selected .why { display: block; }
+  .flagnote { font-size: 12px; color: var(--destructive); font-weight: 500; }
+  .rdate { font-size: 12px; color: var(--text-muted); text-align: right; }
+  .ramt { font-family: var(--mono); font-size: 13px; text-align: right; }
+  .badge {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 2px; padding: 2px 8px; display: inline-block;
+  }
+  .badge-destructive { background: var(--destructive-bg); color: var(--destructive); }
+  .badge-accent { background: var(--accent-bg); color: var(--accent); }
+  .badge-default { background: var(--bg-muted); color: var(--text); }
+
+  .row.more { cursor: default; color: var(--text-muted); font-size: 12px; }
+  .row.more .paycell { font-size: 12px; color: var(--text-muted); }
+  .row.more:hover { background: transparent; }
+
+  /* Proposed rule card */
+  .rulecard {
+    margin: 10px 14px 12px 40px;
+    border: 1px solid var(--border-strong);
+    background: var(--accent-bg);
+    border-radius: 3px;
+    padding: 10px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .rulecard .bolt { color: var(--accent); font-size: 13px; line-height: 1.55; }
+  .rulecard input { margin-top: 3px; }
+  .rule-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .rule-title .mono { font-family: var(--mono); font-size: 12px; }
+  .rule-title .arrow { color: var(--text-muted); padding: 0 3px; }
+  .rule-evidence { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .rule-evidence .chip {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 2px; padding: 0 5px; margin-right: 4px; white-space: nowrap;
+  }
+
+  /* Needs your eye */
+  .group.needs-eye { border-color: var(--border-strong); }
+  .group.needs-eye .group-h { background: var(--bg-muted); }
+  .eye-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 0 10px; color: var(--text-subtle);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .eye-divider::before, .eye-divider::after { content: ""; flex: 1; border-top: 1px solid var(--border-strong); }
+  .retry-btn { justify-self: end; }
+
+  /* ============ Inspector ============ */
+  .inspector {
+    width: 380px; flex: 0 0 380px;
+    border-left: 1px solid var(--border);
+    background: var(--bg);
+    overflow-y: auto;
+    padding: 16px 20px 32px;
+  }
+  .insp-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-subtle); margin: 20px 0 6px;
+  }
+  .insp-label:first-child { margin-top: 0; }
+  .insp-title { font-family: var(--serif); font-size: 24px; font-weight: 500; line-height: 1.25; margin-bottom: 2px; }
+  .insp-amt-line { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+  .insp-amt { font-family: var(--mono); font-size: 16px; }
+  .insp-date { font-size: 12px; color: var(--text-muted); }
+  .insp-acct {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: 2px; padding: 3px 8px; display: inline-block;
+  }
+  .insp-conf-meter { height: 6px; background: var(--bg-muted); border: 1px solid var(--border-strong); border-radius: 2px; overflow: hidden; margin: 6px 0 4px; }
+  .insp-conf-meter i { display: block; height: 100%; background: var(--accent); }
+  .insp-conf-meter.low i { background: var(--text-subtle); }
+  .insp-conf-line { font-size: 12px; color: var(--text-muted); }
+  .insp-conf-line b { color: var(--text); font-weight: 600; }
+  .insp-why {
+    font-size: 13px; color: var(--text);
+    border-left: 2px solid var(--border-strong);
+    padding: 2px 0 2px 12px;
+  }
+  .diff { font-family: var(--mono); font-size: 12px; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+  .diff .del { background: var(--diff-del-bg); color: var(--diff-del-text); padding: 4px 10px; display: block; }
+  .diff .add { background: var(--diff-add-bg); color: var(--diff-add-text); padding: 4px 10px; display: block; border-top: 1px solid var(--border); }
+  .diff .sign { opacity: 0.6; margin-right: 6px; }
+  .similar { border: 1px solid var(--border); border-radius: 3px; }
+  .similar .sim-row {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px;
+  }
+  .similar .sim-row:last-child { border-bottom: none; }
+  .similar .sd { color: var(--text-subtle); flex: 0 0 66px; }
+  .similar .sp { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .similar .sa { color: var(--text-muted); }
+  .similar .empty { padding: 8px 10px; font-family: var(--sans); font-size: 12px; color: var(--text-subtle); }
+  .srcrec {
+    font-family: var(--mono); font-size: 11px; line-height: 1.7;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: 3px; padding: 10px 12px;
+    color: var(--text-muted);
+    overflow-x: auto;
+  }
+  .srcrec b { color: var(--text); font-weight: 600; }
+  .insp-rule {
+    border: 1px solid var(--border-strong); background: var(--accent-bg);
+    border-radius: 3px; padding: 10px 12px; font-size: 12px;
+  }
+  .insp-rule .rt { font-weight: 500; font-size: 13px; }
+  .insp-rule .mono { font-family: var(--mono); font-size: 12px; }
+  .insp-rule .rl { color: var(--text-muted); margin-top: 3px; }
+  .insp-norule { font-size: 12px; color: var(--text-subtle); }
+  .prov { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+  .prov .mono { font-family: var(--mono); font-size: 11px; color: var(--text-subtle); }
+  .insp-flag {
+    border: 1px solid var(--border-strong); background: var(--destructive-bg);
+    color: var(--destructive); border-radius: 3px;
+    padding: 8px 12px; font-size: 12px; font-weight: 500; margin-bottom: 12px;
+  }
+
+  /* ============ Status bar ============ */
+  .statusbar {
+    height: 28px; flex: 0 0 28px;
+    background: var(--bg-muted);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .statusbar .dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--accent-strong); display: inline-block; margin-right: 6px; }
+  .statusbar .right { margin-left: auto; }
+  .statusbar .mono { font-family: var(--mono); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="window-body">
+
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar">
+      <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="wordmark">Diurnum<span class="dot">.</span></div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav">
+        <a href="#"><span class="ico">▤</span>Ledger</a>
+        <a href="#" class="active"><span class="ico">☰</span>Inbox<span class="count">177</span></a>
+        <a href="#"><span class="ico">◫</span>Reports</a>
+        <a href="#"><span class="ico">⎘</span>Documents</a>
+        <a href="#"><span class="ico">⇥</span>Import</a>
+        <a href="#"><span class="ico">⚙</span>Settings</a>
+      </nav>
+      <div class="sidebar-foot">
+        <b>Maple Grove Schoolhouse</b>
+        books.beancount · FY 2026
+      </div>
+    </aside>
+
+    <!-- ============ Main pane ============ -->
+    <main class="main">
+      <header class="main-header">
+        <h1>AI Assist — Review</h1>
+        <span class="pass-meta">Pass #7 · chase-checking-apr–jul.csv · finished 2:41 PM · 5 of 5 chunks</span>
+        <div class="header-actions">
+          <button class="btn btn-ghost" id="dismiss-btn">Dismiss results</button>
+          <button class="btn btn-primary" id="approve-btn">Approve 164 entries</button>
+        </div>
+      </header>
+
+      <!-- Trust dashboard / audit strip -->
+      <section class="audit" aria-label="Batch audit summary">
+        <div class="audit-cell">
+          <div class="audit-label">Coverage</div>
+          <div class="audit-big">164 <small>of 177 categorized</small></div>
+          <div class="audit-sub">13 need your eye · 0 matched by rules</div>
+        </div>
+        <div class="audit-cell">
+          <div class="audit-label">Confidence</div>
+          <div class="tier-bar" role="img" aria-label="128 high, 36 medium, 8 low, 2 failed, 3 flagged">
+            <i class="t-high" style="width:72.3%"></i><i class="t-med" style="width:20.3%"></i><i class="t-low" style="width:6.2%"></i><i class="t-fail" style="width:1.2%"></i>
+          </div>
+          <div class="tier-legend">
+            <span><i class="sw t-high"></i><b>128</b> high ≥.85</span>
+            <span><i class="sw t-med"></i><b>36</b> med</span>
+            <span><i class="sw t-low"></i><b>11</b> low / flagged</span>
+            <span><i class="sw t-fail"></i><b>2</b> failed</span>
+          </div>
+        </div>
+        <div class="audit-cell">
+          <div class="audit-label">Will be written</div>
+          <div class="audit-big"><span id="write-entries">164</span> <small>entries</small></div>
+          <div class="audit-sub"><span id="write-rules">3</span> new rules · 1 batch commit</div>
+        </div>
+        <div class="audit-cell">
+          <div class="audit-label">Reversible</div>
+          <div class="snapshot-note">
+            <b>A snapshot is taken before writing.</b><br>
+            Revert the whole batch, or any single entry, anytime.<br>
+            <span class="mono">git: pre-approval commit → batch id ab7f31</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Grouped review list ============ -->
+      <div class="list" id="list">
+
+        <!-- Expenses:Software -->
+        <section class="group">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" checked aria-label="Toggle group Expenses:Software">
+            <span class="acct">Expenses:Software</span>
+            <span class="gmeta">23 rows</span>
+            <span class="gnet">−$486.21</span>
+          </header>
+          <div class="row" data-id="sw1">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:97%"></i></span><span class="confnum">.97</span></span>
+            <span class="paycell">
+              <span class="clean">Autobooks</span>
+              <span class="was"><em>was:</em> WEB PMTS Autobooks, Inc. WEB</span>
+              <span class="why">Recurring monthly $0.50 ACH software fee; matches 4 approved Autobooks entries since March.</span>
+            </span>
+            <span class="rdate">Jul 2</span>
+            <span class="ramt">−$0.50</span>
+          </div>
+          <div class="row" data-id="sw2">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:94%"></i></span><span class="confnum">.94</span></span>
+            <span class="paycell">
+              <span class="clean">Squarespace</span>
+              <span class="was"><em>was:</em> SQSP* CMPGNS#232 NEW YORK,N</span>
+              <span class="why">SQSP* prefix is Squarespace's card descriptor; prior Squarespace charges live in Expenses:Software.</span>
+            </span>
+            <span class="rdate">Jul 3</span>
+            <span class="ramt">−$10.66</span>
+          </div>
+          <div class="row" data-id="sw3">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:71%"></i></span><span class="confnum">.71</span></span>
+            <span class="paycell">
+              <span class="clean">X Corp</span>
+              <span class="was"><em>was:</em> X CORP. PAID FEA BASTROP,TX</span>
+              <span class="why">Likely X Premium subscription; no prior X Corp entries — categorized by vendor type, not history.</span>
+            </span>
+            <span class="rdate">Jul 5</span>
+            <span class="ramt">−$8.64</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="20" checked aria-label="Toggle 20 more Software rows">
+            <span class="confcell"><span class="confnum">≥.85</span></span>
+            <span class="paycell">20 more rows — Adobe, Notion, Zoom, GitHub … all high confidence</span>
+            <span class="rdate"></span>
+            <span class="ramt">−$466.41</span>
+          </div>
+          <div class="rulecard">
+            <input type="checkbox" class="rule-check" checked aria-label="Toggle proposed rule WEB PMTS Autobooks">
+            <span class="bolt">⚡</span>
+            <span>
+              <span class="rule-title">New rule: <span class="mono">"WEB PMTS Autobooks"</span><span class="arrow">→</span><span class="mono">Expenses:Software</span></span>
+              <span class="rule-evidence">Matches 6 rows in this import:
+                <span class="chip">Feb 2 −$0.50</span><span class="chip">Mar 2 −$0.50</span><span class="chip">Apr 2 −$0.50</span> and 3 more · future imports match for free
+              </span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Expenses:Payroll:Fees -->
+        <section class="group">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" checked aria-label="Toggle group Expenses:Payroll:Fees">
+            <span class="acct">Expenses:Payroll:Fees</span>
+            <span class="gmeta">9 rows</span>
+            <span class="gnet">−$412.66</span>
+          </header>
+          <div class="row" data-id="pf1">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:96%"></i></span><span class="confnum">.96</span></span>
+            <span class="paycell">
+              <span class="clean">Gusto — service fee</span>
+              <span class="was"><em>was:</em> FEE 122111 GUSTO CCD</span>
+              <span class="why">Gusto CCD entries prefixed FEE are the monthly payroll service charge, per 3 prior approvals.</span>
+            </span>
+            <span class="rdate">Jul 1</span>
+            <span class="ramt">−$65.02</span>
+          </div>
+          <div class="row" data-id="pf2">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:92%"></i></span><span class="confnum">.92</span></span>
+            <span class="paycell">
+              <span class="clean">Gusto — payroll taxes</span>
+              <span class="was"><em>was:</em> TAX 170933 GUSTO CCD</span>
+              <span class="why">TAX-prefixed Gusto draws are employer tax remittances; kept with fees per your chart of accounts.</span>
+            </span>
+            <span class="rdate">Jul 1</span>
+            <span class="ramt">−$37.94</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="7" checked aria-label="Toggle 7 more Payroll Fees rows">
+            <span class="confcell"><span class="confnum">≥.85</span></span>
+            <span class="paycell">7 more rows — Gusto FEE / TAX draws, Apr–Jun</span>
+            <span class="rdate"></span>
+            <span class="ramt">−$309.70</span>
+          </div>
+          <div class="rulecard">
+            <input type="checkbox" class="rule-check" checked aria-label="Toggle proposed rule FEE GUSTO CCD">
+            <span class="bolt">⚡</span>
+            <span>
+              <span class="rule-title">New rule: <span class="mono">"FEE 122111 GUSTO"</span><span class="arrow">→</span><span class="mono">Expenses:Payroll:Fees</span></span>
+              <span class="rule-evidence">Matches 5 rows in this import:
+                <span class="chip">Mar 1 −$65.02</span><span class="chip">Apr 1 −$65.02</span><span class="chip">May 1 −$65.02</span> and 2 more
+              </span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Expenses:Payroll:Wages -->
+        <section class="group">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" checked aria-label="Toggle group Expenses:Payroll:Wages">
+            <span class="acct">Expenses:Payroll:Wages</span>
+            <span class="gmeta">6 rows</span>
+            <span class="gnet">−$9,846.12</span>
+          </header>
+          <div class="row" data-id="pw1">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:95%"></i></span><span class="confnum">.95</span></span>
+            <span class="paycell">
+              <span class="clean">Gusto — net pay</span>
+              <span class="was"><em>was:</em> NET 175569 GUSTO CCD</span>
+              <span class="why">NET-prefixed Gusto draws are net wage disbursements; distinct from FEE/TAX draws by prefix.</span>
+            </span>
+            <span class="rdate">Jul 1</span>
+            <span class="ramt">−$228.94</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="5" checked aria-label="Toggle 5 more Wages rows">
+            <span class="confcell"><span class="confnum">≥.85</span></span>
+            <span class="paycell">5 more rows — Gusto NET disbursements, Apr–Jun</span>
+            <span class="rdate"></span>
+            <span class="ramt">−$9,617.18</span>
+          </div>
+        </section>
+
+        <!-- Income:Tuition -->
+        <section class="group">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" checked aria-label="Toggle group Income:Tuition">
+            <span class="acct">Income:Tuition</span>
+            <span class="gmeta">14 rows</span>
+            <span class="gnet">+$38,410.50</span>
+          </header>
+          <div class="row" data-id="ti1">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:91%"></i></span><span class="confnum">.91</span></span>
+            <span class="paycell">
+              <span class="clean">FACTS Tuition Management</span>
+              <span class="was"><em>was:</em> Remit 4 FACTS CCD Chesterto</span>
+              <span class="why">FACTS is your tuition processor; all 9 prior FACTS remittances were approved to Income:Tuition.</span>
+            </span>
+            <span class="rdate">Jul 6</span>
+            <span class="ramt">+$25.00</span>
+          </div>
+          <div class="row" data-id="ti2">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:66%"></i></span><span class="confnum">.66</span></span>
+            <span class="paycell">
+              <span class="clean">Tuition deposit — batch</span>
+              <span class="was"><em>was:</em> Deposit</span>
+              <span class="why">Amount matches July tuition-run total from FACTS; memo alone says only "Deposit" — verify against the remittance report.</span>
+            </span>
+            <span class="rdate">Jul 8</span>
+            <span class="ramt">+$31,205.00</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="12" checked aria-label="Toggle 12 more Tuition rows">
+            <span class="confcell"><span class="confnum">≥.85</span></span>
+            <span class="paycell">12 more rows — FACTS remittances, Apr–Jul</span>
+            <span class="rdate"></span>
+            <span class="ramt">+$7,180.50</span>
+          </div>
+          <div class="rulecard">
+            <input type="checkbox" class="rule-check" checked aria-label="Toggle proposed rule FACTS CCD">
+            <span class="bolt">⚡</span>
+            <span>
+              <span class="rule-title">New rule: <span class="mono">"FACTS CCD"</span><span class="arrow">→</span><span class="mono">Income:Tuition</span></span>
+              <span class="rule-evidence">Matches 12 rows in this import:
+                <span class="chip">Apr 6 +$1,240.00</span><span class="chip">Apr 20 +$310.00</span><span class="chip">May 4 +$925.50</span> and 9 more
+              </span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Expenses:Education -->
+        <section class="group">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" checked aria-label="Toggle group Expenses:Education">
+            <span class="acct">Expenses:Education</span>
+            <span class="gmeta">4 rows</span>
+            <span class="gnet">−$2,455.00</span>
+          </header>
+          <div class="row" data-id="ed1">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:88%"></i></span><span class="confnum">.88</span></span>
+            <span class="paycell">
+              <span class="clean">Cognia</span>
+              <span class="was"><em>was:</em> COGNIA 6783922285,GA CARD#5889</span>
+              <span class="why">Cognia is a school accreditation body; amount matches an annual accreditation fee profile.</span>
+            </span>
+            <span class="rdate">Jul 9</span>
+            <span class="ramt">−$1,400.00</span>
+          </div>
+          <div class="row" data-id="ed2">
+            <input type="checkbox" class="r-check" data-count="1" checked>
+            <span class="confcell"><span class="meter"><i style="width:74%"></i></span><span class="confnum">.74</span></span>
+            <span class="paycell">
+              <span class="clean">CSN Cohort</span>
+              <span class="was"><em>was:</em> CSN COHORT PROGRAM FEE</span>
+              <span class="why">Reads as a professional-development cohort fee; no prior CSN entries to corroborate.</span>
+            </span>
+            <span class="rdate">Jul 10</span>
+            <span class="ramt">−$675.00</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="2" checked aria-label="Toggle 2 more Education rows">
+            <span class="confcell"><span class="confnum">≥.85</span></span>
+            <span class="paycell">2 more rows — curriculum conference, testing materials</span>
+            <span class="rdate"></span>
+            <span class="ramt">−$380.00</span>
+          </div>
+        </section>
+
+        <!-- Collapsed remainder groups -->
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="21" checked aria-label="Toggle group Expenses:Supplies"><span class="chev">▸</span><span class="acct">Expenses:Supplies</span><span class="gmeta">21 rows · all ≥.85</span><span class="gnet">−$1,284.09</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="17" checked aria-label="Toggle group Expenses:Curriculum"><span class="chev">▸</span><span class="acct">Expenses:Curriculum</span><span class="gmeta">17 rows · all ≥.85</span><span class="gnet">−$3,411.80</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="15" checked aria-label="Toggle group Income:Donations"><span class="chev">▸</span><span class="acct">Income:Donations</span><span class="gmeta">15 rows · all ≥.85</span><span class="gnet">+$6,250.00</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="14" checked aria-label="Toggle group Expenses:Meals"><span class="chev">▸</span><span class="acct">Expenses:Meals</span><span class="gmeta">14 rows · 3 medium</span><span class="gnet">−$402.77</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="12" checked aria-label="Toggle group Expenses:Rent"><span class="chev">▸</span><span class="acct">Expenses:Rent</span><span class="gmeta">12 rows · all ≥.85</span><span class="gnet">−$7,200.00</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="12" checked aria-label="Toggle group Expenses:Utilities"><span class="chev">▸</span><span class="acct">Expenses:Utilities</span><span class="gmeta">12 rows · all ≥.85</span><span class="gnet">−$948.13</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="9" checked aria-label="Toggle group Expenses:Insurance"><span class="chev">▸</span><span class="acct">Expenses:Insurance</span><span class="gmeta">9 rows · 2 medium</span><span class="gnet">−$1,122.50</span></header>
+        </section>
+        <section class="group collapsed">
+          <header class="group-h"><input type="checkbox" class="g-check r-check" data-count="8" checked aria-label="Toggle group Expenses:Bank:Fees"><span class="chev">▸</span><span class="acct">Expenses:Bank:Fees</span><span class="gmeta">8 rows · all ≥.85</span><span class="gnet">−$96.00</span></header>
+        </section>
+
+        <!-- Needs your eye -->
+        <div class="eye-divider">Needs your eye — starts unchecked, never blocks the batch</div>
+        <section class="group needs-eye">
+          <header class="group-h">
+            <input type="checkbox" class="g-check" aria-label="Toggle group Needs your eye">
+            <span class="acct">Needs your eye</span>
+            <span class="gmeta">13 rows — low confidence, flagged, or failed · stay in Inbox after approval</span>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto" id="retry-all">Retry 2 failed rows</button>
+          </header>
+          <div class="row" data-id="ne1">
+            <input type="checkbox" class="r-check" data-count="1">
+            <span class="confcell"><span class="meter low"><i style="width:41%"></i></span><span class="confnum">.41</span></span>
+            <span class="paycell">
+              <span class="clean">Mobile Deposit</span>
+              <span class="flagnote">AI unsure — deposit source?</span>
+              <span class="was"><em>was:</em> MOBILE DEPOSIT : REF 900318</span>
+              <span class="why">Could be tuition, donation, or reimbursement — no memo, no matching remittance. AI declined to guess.</span>
+            </span>
+            <span class="rdate">Jun 24</span>
+            <span class="ramt">+$2,500.00</span>
+          </div>
+          <div class="row" data-id="ne2">
+            <input type="checkbox" class="r-check" data-count="1">
+            <span class="confcell"><span class="meter low"><i style="width:38%"></i></span><span class="confnum">.38</span></span>
+            <span class="paycell">
+              <span class="clean">Check #1041</span>
+              <span class="was"><em>was:</em> CHECK 1041</span>
+              <span class="why">Paper check with no payee on record; check-register lookup found nothing near this amount.</span>
+            </span>
+            <span class="rdate">Jun 12</span>
+            <span class="ramt">−$750.00</span>
+          </div>
+          <div class="row" data-id="ne3">
+            <input type="checkbox" class="r-check" data-count="1">
+            <span class="confcell"><span class="meter low"><i style="width:35%"></i></span><span class="confnum">.35</span></span>
+            <span class="paycell">
+              <span class="clean">Check #1042</span>
+              <span class="was"><em>was:</em> CHECK 1042</span>
+              <span class="why">Paper check, no payee; a similar $325 check in May went to Expenses:Maintenance but was hand-entered.</span>
+            </span>
+            <span class="rdate">Jun 19</span>
+            <span class="ramt">−$325.00</span>
+          </div>
+          <div class="row" data-id="ne4">
+            <input type="checkbox" class="r-check" data-count="1">
+            <span class="confcell"><span class="badge badge-destructive">Failed</span></span>
+            <span class="paycell">
+              <span class="clean">POS DEBIT 4417 …TERM 08</span>
+              <span class="flagnote">AI failed — chunk 4 timed out</span>
+              <span class="was"><em>was:</em> POS DEBIT 4417 88231145 TERM 08</span>
+            </span>
+            <span class="rdate">May 30</span>
+            <span class="ramt" style="display:flex;justify-content:flex-end;gap:8px;align-items:center"><button class="btn btn-secondary btn-sm retry-btn">Retry</button>−$84.12</span>
+          </div>
+          <div class="row" data-id="ne5">
+            <input type="checkbox" class="r-check" data-count="1">
+            <span class="confcell"><span class="badge badge-destructive">Failed</span></span>
+            <span class="paycell">
+              <span class="clean">ACH WDL 002913 …</span>
+              <span class="flagnote">AI failed — chunk 4 timed out</span>
+              <span class="was"><em>was:</em> ACH WDL 002913 PRE-AUTH</span>
+            </span>
+            <span class="rdate">May 30</span>
+            <span class="ramt" style="display:flex;justify-content:flex-end;gap:8px;align-items:center"><button class="btn btn-secondary btn-sm retry-btn">Retry</button>−$120.00</span>
+          </div>
+          <div class="row more">
+            <input type="checkbox" class="r-check" data-count="8" aria-label="Toggle 8 more needs-attention rows">
+            <span class="confcell"><span class="confnum">&lt;.60</span></span>
+            <span class="paycell">8 more rows — low-confidence Venmo, Zelle, and ATM entries</span>
+            <span class="rdate"></span>
+            <span class="ramt">−$1,912.40</span>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ============ Inspector ============ -->
+    <aside class="inspector" id="inspector" aria-label="AI reasoning inspector">
+      <!-- populated by JS -->
+    </aside>
+  </div>
+
+  <!-- ============ Status bar ============ -->
+  <footer class="statusbar">
+    <span><span class="dot"></span>AI Assist pass #7 complete · 175 of 177 rows returned</span>
+    <span class="mono">adapter: claude -p --json (local)</span>
+    <span class="right">bean-check will gate the write · <span class="mono">books.beancount</span></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Inspector data ---------- */
+  var DATA = {
+    sw1: {
+      payee: "Autobooks", amt: "−$0.50", date: "Jul 2, 2026", acct: "Expenses:Software",
+      conf: 0.97, tier: "High confidence",
+      why: "Recurring $0.50 ACH fee, first of the month, originator “Autobooks, Inc.” — identical to four entries you approved to Expenses:Software between March and June.",
+      raw: "WEB PMTS Autobooks, Inc. WEB", clean: "Autobooks",
+      similar: [
+        ["2026-06-02", "Autobooks", "Expenses:Software −$0.50"],
+        ["2026-05-02", "Autobooks", "Expenses:Software −$0.50"],
+        ["2026-04-02", "Autobooks", "Expenses:Software −$0.50"]
+      ],
+      source: { memo: "WEB PMTS Autobooks, Inc. WEB", acct: "Assets:Checking", posted: "2026-07-02", file: "chase-checking-apr–jul.csv · line 212", id: "row_9f21c4" },
+      rule: { text: "WEB PMTS Autobooks", target: "Expenses:Software", n: 6 },
+      chunk: "2 of 5"
+    },
+    sw2: {
+      payee: "Squarespace", amt: "−$10.66", date: "Jul 3, 2026", acct: "Expenses:Software",
+      conf: 0.94, tier: "High confidence",
+      why: "“SQSP*” is Squarespace’s card-network descriptor; the CMPGNS suffix indicates Squarespace Campaigns. You have approved two prior Squarespace charges to Expenses:Software.",
+      raw: "SQSP* CMPGNS#232 NEW YORK,N", clean: "Squarespace",
+      similar: [
+        ["2026-06-03", "Squarespace", "Expenses:Software −$10.66"],
+        ["2026-05-03", "Squarespace", "Expenses:Software −$10.66"]
+      ],
+      source: { memo: "SQSP* CMPGNS#232 NEW YORK,N", acct: "Assets:Checking", posted: "2026-07-03", file: "chase-checking-apr–jul.csv · line 218", id: "row_b04e77" },
+      rule: null, chunk: "2 of 5"
+    },
+    sw3: {
+      payee: "X Corp", amt: "−$8.64", date: "Jul 5, 2026", acct: "Expenses:Software",
+      conf: 0.71, tier: "Medium confidence",
+      why: "Descriptor resolves to X Corp (Bastrop, TX billing entity); the amount matches an X Premium subscription with tax. No prior X Corp entries exist in your ledger — this is categorized by vendor type, not by your history.",
+      raw: "X CORP. PAID FEA BASTROP,TX", clean: "X Corp",
+      similar: [],
+      source: { memo: "X CORP. PAID FEA BASTROP,TX", acct: "Assets:Checking", posted: "2026-07-05", file: "chase-checking-apr–jul.csv · line 226", id: "row_11ad09" },
+      rule: null, chunk: "2 of 5"
+    },
+    pf1: {
+      payee: "Gusto — service fee", amt: "−$65.02", date: "Jul 1, 2026", acct: "Expenses:Payroll:Fees",
+      conf: 0.96, tier: "High confidence",
+      why: "Gusto issues three CCD draws per payroll run; the FEE prefix marks the service charge. Three prior FEE draws were approved to Expenses:Payroll:Fees.",
+      raw: "FEE 122111 GUSTO CCD", clean: "Gusto — service fee",
+      similar: [
+        ["2026-06-01", "Gusto — service fee", "Expenses:Payroll:Fees −$65.02"],
+        ["2026-05-01", "Gusto — service fee", "Expenses:Payroll:Fees −$65.02"],
+        ["2026-04-01", "Gusto — service fee", "Expenses:Payroll:Fees −$65.02"]
+      ],
+      source: { memo: "FEE 122111 GUSTO CCD", acct: "Assets:Checking", posted: "2026-07-01", file: "chase-checking-apr–jul.csv · line 204", id: "row_77c2e0" },
+      rule: { text: "FEE 122111 GUSTO", target: "Expenses:Payroll:Fees", n: 5 },
+      chunk: "1 of 5"
+    },
+    pf2: {
+      payee: "Gusto — payroll taxes", amt: "−$37.94", date: "Jul 1, 2026", acct: "Expenses:Payroll:Fees",
+      conf: 0.92, tier: "High confidence",
+      why: "TAX-prefixed Gusto draws are employer tax remittances. Your chart of accounts has no separate tax account, so these follow your prior approvals into Expenses:Payroll:Fees.",
+      raw: "TAX 170933 GUSTO CCD", clean: "Gusto — payroll taxes",
+      similar: [
+        ["2026-06-01", "Gusto — payroll taxes", "Expenses:Payroll:Fees −$41.12"],
+        ["2026-05-01", "Gusto — payroll taxes", "Expenses:Payroll:Fees −$37.94"]
+      ],
+      source: { memo: "TAX 170933 GUSTO CCD", acct: "Assets:Checking", posted: "2026-07-01", file: "chase-checking-apr–jul.csv · line 205", id: "row_45f8b3" },
+      rule: null, chunk: "1 of 5"
+    },
+    pw1: {
+      payee: "Gusto — net pay", amt: "−$228.94", date: "Jul 1, 2026", acct: "Expenses:Payroll:Wages",
+      conf: 0.95, tier: "High confidence",
+      why: "NET-prefixed Gusto draws are net wage disbursements to employees — distinguishable from the FEE and TAX draws that post the same day. Matches your June and May payroll pattern.",
+      raw: "NET 175569 GUSTO CCD", clean: "Gusto — net pay",
+      similar: [
+        ["2026-06-01", "Gusto — net pay", "Expenses:Payroll:Wages −$228.94"],
+        ["2026-05-01", "Gusto — net pay", "Expenses:Payroll:Wages −$1,884.30"]
+      ],
+      source: { memo: "NET 175569 GUSTO CCD", acct: "Assets:Checking", posted: "2026-07-01", file: "chase-checking-apr–jul.csv · line 206", id: "row_c19a52" },
+      rule: null, chunk: "1 of 5"
+    },
+    ti1: {
+      payee: "FACTS Tuition Management", amt: "+$25.00", date: "Jul 6, 2026", acct: "Income:Tuition",
+      conf: 0.91, tier: "High confidence",
+      why: "FACTS is your tuition processor (Chesterton, IN). All nine prior FACTS CCD remittances in the ledger were approved to Income:Tuition.",
+      raw: "Remit 4 FACTS CCD Chesterto", clean: "FACTS Tuition Management",
+      similar: [
+        ["2026-06-22", "FACTS Tuition Management", "Income:Tuition +$310.00"],
+        ["2026-06-08", "FACTS Tuition Management", "Income:Tuition +$1,240.00"],
+        ["2026-05-25", "FACTS Tuition Management", "Income:Tuition +$925.50"]
+      ],
+      source: { memo: "Remit 4 FACTS CCD Chesterto", acct: "Assets:Checking", posted: "2026-07-06", file: "chase-checking-apr–jul.csv · line 231", id: "row_da3e18" },
+      rule: { text: "FACTS CCD", target: "Income:Tuition", n: 12 },
+      chunk: "3 of 5"
+    },
+    ti2: {
+      payee: "Tuition deposit — batch", amt: "+$31,205.00", date: "Jul 8, 2026", acct: "Income:Tuition",
+      conf: 0.66, tier: "Medium confidence — verify amount",
+      why: "The memo says only “Deposit.” The amount equals the July tuition-run total on your FACTS remittance schedule, which is the sole basis for this suggestion. For a five-figure entry, verify against the remittance report before approving.",
+      raw: "Deposit", clean: "Tuition deposit — batch",
+      similar: [
+        ["2026-06-09", "Tuition deposit — batch", "Income:Tuition +$29,480.00"]
+      ],
+      source: { memo: "Deposit", acct: "Assets:Checking", posted: "2026-07-08", file: "chase-checking-apr–jul.csv · line 240", id: "row_e802cd" },
+      rule: null, chunk: "3 of 5"
+    },
+    ed1: {
+      payee: "Cognia", amt: "−$1,400.00", date: "Jul 9, 2026", acct: "Expenses:Education",
+      conf: 0.88, tier: "High confidence",
+      why: "Cognia is a school accreditation organization (Alpharetta, GA). The amount fits an annual accreditation fee, and your business profile is a school — no prior Cognia entries, so this rests on vendor identity.",
+      raw: "COGNIA 6783922285,GA CARD#5889", clean: "Cognia",
+      similar: [],
+      source: { memo: "COGNIA 6783922285,GA CARD#5889", acct: "Assets:Checking", posted: "2026-07-09", file: "chase-checking-apr–jul.csv · line 244", id: "row_5561fa" },
+      rule: null, chunk: "4 of 5"
+    },
+    ed2: {
+      payee: "CSN Cohort", amt: "−$675.00", date: "Jul 10, 2026", acct: "Expenses:Education",
+      conf: 0.74, tier: "Medium confidence",
+      why: "Reads as a professional-development cohort program fee. No prior CSN entries and no rule evidence — categorized from the descriptor text alone.",
+      raw: "CSN COHORT PROGRAM FEE", clean: "CSN Cohort",
+      similar: [],
+      source: { memo: "CSN COHORT PROGRAM FEE", acct: "Assets:Checking", posted: "2026-07-10", file: "chase-checking-apr–jul.csv · line 247", id: "row_90b3ce" },
+      rule: null, chunk: "4 of 5"
+    },
+    ne1: {
+      payee: "Mobile Deposit", amt: "+$2,500.00", date: "Jun 24, 2026", acct: "— unassigned —",
+      conf: 0.41, tier: "Low confidence — needs your eye",
+      flag: "AI unsure — deposit source? This row starts unchecked and stays in the Inbox after approval.",
+      why: "A $2,500 mobile check deposit with no memo. It could be tuition, a donation, or a reimbursement; no FACTS remittance or pledge matches the amount. The AI declined to guess rather than miscategorize income.",
+      raw: "MOBILE DEPOSIT : REF 900318", clean: "Mobile Deposit",
+      similar: [],
+      source: { memo: "MOBILE DEPOSIT : REF 900318", acct: "Assets:Checking", posted: "2026-06-24", file: "chase-checking-apr–jul.csv · line 173", id: "row_6c07d9" },
+      rule: null, chunk: "4 of 5"
+    },
+    ne2: {
+      payee: "Check #1041", amt: "−$750.00", date: "Jun 12, 2026", acct: "— unassigned —",
+      conf: 0.38, tier: "Low confidence — needs your eye",
+      flag: "No payee on record — AI declined to guess.",
+      why: "Paper check with no payee data in the bank feed. Nothing in your approved history is within 10% of this amount on a comparable cadence.",
+      raw: "CHECK 1041", clean: "Check #1041",
+      similar: [],
+      source: { memo: "CHECK 1041", acct: "Assets:Checking", posted: "2026-06-12", file: "chase-checking-apr–jul.csv · line 158", id: "row_31e9ab" },
+      rule: null, chunk: "3 of 5"
+    },
+    ne3: {
+      payee: "Check #1042", amt: "−$325.00", date: "Jun 19, 2026", acct: "— unassigned —",
+      conf: 0.35, tier: "Low confidence — needs your eye",
+      flag: "No payee on record — AI declined to guess.",
+      why: "Paper check, no payee. A hand-entered $325 check in May went to Expenses:Maintenance, but one instance is not enough evidence to propose it.",
+      raw: "CHECK 1042", clean: "Check #1042",
+      similar: [
+        ["2026-05-15", "Check #1038 (hand-entered)", "Expenses:Maintenance −$325.00"]
+      ],
+      source: { memo: "CHECK 1042", acct: "Assets:Checking", posted: "2026-06-19", file: "chase-checking-apr–jul.csv · line 166", id: "row_88d410" },
+      rule: null, chunk: "3 of 5"
+    },
+    ne4: {
+      payee: "POS DEBIT 4417 …TERM 08", amt: "−$84.12", date: "May 30, 2026", acct: "— unassigned —",
+      conf: null, tier: "Failed — no suggestion produced",
+      flag: "Adapter chunk 4 timed out after 120s. No suggestion exists for this row; nothing will be written.",
+      why: "Retry re-sends only the failed rows — completed suggestions are already stored and are never re-billed or re-run.",
+      raw: "POS DEBIT 4417 88231145 TERM 08", clean: "—",
+      similar: [],
+      source: { memo: "POS DEBIT 4417 88231145 TERM 08", acct: "Assets:Checking", posted: "2026-05-30", file: "chase-checking-apr–jul.csv · line 141", id: "row_02b7c6" },
+      rule: null, chunk: "4 of 5 (timed out)"
+    },
+    ne5: {
+      payee: "ACH WDL 002913 …", amt: "−$120.00", date: "May 30, 2026", acct: "— unassigned —",
+      conf: null, tier: "Failed — no suggestion produced",
+      flag: "Adapter chunk 4 timed out after 120s. No suggestion exists for this row; nothing will be written.",
+      why: "Retry re-sends only the failed rows — completed suggestions are already stored and are never re-billed or re-run.",
+      raw: "ACH WDL 002913 PRE-AUTH", clean: "—",
+      similar: [],
+      source: { memo: "ACH WDL 002913 PRE-AUTH", acct: "Assets:Checking", posted: "2026-05-30", file: "chase-checking-apr–jul.csv · line 142", id: "row_1f6608" },
+      rule: null, chunk: "4 of 5 (timed out)"
+    }
+  };
+
+  /* ---------- Inspector rendering ---------- */
+  var inspector = document.getElementById("inspector");
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function renderInspector(id) {
+    var d = DATA[id];
+    if (!d) return;
+    var pct = d.conf === null ? 0 : Math.round(d.conf * 100);
+    var low = d.conf !== null && d.conf < 0.6;
+    var html = "";
+    html += '<div class="insp-label">AI reasoning · <span style="text-transform:none;letter-spacing:0">' + esc(d.source.id) + "</span></div>";
+    html += '<div class="insp-title">' + esc(d.payee) + "</div>";
+    html += '<div class="insp-amt-line"><span class="insp-amt">' + esc(d.amt) + '</span><span class="insp-date">' + esc(d.date) + "</span></div>";
+    html += '<span class="insp-acct">' + esc(d.acct) + "</span>";
+    if (d.flag) html += '<div class="insp-flag" style="margin-top:12px">' + esc(d.flag) + "</div>";
+
+    html += '<div class="insp-label">Confidence</div>';
+    if (d.conf === null) {
+      html += '<span class="badge badge-destructive">Failed</span> <span class="insp-conf-line">' + esc(d.tier) + "</span>";
+    } else {
+      html += '<div class="insp-conf-meter' + (low ? " low" : "") + '"><i style="width:' + pct + '%"></i></div>';
+      html += '<div class="insp-conf-line"><b>' + (d.conf.toFixed(2)) + "</b> · " + esc(d.tier) + "</div>";
+    }
+
+    html += '<div class="insp-label">Explanation</div>';
+    html += '<div class="insp-why">' + esc(d.why) + "</div>";
+
+    html += '<div class="insp-label">Payee cleanup</div>';
+    html += '<div class="diff"><span class="del"><span class="sign">−</span>' + esc(d.raw) + '</span><span class="add"><span class="sign">+</span>' + esc(d.clean) + "</span></div>";
+
+    html += '<div class="insp-label">Similar past entries matched</div>';
+    html += '<div class="similar">';
+    if (d.similar.length === 0) {
+      html += '<div class="empty">None — this suggestion rests on vendor identity, not your history.</div>';
+    } else {
+      d.similar.forEach(function (s) {
+        html += '<div class="sim-row"><span class="sd">' + esc(s[0]) + '</span><span class="sp">' + esc(s[1]) + '</span><span class="sa">' + esc(s[2]) + "</span></div>";
+      });
+    }
+    html += "</div>";
+
+    html += '<div class="insp-label">Source record</div>';
+    html += '<div class="srcrec">memo&nbsp;&nbsp;&nbsp;<b>' + esc(d.source.memo) + "</b><br>"
+         + "from&nbsp;&nbsp;&nbsp;" + esc(d.source.acct) + "<br>"
+         + "posted&nbsp;" + esc(d.source.posted) + "<br>"
+         + "file&nbsp;&nbsp;&nbsp;" + esc(d.source.file) + "<br>"
+         + "row id&nbsp;" + esc(d.source.id) + "</div>";
+
+    html += '<div class="insp-label">Supports proposed rule</div>';
+    if (d.rule) {
+      html += '<div class="insp-rule"><span class="rt">⚡ <span class="mono">"' + esc(d.rule.text) + '"</span> → <span class="mono">' + esc(d.rule.target) + '</span></span><div class="rl">This row is evidence for the rule · matches ' + d.rule.n + " rows in this import. Unchecking the group unchecks the rule.</div></div>";
+    } else {
+      html += '<div class="insp-norule">No rule proposed from this row — not enough recurrences to generalize.</div>';
+    }
+
+    html += '<div class="insp-label">Provenance</div>';
+    html += '<div class="prov">Pass #7 · chunk ' + esc(d.chunk) + ' · stored in <span class="mono">ai_suggestions</span><br>'
+         + 'Adapter: <span class="mono">claude -p --json</span> (your local command; no hosted service)<br>'
+         + 'On approve: git snapshot → write → <span class="mono">bean-check</span> → commit <span class="mono">batch ab7f31</span>. Any failure rolls the whole batch back.</div>';
+
+    inspector.innerHTML = html;
+  }
+
+  /* ---------- Selection ---------- */
+  function selectRow(rowEl) {
+    document.querySelectorAll(".row.selected").forEach(function (r) { r.classList.remove("selected"); });
+    rowEl.classList.add("selected");
+    renderInspector(rowEl.dataset.id);
+  }
+
+  document.querySelectorAll(".row[data-id]").forEach(function (row) {
+    row.addEventListener("click", function (e) {
+      if (e.target.closest("input, button")) return;
+      selectRow(row);
+    });
+  });
+
+  /* ---------- Live approve count ---------- */
+  var approveBtn = document.getElementById("approve-btn");
+  var writeEntries = document.getElementById("write-entries");
+  var writeRules = document.getElementById("write-rules");
+
+  function updateCount() {
+    var n = 0;
+    document.querySelectorAll(".r-check:checked").forEach(function (c) {
+      n += parseInt(c.dataset.count || "1", 10);
+    });
+    var rules = document.querySelectorAll(".rule-check:checked").length;
+    approveBtn.textContent = "Approve " + n + (n === 1 ? " entry" : " entries");
+    approveBtn.disabled = n === 0;
+    approveBtn.style.opacity = n === 0 ? "0.45" : "1";
+    writeEntries.textContent = n;
+    writeRules.textContent = rules;
+  }
+
+  /* ---------- Cascade ---------- */
+  function syncGroup(section) {
+    var g = section.querySelector(".g-check");
+    if (!g || g.classList.contains("r-check")) return; // collapsed groups: g IS the row check
+    var kids = section.querySelectorAll(".r-check, .rule-check");
+    var total = kids.length, on = 0;
+    kids.forEach(function (c) { if (c.checked) on++; });
+    g.checked = on === total && total > 0;
+    g.indeterminate = on > 0 && on < total;
+  }
+
+  document.querySelectorAll(".group").forEach(function (section) {
+    var g = section.querySelector(".g-check");
+    if (g && !g.classList.contains("r-check")) {
+      g.addEventListener("change", function () {
+        section.querySelectorAll(".r-check, .rule-check").forEach(function (c) { c.checked = g.checked; });
+        g.indeterminate = false;
+        updateCount();
+      });
+    }
+    section.querySelectorAll(".r-check, .rule-check").forEach(function (c) {
+      if (c === g) { c.addEventListener("change", updateCount); return; }
+      c.addEventListener("change", function () {
+        syncGroup(section);
+        updateCount();
+      });
+    });
+  });
+
+  /* ---------- Retry (demo only) ---------- */
+  document.querySelectorAll(".retry-btn, #retry-all").forEach(function (b) {
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      b.textContent = "Queued…";
+      b.disabled = true;
+      b.style.opacity = "0.55";
+    });
+  });
+
+  /* ---------- Init ---------- */
+  document.querySelectorAll(".group").forEach(syncGroup);
+  updateCount();
+  var first = document.querySelector('.row[data-id="sw1"]');
+  if (first) selectRow(first);
+})();
+</script>
+</body>
+</html>
