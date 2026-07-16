@@ -70,6 +70,9 @@ AI Assist lifecycle, approval, history, and revert operations cross this boundar
 through eight dedicated Tauri commands and test-API-first TypeScript wrappers.
 Batch approval and revert return a refreshed `WorkspaceView`, which the session
 applies atomically through the same `applyView` path as per-row approval.
+Before AI Assist review mode renders, the pure `buildAiAssistGroups` frontend
+transformation filters suggestions to still-pending rows, partitions attention
+items, and groups suggested rows with matching proposed rules by ledger account.
 
 ## Product Runtime Flow
 
