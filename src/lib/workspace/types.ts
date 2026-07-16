@@ -131,6 +131,7 @@ export type AiAssistProposedRule = {
   sourceAccount: string;
   matchText: string;
   ledgerAccount: string;
+  matchedRowIds: string[];
   matchedRowCount: number;
 };
 

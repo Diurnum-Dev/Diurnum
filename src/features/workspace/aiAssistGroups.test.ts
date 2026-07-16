@@ -42,7 +42,7 @@ describe("buildAiAssistGroups", () => {
         { statementRowId: "row-3", status: "needsEye", ledgerAccount: null, payee: null, narration: null, confidence: null, explanation: "AI unsure — deposit source?" },
       ],
       proposedRules: [
-        { id: "rule-1", sourceAccount: "Assets:Bank:Checking", matchText: "Autobooks", ledgerAccount: "Expenses:Software", matchedRowCount: 1 },
+        { id: "rule-1", sourceAccount: "Assets:Bank:Checking", matchText: "Autobooks", ledgerAccount: "Expenses:Software", matchedRowIds: ["row-1"], matchedRowCount: 1 },
       ],
     });
 
@@ -98,7 +98,7 @@ describe("buildAiAssistGroups", () => {
         { statementRowId: "row-5", status: "suggested", ledgerAccount: null, payee: null },
       ],
       proposedRules: [
-        { id: "orphan", sourceAccount: "Assets:Bank:Checking", matchText: "Missing", ledgerAccount: "Expenses:Missing", matchedRowCount: 1 },
+        { id: "orphan", sourceAccount: "Assets:Bank:Checking", matchText: "Missing", ledgerAccount: "Expenses:Missing", matchedRowIds: ["missing"], matchedRowCount: 1 },
       ],
     });
 

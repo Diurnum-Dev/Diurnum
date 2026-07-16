@@ -103,7 +103,7 @@ The SQLite model separates lifecycle from results:
 | `ai_assist_passes` | Pass identity, start time, status, and total eligible rows. |
 | `ai_assist_pass_rows` | Pass membership and per-row processed state, which makes chunking resumable. |
 | `ai_assist_suggestions` | Per-pass, per-Statement-Row status and adapter draft fields. |
-| `ai_assist_proposed_rules` | Deduplicated rule proposals and their reported match counts. |
+| `ai_assist_proposed_rules` | Validated, deduplicated rule proposals with actual matched Statement Row ids; display counts are derived from those ids. |
 | `ai_assist_batches` | Durable approved-batch history, including entry mappings and created rule ids needed by revert. |
 
 `useAiAssistLifecycle` is mounted by `App.tsx` and owns pass rehydration,
@@ -111,7 +111,11 @@ pass-scoped mutation locks, and the sequential chunk loop. Its driver key is the
 Workspace root plus pass id, so retries queue behind an unresolved chunk instead
 of overlapping adapter calls. Lifecycle and generation tokens discard stale
 responses after Workspace changes, pass replacement, approval, or dismissal. A
-running durable pass resumes when the Workspace is opened again.
+running durable pass resumes when the Workspace is opened again. Starting a
+pass and retrying failed rows are each single SQLite transactions. A start
+cannot leave the previous pass dismissed unless its replacement and membership
+are durable. Retry accepts only the current completed pass when it still has
+failed rows, so terminal, superseded, and unknown pass ids cannot be resurrected.
 
 `InboxPanel` owns the disclosure gate and switches the Inbox body into
 `AiAssistReview`. The pure `buildAiAssistGroups` transformation filters out rows
@@ -121,7 +125,9 @@ places failed, low-confidence, adapter-flagged, or account-rejected rows in
 normal groups begin selected, the attention group begins unselected, and editing
 a row temporarily returns to the ordinary Inbox inspector without discarding the
 pass. Signing sends the exact selected entries and rules to Rust; the review UI
-never writes ledger files itself.
+never writes ledger files itself. A proposed rule remains selected only while
+one of that rule's recorded matched rows is selected. With zero staged entries,
+approval is disabled while signing navigation and dismissal stay available.
 
 The test-API-backed Playwright golden path in `e2e/ai-assist.spec.ts` verifies
 the disclosure, progress, grouped review, signing, and refreshed-Inbox flow with
@@ -133,16 +139,20 @@ rejects an already-invalid ledger and filters selections to rows that are still
 pending. It writes selected entries to monthly transaction files and validates
 the resulting ledger, then creates selected rules, updates Statement Row
 provenance, records the batch, and marks the pass approved in one SQLite
-transaction. Every post-write validation or SQLite-stage failure before the Git
-commit uses checked snapshot compensation, while the SQLite transaction rolls
-back without partial rules or batch state. Cleanup of monthly files newly created
-by the attempt is best effort. The later Workspace Git commit is also best effort.
+transaction. Adapter-proposed rules are untrusted: source and ledger accounts
+must exist in the current chart, every recorded match must be a live pending row
+in that pass and source account, and approval revalidates the durable proposal
+against selected rows. Canonical rule keys prevent duplicates within a request
+and against existing enabled or disabled rules. Every entry-write, validation,
+or SQLite-stage failure before the Git commit uses checked snapshot and
+newly-created-file compensation, while the SQLite transaction rolls back
+without partial rules or batch state. If the original operation and either
+compensation step fail, the returned error preserves all failures. The later
+Workspace Git commit is best effort.
 
-A failure during the entry-write loop takes a weaker exceptional path: Rust
-attempts snapshot restore and newly-created-file cleanup, but discards restore
-and deletion errors before returning the original write error. That integrity
-limitation remains queued for final review; it is not part of the normal
-post-write validation/SQLite compensation guarantee.
+Existing local databases are upgraded additively and idempotently: proposed
+rules gain a non-destructive `matched_row_ids_json` column with an empty-array
+default, and startup rechecks the column before attempting `ALTER`.
 
 Every approved entry carries `ai_assist_batch_id` in its Beancount metadata in
 addition to its `diurnum_entry_id`; the durable batch record maps Statement Row,

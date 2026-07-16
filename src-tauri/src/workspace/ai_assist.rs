@@ -141,6 +141,7 @@ pub struct AiAssistProposedRuleState {
     pub source_account: String,
     pub match_text: String,
     pub ledger_account: String,
+    pub matched_row_ids: Vec<String>,
     pub matched_row_count: i64,
 }
 
@@ -197,6 +198,13 @@ fn escape_beancount_string(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
+fn canonical_rule_key(source_account: &str, match_text: &str) -> (String, String) {
+    (
+        source_account.trim().to_string(),
+        match_text.trim().to_lowercase(),
+    )
+}
+
 pub(crate) fn ensure_ai_assist_tables(connection: &Connection) -> Result<(), WorkspaceError> {
     connection.execute_batch(
         "
@@ -229,7 +237,8 @@ pub(crate) fn ensure_ai_assist_tables(connection: &Connection) -> Result<(), Wor
           source_account text not null,
           match_text text not null,
           ledger_account text not null,
-          matched_row_count integer not null
+          matched_row_count integer not null,
+          matched_row_ids_json text not null default '[]'
         );
         create table if not exists ai_assist_batches (
           id text primary key,
@@ -241,6 +250,19 @@ pub(crate) fn ensure_ai_assist_tables(connection: &Connection) -> Result<(), Wor
         );
         ",
     )?;
+    let proposed_rule_columns = connection
+        .prepare("pragma table_info(ai_assist_proposed_rules)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !proposed_rule_columns
+        .iter()
+        .any(|column| column == "matched_row_ids_json")
+    {
+        connection.execute(
+            "alter table ai_assist_proposed_rules add column matched_row_ids_json text not null default '[]'",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -272,22 +294,25 @@ pub fn start_ai_assist_pass(
         ));
     }
     // A new pass supersedes any previous active one.
-    connection.execute(
+    let transaction = connection.unchecked_transaction()?;
+    transaction.execute(
         "update ai_assist_passes set status = 'dismissed' where status in ('running', 'complete')",
         [],
     )?;
     let pass_id = Uuid::new_v4().to_string();
-    connection.execute(
+    transaction.execute(
         "insert into ai_assist_passes (id, started_at, status, total_rows) values (?1, ?2, 'running', ?3)",
         params![pass_id, Utc::now().to_rfc3339(), eligible.len() as i64],
     )?;
     for statement_row_id in &eligible {
-        connection.execute(
+        transaction.execute(
             "insert into ai_assist_pass_rows (pass_id, statement_row_id, processed) values (?1, ?2, 0)",
             params![pass_id, statement_row_id],
         )?;
     }
-    load_ai_assist_state(&connection, &pass_id)
+    let state = load_ai_assist_state(&transaction, &pass_id)?;
+    transaction.commit()?;
+    Ok(state)
 }
 
 pub fn get_ai_assist_pass(
@@ -316,7 +341,25 @@ pub fn retry_ai_assist_failed_rows(
     let root = workspace_root_path.as_ref();
     let connection = open_workspace_connection(root)?;
     ensure_ai_assist_tables(&connection)?;
-    connection.execute(
+    let transaction = connection.unchecked_transaction()?;
+    let current: Option<(String, i64)> = transaction
+        .query_row(
+            "select p.status,
+                    (select count(*) from ai_assist_suggestions s where s.pass_id = p.id and s.status = 'failed')
+             from ai_assist_passes p
+             where p.id = ?1
+               and p.id = (select id from ai_assist_passes where status in ('running', 'complete') order by started_at desc limit 1)",
+            [pass_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if !matches!(current, Some((ref status, failed)) if status == "complete" && failed > 0) {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "Only the current completed AI Assist pass with failed rows can be retried.",
+        ));
+    }
+    transaction.execute(
         "
         update ai_assist_pass_rows set processed = 0
         where pass_id = ?1 and statement_row_id in (
@@ -326,15 +369,17 @@ pub fn retry_ai_assist_failed_rows(
         ",
         [pass_id],
     )?;
-    connection.execute(
+    transaction.execute(
         "delete from ai_assist_suggestions where pass_id = ?1 and status = 'failed'",
         [pass_id],
     )?;
-    connection.execute(
+    transaction.execute(
         "update ai_assist_passes set status = 'running' where id = ?1",
         [pass_id],
     )?;
-    load_ai_assist_state(&connection, pass_id)
+    let state = load_ai_assist_state(&transaction, pass_id)?;
+    transaction.commit()?;
+    Ok(state)
 }
 
 pub fn dismiss_ai_assist_pass(
@@ -366,6 +411,21 @@ pub fn approve_ai_assist_batch(
     ensure_import_tables(&connection)?;
     ensure_provenance_columns(&connection)?;
     ensure_ai_assist_tables(&connection)?;
+    let current_pass_id: Option<String> = connection
+        .query_row(
+            "select id from ai_assist_passes
+             where status in ('running', 'complete')
+             order by started_at desc limit 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if current_pass_id.as_deref() != Some(input.pass_id.as_str()) {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "Only the current AI Assist pass can be approved.",
+        ));
+    }
 
     // Rows approved or edited elsewhere since review started drop out silently.
     let mut approvals: Vec<(AiAssistEntryInput, SuggestedEntry)> = Vec::new();
@@ -381,12 +441,72 @@ pub fn approve_ai_assist_batch(
             "AI Assist has nothing to approve: no selected entries are still pending.",
         ));
     }
-    let existing_rules: HashSet<(String, String)> =
+    let chart: HashSet<String> = read_chart_of_accounts(root)?.into_iter().collect();
+    let selected_row_ids: HashSet<&str> = approvals
+        .iter()
+        .map(|(_, row)| row.statement_row_id.as_str())
+        .collect();
+    let mut seen_rules: HashSet<(String, String)> =
         list_categorization_rules_from_connection(&connection)?
             .into_iter()
-            .filter(|rule| rule.enabled)
-            .map(|rule| (rule.source_account, rule.match_text))
+            .map(|rule| canonical_rule_key(&rule.source_account, &rule.match_text))
             .collect();
+    let mut approved_rules = Vec::new();
+    for rule in &input.rules {
+        let normalized = AiAssistRuleInput {
+            source_account: rule.source_account.trim().to_string(),
+            match_text: rule.match_text.trim().to_string(),
+            ledger_account: rule.ledger_account.trim().to_string(),
+        };
+        let canonical = canonical_rule_key(&normalized.source_account, &normalized.match_text);
+        if normalized.match_text.is_empty()
+            || seen_rules.contains(&canonical)
+            || !chart.contains(&normalized.source_account)
+            || !chart.contains(&normalized.ledger_account)
+        {
+            continue;
+        }
+        let matched_json: Option<String> = connection
+            .query_row(
+                "select matched_row_ids_json from ai_assist_proposed_rules
+                 where pass_id = ?1 and trim(source_account) = ?2
+                   and lower(trim(match_text)) = lower(?3) and trim(ledger_account) = ?4",
+                params![
+                    input.pass_id,
+                    normalized.source_account,
+                    normalized.match_text,
+                    normalized.ledger_account
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(matched_row_ids) =
+            matched_json.and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
+        else {
+            continue;
+        };
+        let matches_selected = matched_row_ids
+            .iter()
+            .any(|row_id| selected_row_ids.contains(row_id.as_str()));
+        let all_matches_current = !matched_row_ids.is_empty()
+            && matched_row_ids.iter().all(|row_id| {
+                connection
+                    .query_row(
+                        "select count(*) from ai_assist_pass_rows pr
+                         join statement_rows sr on sr.id = pr.statement_row_id
+                         where pr.pass_id = ?1 and pr.statement_row_id = ?2
+                           and sr.status = 'pending' and sr.source_account = ?3",
+                        params![input.pass_id, row_id, normalized.source_account],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .map(|count| count == 1)
+                    .unwrap_or(false)
+            });
+        if matches_selected && all_matches_current {
+            seen_rules.insert(canonical);
+            approved_rules.push(normalized);
+        }
+    }
 
     let snapshot = create_snapshot(root, SnapshotReason::Approval)?;
     let batch_id = Uuid::new_v4().to_string();
@@ -428,12 +548,12 @@ pub fn approve_ai_assist_batch(
         Ok(())
     };
     if let Err(error) = write() {
-        let _ = restore_snapshot(RestoreSnapshotInput {
-            workspace_root_path: input.workspace_root_path.clone(),
-            snapshot_id: snapshot.id.clone(),
-        });
-        remove_batch_created_files(&created_monthly_files);
-        return Err(error);
+        return rollback_ai_assist_batch(
+            &input.workspace_root_path,
+            &snapshot.id,
+            &created_monthly_files,
+            error,
+        );
     }
 
     // Golden-path gate: the whole batch lands or none of it does.
@@ -463,10 +583,7 @@ pub fn approve_ai_assist_batch(
     let sqlite_result = (|| -> Result<(), WorkspaceError> {
         let transaction = connection.unchecked_transaction()?;
         let mut rule_ids: Vec<String> = Vec::new();
-        for rule in &input.rules {
-            if existing_rules.contains(&(rule.source_account.clone(), rule.match_text.clone())) {
-                continue;
-            }
+        for rule in &approved_rules {
             let rule_input = CreateCategorizationRuleInput {
                 workspace_root_path: input.workspace_root_path.clone(),
                 source_account: rule.source_account.clone(),
@@ -537,18 +654,57 @@ fn rollback_ai_assist_batch<T>(
         workspace_root_path: workspace_root_path.to_string(),
         snapshot_id: snapshot_id.to_string(),
     });
-    remove_batch_created_files(created_monthly_files);
-    restore_result?;
-    Err(error)
+    let cleanup_result = remove_batch_created_files(created_monthly_files);
+    Err(combine_compensation_failures(
+        error,
+        restore_result.map(|_| ()),
+        cleanup_result,
+    ))
 }
 
-/// Best-effort cleanup of monthly files this batch created: `restore_snapshot`
+fn combine_compensation_failures(
+    original: WorkspaceError,
+    restore_result: Result<(), WorkspaceError>,
+    cleanup_result: Result<(), WorkspaceError>,
+) -> WorkspaceError {
+    let mut failures = Vec::new();
+    if let Err(error) = restore_result {
+        failures.push(format!("snapshot restore failed: {error}"));
+    }
+    if let Err(error) = cleanup_result {
+        failures.push(format!("created-file cleanup failed: {error}"));
+    }
+    if failures.is_empty() {
+        original
+    } else {
+        WorkspaceError::new(
+            original.code.clone(),
+            format!(
+                "{}; compensation also failed: {}",
+                original.message,
+                failures.join("; ")
+            ),
+        )
+    }
+}
+
+/// Cleanup of monthly files this batch created: `restore_snapshot`
 /// cannot remove them (it only rewrites files captured in the snapshot), and a
 /// leftover file would resurrect rolled-back entries the next time an approval
 /// re-includes that month.
-fn remove_batch_created_files(paths: &[std::path::PathBuf]) {
+fn remove_batch_created_files(paths: &[std::path::PathBuf]) -> Result<(), WorkspaceError> {
+    let mut failures = Vec::new();
     for path in paths {
-        let _ = fs::remove_file(path);
+        if let Err(error) = fs::remove_file(path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                failures.push(format!("{}: {error}", path.display()));
+            }
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(WorkspaceError::io(failures.join("; ")))
     }
 }
 
@@ -775,17 +931,21 @@ pub(crate) fn load_ai_assist_state(
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let mut statement = connection.prepare(
-        "select id, source_account, match_text, ledger_account, matched_row_count
+        "select id, source_account, match_text, ledger_account, matched_row_ids_json
          from ai_assist_proposed_rules where pass_id = ?1",
     )?;
     let proposed_rules = statement
         .query_map([pass_id], |row| {
+            let matched_row_ids_json: String = row.get(4)?;
+            let matched_row_ids =
+                serde_json::from_str::<Vec<String>>(&matched_row_ids_json).unwrap_or_default();
             Ok(AiAssistProposedRuleState {
                 id: row.get(0)?,
                 source_account: row.get(1)?,
                 match_text: row.get(2)?,
                 ledger_account: row.get(3)?,
-                matched_row_count: row.get(4)?,
+                matched_row_count: matched_row_ids.len() as i64,
+                matched_row_ids,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1099,16 +1259,54 @@ fn persist_chunk_response(
 
     let existing_rules: HashSet<(String, String)> = list_categorization_rules(root)?
         .into_iter()
-        .filter(|rule| rule.enabled)
-        .map(|rule| (rule.source_account, rule.match_text))
+        .map(|rule| canonical_rule_key(&rule.source_account, &rule.match_text))
         .collect();
     for proposed in response.proposed_rules {
-        let key = (proposed.source_account.clone(), proposed.match_text.clone());
+        let proposed = ProposedRule {
+            source_account: proposed.source_account.trim().to_string(),
+            match_text: proposed.match_text.trim().to_string(),
+            ledger_account: proposed.ledger_account.trim().to_string(),
+            matched_row_ids: proposed.matched_row_ids,
+        };
+        let key = canonical_rule_key(&proposed.source_account, &proposed.match_text);
         if existing_rules.contains(&key) {
             continue;
         }
+        if proposed.match_text.is_empty()
+            || !chart.contains(&proposed.source_account)
+            || !chart.contains(&proposed.ledger_account)
+            || proposed.matched_row_ids.is_empty()
+        {
+            continue;
+        }
+        let unique_matched_ids: HashSet<&str> = proposed
+            .matched_row_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        if unique_matched_ids.len() != proposed.matched_row_ids.len() {
+            continue;
+        }
+        let all_matches_are_current = proposed.matched_row_ids.iter().all(|row_id| {
+            connection
+                .query_row(
+                    "select count(*)
+                     from ai_assist_pass_rows pr
+                     join statement_rows sr on sr.id = pr.statement_row_id
+                     where pr.pass_id = ?1 and pr.statement_row_id = ?2
+                       and sr.status = 'pending' and sr.source_account = ?3",
+                    params![pass_id, row_id, proposed.source_account],
+                    |row| row.get::<_, i64>(0),
+                )
+                .map(|count| count == 1)
+                .unwrap_or(false)
+        });
+        if !all_matches_are_current {
+            continue;
+        }
         let already_proposed: i64 = connection.query_row(
-            "select count(*) from ai_assist_proposed_rules where pass_id = ?1 and source_account = ?2 and match_text = ?3",
+            "select count(*) from ai_assist_proposed_rules
+             where pass_id = ?1 and trim(source_account) = ?2 and lower(trim(match_text)) = lower(?3)",
             params![pass_id, proposed.source_account, proposed.match_text],
             |row| row.get(0),
         )?;
@@ -1116,14 +1314,16 @@ fn persist_chunk_response(
             continue;
         }
         connection.execute(
-            "insert into ai_assist_proposed_rules (id, pass_id, source_account, match_text, ledger_account, matched_row_count) values (?1, ?2, ?3, ?4, ?5, ?6)",
+            "insert into ai_assist_proposed_rules (id, pass_id, source_account, match_text, ledger_account, matched_row_count, matched_row_ids_json) values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 Uuid::new_v4().to_string(),
                 pass_id,
                 proposed.source_account,
                 proposed.match_text,
                 proposed.ledger_account,
-                proposed.matched_row_ids.len() as i64
+                proposed.matched_row_ids.len() as i64,
+                serde_json::to_string(&proposed.matched_row_ids)
+                    .map_err(|error| WorkspaceError::io(error.to_string()))?
             ],
         )?;
     }
@@ -1313,6 +1513,39 @@ mod tests {
     }
 
     #[test]
+    fn start_pass_rolls_back_supersession_when_membership_insert_fails() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        configure_adapter(&root, "/nonexistent/broken-adapter");
+        let existing = start_ai_assist_pass(&root).unwrap();
+        run_ai_assist_next_chunk(&root, &existing.pass_id).unwrap();
+        connection
+            .execute_batch(
+                "create trigger fail_pass_membership before insert on ai_assist_pass_rows
+             begin select raise(abort, 'forced membership failure'); end;",
+            )
+            .unwrap();
+
+        assert!(start_ai_assist_pass(&root).is_err());
+
+        let status: String = connection
+            .query_row(
+                "select status from ai_assist_passes where id = ?1",
+                [&existing.pass_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let pass_count: i64 = connection
+            .query_row("select count(*) from ai_assist_passes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!((status.as_str(), pass_count), ("complete", 1));
+    }
+
+    #[test]
     fn inbox_suggestion_layers_no_longer_call_adapter_per_row() {
         // With an adapter configured but no rule match, get_suggested_entries
         // must NOT invoke the adapter (AI Assist owns AI now). The configured
@@ -1492,6 +1725,58 @@ mod tests {
     }
 
     #[test]
+    fn proposed_rules_persist_only_valid_current_pass_matches_and_actual_ids() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        insert_pending_row(&connection, "row-2", "Squarespace", "-2.00");
+        let response = r#"{"suggestions":[],"proposedRules":[
+          {"matchText":"Autobooks","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":["row-1"]},
+          {"matchText":"Bad ledger","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Invented","matchedRowIds":["row-1"]},
+          {"matchText":"Bad source","sourceAccount":"Assets:Bank:Invented","ledgerAccount":"Expenses:Software","matchedRowIds":["row-1"]},
+          {"matchText":"Foreign row","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":["not-in-pass"]}
+        ]}"#.replace('\n', "");
+        let command = write_adapter_script(tempdir.path(), &response);
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+
+        assert_eq!(state.proposed_rules.len(), 1);
+        assert_eq!(state.proposed_rules[0].matched_row_ids, vec!["row-1"]);
+        assert_eq!(state.proposed_rules[0].matched_row_count, 1);
+    }
+
+    #[test]
+    fn ai_assist_schema_adds_matched_ids_to_existing_databases_idempotently() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "create table ai_assist_proposed_rules (
+               id text primary key, pass_id text not null, source_account text not null,
+               match_text text not null, ledger_account text not null,
+               matched_row_count integer not null
+             );",
+            )
+            .unwrap();
+
+        ensure_ai_assist_tables(&connection).unwrap();
+        ensure_ai_assist_tables(&connection).unwrap();
+
+        let columns = connection
+            .prepare("pragma table_info(ai_assist_proposed_rules)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(columns
+            .iter()
+            .any(|column| column == "matched_row_ids_json"));
+    }
+
+    #[test]
     fn retry_resets_failed_rows_and_resumes() {
         let tempdir = tempfile::tempdir().unwrap();
         let root = test_workspace(&tempdir);
@@ -1514,6 +1799,59 @@ mod tests {
         assert_eq!(retried.processed_rows, 0);
         let done = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
         assert_eq!(done.suggestions[0].status, "suggested");
+    }
+
+    #[test]
+    fn retry_rejects_nonexistent_terminal_and_superseded_passes() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        configure_adapter(&root, "/nonexistent/broken-adapter");
+        let first = start_ai_assist_pass(&root).unwrap();
+        run_ai_assist_next_chunk(&root, &first.pass_id).unwrap();
+        let second = start_ai_assist_pass(&root).unwrap();
+
+        assert!(retry_ai_assist_failed_rows(&root, "missing").is_err());
+        assert!(retry_ai_assist_failed_rows(&root, &first.pass_id).is_err());
+        connection
+            .execute(
+                "update ai_assist_passes set status = 'approved' where id = ?1",
+                [&second.pass_id],
+            )
+            .unwrap();
+        assert!(retry_ai_assist_failed_rows(&root, &second.pass_id).is_err());
+    }
+
+    #[test]
+    fn retry_rolls_back_all_state_when_transition_fails() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        configure_adapter(&root, "/nonexistent/broken-adapter");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+        connection
+            .execute_batch(
+                "create trigger fail_failed_delete before delete on ai_assist_suggestions
+             begin select raise(abort, 'forced retry failure'); end;",
+            )
+            .unwrap();
+
+        assert!(retry_ai_assist_failed_rows(&root, &pass.pass_id).is_err());
+        let processed: i64 = connection.query_row(
+            "select processed from ai_assist_pass_rows where pass_id = ?1 and statement_row_id = 'row-1'",
+            [&pass.pass_id], |row| row.get(0),
+        ).unwrap();
+        let status: String = connection
+            .query_row(
+                "select status from ai_assist_passes where id = ?1",
+                [&pass.pass_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!((processed, status.as_str()), (1, "complete"));
     }
 
     #[test]
@@ -1546,6 +1884,161 @@ mod tests {
         }
     }
 
+    fn insert_proposed_rule(
+        connection: &Connection,
+        pass_id: &str,
+        id: &str,
+        match_text: &str,
+        matched_row_ids: &[&str],
+    ) {
+        ensure_ai_assist_tables(connection).unwrap();
+        connection.execute(
+            "insert into ai_assist_proposed_rules
+             (id, pass_id, source_account, match_text, ledger_account, matched_row_count, matched_row_ids_json)
+             values (?1, ?2, 'Assets:Bank:Checking', ?3, 'Expenses:Software', ?4, ?5)",
+            params![
+                id,
+                pass_id,
+                match_text,
+                matched_row_ids.len() as i64,
+                serde_json::to_string(matched_row_ids).unwrap(),
+            ],
+        ).unwrap();
+    }
+
+    #[test]
+    fn approval_deduplicates_canonical_rules_within_request() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
+        let rule = AiAssistRuleInput {
+            source_account: "Assets:Bank:Checking".to_string(),
+            match_text: "Autobooks".to_string(),
+            ledger_account: "Expenses:Software".to_string(),
+        };
+        let mut input = approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        );
+        input.rules = vec![
+            rule,
+            AiAssistRuleInput {
+                source_account: " Assets:Bank:Checking ".to_string(),
+                match_text: " AUTOBOOKS ".to_string(),
+                ledger_account: " Expenses:Software ".to_string(),
+            },
+        ];
+
+        approve_ai_assist_batch(input).unwrap();
+
+        assert_eq!(list_categorization_rules(&root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn approval_drops_stale_or_unselected_proposed_rules() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        insert_pending_row(&connection, "row-2", "Other", "-2.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
+        connection
+            .execute(
+                "update statement_rows set status = 'accounted' where id = 'row-1'",
+                [],
+            )
+            .unwrap();
+        let mut input = approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-2".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        );
+        input.rules = vec![AiAssistRuleInput {
+            source_account: "Assets:Bank:Checking".to_string(),
+            match_text: "Autobooks".to_string(),
+            ledger_account: "Expenses:Software".to_string(),
+        }];
+
+        approve_ai_assist_batch(input).unwrap();
+
+        assert!(list_categorization_rules(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn approval_rejects_a_superseded_pass() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        let old_pass = start_ai_assist_pass(&root).unwrap();
+        let _current_pass = start_ai_assist_pass(&root).unwrap();
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &old_pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        ));
+
+        assert!(result.is_err());
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn compensation_reports_original_restore_and_created_file_cleanup_failures() {
+        let original = WorkspaceError::io("original write failure");
+        let restore = WorkspaceError::io("restore failure");
+        let cleanup = WorkspaceError::io("delete failure");
+
+        let combined = combine_compensation_failures(original, Err(restore), Err(cleanup));
+
+        assert!(combined.message.contains("original write failure"));
+        assert!(combined.message.contains("restore failure"));
+        assert!(combined.message.contains("delete failure"));
+    }
+
+    #[test]
+    fn created_file_cleanup_returns_deletion_failures() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let non_file = tempdir.path().join("not-a-file");
+        fs::create_dir(&non_file).unwrap();
+
+        let error = remove_batch_created_files(&[non_file]).unwrap_err();
+
+        assert!(error.message.contains("not-a-file"));
+    }
+
     #[test]
     fn batch_approval_writes_entries_with_provenance_and_rules() {
         let tempdir = tempfile::tempdir().unwrap();
@@ -1559,6 +2052,13 @@ mod tests {
         );
         insert_pending_row(&connection, "row-2", "SQSP* CMPGNS#232", "-10.66");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
 
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
@@ -1616,6 +2116,7 @@ mod tests {
         insert_pending_row(&connection, "row-1", "A", "-1.00");
         insert_pending_row(&connection, "row-2", "B", "-2.00");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(&connection, &pass.pass_id, "proposed-1", "A", &["row-1"]);
         connection
             .execute(
                 "update statement_rows set status = 'accounted' where id = 'row-1'",
@@ -1774,6 +2275,7 @@ mod tests {
         let connection = open_test_connection(&root);
         insert_pending_row(&connection, "row-1", "A", "-1.00");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(&connection, &pass.pass_id, "proposed-1", "A", &["row-1"]);
         let main_path = Path::new(&root).join("main.bean");
         let main_before = fs::read_to_string(&main_path).unwrap();
         let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
@@ -1849,6 +2351,13 @@ mod tests {
         let connection = open_test_connection(&root);
         insert_pending_row(&connection, "row-1", "WEB PMTS Autobooks", "-0.50");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
             pass_id: pass.pass_id.clone(),
@@ -1984,6 +2493,13 @@ mod tests {
         let connection = open_test_connection(&root);
         insert_pending_row(&connection, "row-1", "Autobooks", "-0.50");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
         approve_ai_assist_batch(approve_input(
             &root,
             &pass.pass_id,
@@ -2034,6 +2550,13 @@ mod tests {
         let connection = open_test_connection(&root);
         insert_pending_row(&connection, "row-1", "Autobooks", "-0.50");
         let pass = start_ai_assist_pass(&root).unwrap();
+        insert_proposed_rule(
+            &connection,
+            &pass.pass_id,
+            "proposed-1",
+            "Autobooks",
+            &["row-1"],
+        );
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
             pass_id: pass.pass_id,

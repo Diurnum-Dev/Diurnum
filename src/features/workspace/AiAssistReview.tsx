@@ -148,8 +148,15 @@ function AiAssistReviewPass({
     );
   }, [availableRowSignature, availableRuleSignature]);
 
-  const groupHasCheckedRows = (groupIndex: number) =>
-    groups[groupIndex]?.rows.some((row) => !excludedRows.has(row.statementRowId)) ?? false;
+  const ruleHasCheckedRows = (
+    rule: AiAssistPassState["proposedRules"][number],
+    groupIndex: number,
+  ) => {
+    const matchedRows = new Set(rule.matchedRowIds);
+    return groups[groupIndex]?.rows.some(
+      (row) => matchedRows.has(row.statementRowId) && !excludedRows.has(row.statementRowId),
+    ) ?? false;
+  };
 
   const entriesSelection: ApproveAiAssistBatchInput["entries"] = [
     ...groups.flatMap((group) =>
@@ -182,7 +189,7 @@ function AiAssistReviewPass({
     (group, groupIndex) =>
       group.rules
         .filter(
-          (rule) => !excludedRules.has(rule.id) && groupHasCheckedRows(groupIndex),
+          (rule) => !excludedRules.has(rule.id) && ruleHasCheckedRows(rule, groupIndex),
         )
         .map((rule) => ({
           sourceAccount: rule.sourceAccount,
@@ -211,7 +218,7 @@ function AiAssistReviewPass({
   };
 
   const approveSelection = () => {
-    if (busy) return;
+    if (busy || entriesSelection.length === 0) return;
     callSafely(() => onApprove({ entries: entriesSelection, rules: rulesSelection }));
   };
 
@@ -444,7 +451,7 @@ function AiAssistReviewPass({
                 <button
                   type="button"
                   className="ai-assist-primary"
-                  disabled={busy}
+                  disabled={busy || entriesSelection.length === 0}
                   onClick={approveSelection}
                 >
                   Approve {entriesSelection.length}{" "}
@@ -492,9 +499,6 @@ function GroupStep({
   onSkip,
   onAccept,
 }: GroupStepProps) {
-  const hasCheckedRows = group.rows.some(
-    (row) => !excludedRows.has(row.statementRowId),
-  );
   const acceptedRows = group.rows.filter(
     (row) => !excludedRows.has(row.statementRowId),
   );
@@ -527,6 +531,10 @@ function GroupStep({
         {group.rules.length > 0 ? (
           <div className="ai-assist-rules" aria-label="Proposed rules">
             {group.rules.map((rule) => {
+              const matchedRows = new Set(rule.matchedRowIds);
+              const hasCheckedRows = group.rows.some(
+                (row) => matchedRows.has(row.statementRowId) && !excludedRows.has(row.statementRowId),
+              );
               const checked = hasCheckedRows && !excludedRules.has(rule.id);
               return (
                 <label

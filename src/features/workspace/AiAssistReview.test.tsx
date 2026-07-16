@@ -73,6 +73,7 @@ const pass: AiAssistPassState = {
       sourceAccount: "Assets:Bank:Checking",
       matchText: "Autobooks",
       ledgerAccount: "Expenses:Software",
+      matchedRowIds: ["row-1"],
       matchedRowCount: 1,
     },
   ],
@@ -238,6 +239,36 @@ describe("AiAssistReview", () => {
     fireEvent.click(rowCheckbox("Autobooks", "−$0.50"));
     expect(rule).toBeChecked();
     expect(rule).not.toBeDisabled();
+  });
+
+  test("rule checkbox disables when its own matched rows are excluded", () => {
+    const { onApprove } = renderReview();
+    const rule = screen.getByRole("checkbox", {
+      name: "Include rule Autobooks to Expenses:Software",
+    });
+
+    fireEvent.click(rowCheckbox("Autobooks", "−$0.50"));
+
+    expect(rowCheckbox("Squarespace", "−$10.66")).toBeChecked();
+    expect(rule).not.toBeChecked();
+    expect(rule).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Sign & approve/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Approve 2 entries/ }));
+    expect(onApprove.mock.calls[0][0].rules).toEqual([]);
+  });
+
+  test("zero-entry signing keeps navigation available but disables approval", () => {
+    const { onApprove } = renderReview();
+    fireEvent.click(rowCheckbox("Autobooks", "−$0.50"));
+    fireEvent.click(rowCheckbox("Squarespace", "−$10.66"));
+    fireEvent.click(screen.getByRole("button", { name: /Expenses:Payroll/ }));
+    fireEvent.click(rowCheckbox("Gusto", "−$65.02"));
+    fireEvent.click(screen.getByRole("button", { name: /Sign & approve/ }));
+
+    const approve = screen.getByRole("button", { name: /Approve 0 entries/ });
+    expect(approve).toBeDisabled();
+    fireEvent.keyDown(screen.getByRole("region", { name: "AI Assist review" }), { key: "Enter" });
+    expect(onApprove).not.toHaveBeenCalled();
   });
 
   test("a new pass resets row and rule choices to their defaults", () => {

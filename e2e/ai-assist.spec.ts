@@ -120,6 +120,7 @@ test("AI Assist golden path: start → review → sign → approve", async ({
           matchText: "OPENAI",
           ledgerAccount: "Expenses:Software",
           matchedRowCount: 1,
+          matchedRowIds: ["row-1"],
         },
       ],
     };

@@ -94,6 +94,7 @@ function makeFakeApi(initial: WorkspaceView) {
     approveTransferEntry: vi.fn(async () => view),
     revertTransferToStandard: vi.fn(async () => view),
     approveAiAssistBatch: vi.fn(async () => view),
+    revertAiAssistBatch: vi.fn(async () => view),
     importStatementRows: vi.fn(async () => {
       view = { ...view, suggestedEntries: [...view.suggestedEntries, entry("imported")] };
       return { sourceAccount: "Assets:Bank:Checking", importedCount: 1, skippedDuplicateCount: 0 };
@@ -135,10 +136,10 @@ function makeFakeApi(initial: WorkspaceView) {
       warning: null,
       hookOutput: null,
     })),
-  };
+  } satisfies WorkspaceSessionApi;
 
   return {
-    api: api as unknown as WorkspaceSessionApi,
+    api,
     setView: (next: WorkspaceView) => {
       view = next;
     },
@@ -199,6 +200,25 @@ describe("WorkspaceSession", () => {
     });
 
     expect(session.getState().workspace).toEqual(fakeView.summary);
+  });
+
+  it("revertAiAssistBatch applies the returned view", async () => {
+    const revertedView = {
+      ...emptyView(),
+      summary: { ...summary(), businessName: "Reverted batch" },
+      suggestedEntries: [entry("restored")],
+    };
+    const { api, setView } = makeFakeApi(emptyView());
+    const session = createWorkspaceSession(api);
+    await session.open(ROOT);
+    setView(revertedView);
+
+    await session.revertAiAssistBatch({ workspaceRootPath: ROOT, batchId: "batch-1" });
+
+    expect(session.getState().workspace).toEqual(revertedView.summary);
+    expect(session.getState().suggestedEntries.map((item) => item.statementRowId)).toEqual([
+      "restored",
+    ]);
   });
 
   it("import refreshes suggested entries and AI disclosure", async () => {
