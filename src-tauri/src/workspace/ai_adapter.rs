@@ -199,10 +199,7 @@ fn build_curated_context<T: AiSuggestionRow>(
     })
 }
 
-fn invoke_adapter(
-    command: &str,
-    context: &CuratedLedgerContext,
-) -> Result<AiSuggestion, WorkspaceError> {
+pub(crate) fn invoke_adapter_raw(command: &str, payload: &[u8]) -> Result<Vec<u8>, WorkspaceError> {
     let parts = split_command(command)?;
     let Some((program, args)) = parts.split_first() else {
         return Err(WorkspaceError::new(
@@ -221,9 +218,7 @@ fn invoke_adapter(
         let stdin = child.stdin.as_mut().ok_or_else(|| {
             WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string())
         })?;
-        let payload =
-            serde_json::to_vec(context).map_err(|error| WorkspaceError::io(error.to_string()))?;
-        stdin.write_all(&payload)?;
+        stdin.write_all(payload)?;
     }
     let output = child.wait_with_output()?;
     if !output.status.success() {
@@ -232,12 +227,22 @@ fn invoke_adapter(
             String::from_utf8_lossy(&output.stderr)
         )));
     }
-    serde_json::from_slice::<AiSuggestion>(&output.stdout).map_err(|error| {
+    Ok(output.stdout)
+}
+
+fn invoke_adapter(
+    command: &str,
+    context: &CuratedLedgerContext,
+) -> Result<AiSuggestion, WorkspaceError> {
+    let payload =
+        serde_json::to_vec(context).map_err(|error| WorkspaceError::io(error.to_string()))?;
+    let stdout = invoke_adapter_raw(command, &payload)?;
+    serde_json::from_slice::<AiSuggestion>(&stdout).map_err(|error| {
         WorkspaceError::io(format!("BYO AI Adapter returned invalid JSON: {error}"))
     })
 }
 
-fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
+pub(crate) fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
     let parts = command
         .split_whitespace()
         .map(str::to_string)
@@ -251,14 +256,14 @@ fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
     Ok(parts)
 }
 
-fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
+pub(crate) fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
     serde_json::from_str(&fs::read_to_string(
         root.join(".diurnum").join("workspace.json"),
     )?)
     .map_err(|error| WorkspaceError::io(error.to_string()))
 }
 
-fn read_chart_of_accounts(root: &Path) -> Result<Vec<String>, WorkspaceError> {
+pub(crate) fn read_chart_of_accounts(root: &Path) -> Result<Vec<String>, WorkspaceError> {
     let accounts = fs::read_to_string(root.join("accounts.bean"))?;
     Ok(accounts
         .lines()
@@ -319,7 +324,9 @@ pub(crate) fn ensure_ai_adapter_table(connection: &Connection) -> Result<(), Wor
     Ok(())
 }
 
-fn load_adapter_command(connection: &Connection) -> Result<Option<String>, WorkspaceError> {
+pub(crate) fn load_adapter_command(
+    connection: &Connection,
+) -> Result<Option<String>, WorkspaceError> {
     connection
         .query_row(
             "select value from ai_adapter_config where key = ?1",
@@ -330,7 +337,7 @@ fn load_adapter_command(connection: &Connection) -> Result<Option<String>, Works
         .map_err(WorkspaceError::from)
 }
 
-fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
+pub(crate) fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
     Ok(Connection::open(
         root.join(".diurnum").join("diurnum.sqlite"),
     )?)
