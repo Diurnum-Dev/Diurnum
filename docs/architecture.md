@@ -66,6 +66,10 @@ Each mutation command returns a single `WorkspaceView` (assembled by
 so a change costs one round-trip plus the mutation rather than a per-slice
 read fan-out. Reports stay on-demand (cleared during Invalid Ledger State) and
 AI adapter detection stays an open-time scan, so neither rides the view.
+AI Assist lifecycle, approval, history, and revert operations cross this boundary
+through eight dedicated Tauri commands and test-API-first TypeScript wrappers.
+Batch approval and revert return a refreshed `WorkspaceView`, which the session
+applies atomically through the same `applyView` path as per-row approval.
 
 ## Product Runtime Flow
 

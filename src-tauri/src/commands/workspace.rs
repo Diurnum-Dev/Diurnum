@@ -1,6 +1,10 @@
 use crate::workspace::ai_adapter::{
     self, AiAdapterConfig, AiContextDisclosure, ConfigureAiAdapterInput,
 };
+use crate::workspace::ai_assist::{
+    self, AiAssistBatchSummary, AiAssistPassState, ApproveAiAssistBatchInput,
+    RevertAiAssistBatchInput,
+};
 use crate::workspace::approval::{
     self, ApproveSuggestedEntryInput, ApproveTransferEntryInput, BrokenProvenance,
     RevertTransferToStandardInput, SuggestedEntry,
@@ -309,6 +313,60 @@ pub fn configure_ai_adapter(
 #[tauri::command]
 pub fn get_ai_context_disclosure(path: String) -> Result<AiContextDisclosure, WorkspaceError> {
     ai_adapter::get_ai_context_disclosure(path)
+}
+
+#[tauri::command]
+pub fn start_ai_assist_pass(path: String) -> Result<AiAssistPassState, WorkspaceError> {
+    ai_assist::start_ai_assist_pass(path)
+}
+
+#[tauri::command]
+pub fn run_ai_assist_next_chunk(
+    path: String,
+    pass_id: String,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    ai_assist::run_ai_assist_next_chunk(path, &pass_id)
+}
+
+#[tauri::command]
+pub fn get_ai_assist_pass(path: String) -> Result<Option<AiAssistPassState>, WorkspaceError> {
+    ai_assist::get_ai_assist_pass(path)
+}
+
+#[tauri::command]
+pub fn retry_ai_assist_failed_rows(
+    path: String,
+    pass_id: String,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    ai_assist::retry_ai_assist_failed_rows(path, &pass_id)
+}
+
+#[tauri::command]
+pub fn dismiss_ai_assist_pass(path: String, pass_id: String) -> Result<(), WorkspaceError> {
+    ai_assist::dismiss_ai_assist_pass(path, &pass_id)
+}
+
+#[tauri::command]
+pub fn approve_ai_assist_batch(
+    input: ApproveAiAssistBatchInput,
+) -> Result<WorkspaceView, WorkspaceError> {
+    let path = input.workspace_root_path.clone();
+    ai_assist::approve_ai_assist_batch(input)?;
+    view::load(path)
+}
+
+#[tauri::command]
+pub fn list_ai_assist_batches(path: String) -> Result<Vec<AiAssistBatchSummary>, WorkspaceError> {
+    ai_assist::list_ai_assist_batches(path)
+}
+
+#[tauri::command]
+pub fn revert_ai_assist_batch(
+    input: RevertAiAssistBatchInput,
+) -> Result<WorkspaceView, WorkspaceError> {
+    let path = input.workspace_root_path.clone();
+    ai_assist::revert_ai_assist_batch(input)?;
+    view::load(path)
 }
 
 #[tauri::command]

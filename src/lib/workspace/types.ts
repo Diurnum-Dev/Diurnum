@@ -114,6 +114,62 @@ export type AiSuggestion = {
   needsHumanAttention: boolean;
 };
 
+export type AiAssistSuggestionStatus = "suggested" | "needsEye" | "failed";
+
+export type AiAssistSuggestion = {
+  statementRowId: string;
+  status: AiAssistSuggestionStatus;
+  ledgerAccount?: string | null;
+  payee?: string | null;
+  narration?: string | null;
+  confidence?: number | null;
+  explanation?: string | null;
+};
+
+export type AiAssistProposedRule = {
+  id: string;
+  sourceAccount: string;
+  matchText: string;
+  ledgerAccount: string;
+  matchedRowCount: number;
+};
+
+export type AiAssistPassState = {
+  passId: string;
+  status: "running" | "complete" | "dismissed" | "approved";
+  totalRows: number;
+  processedRows: number;
+  suggestions: AiAssistSuggestion[];
+  proposedRules: AiAssistProposedRule[];
+};
+
+export type ApproveAiAssistBatchInput = {
+  workspaceRootPath: string;
+  passId: string;
+  entries: Array<{
+    statementRowId: string;
+    ledgerAccount: string;
+    payee?: string | null;
+    narration?: string | null;
+  }>;
+  rules: Array<{
+    sourceAccount: string;
+    matchText: string;
+    ledgerAccount: string;
+  }>;
+};
+
+export type AiAssistBatchSummary = {
+  id: string;
+  approvedAt: string;
+  entryCount: number;
+};
+
+export type RevertAiAssistBatchInput = {
+  workspaceRootPath: string;
+  batchId: string;
+};
+
 export type LinkedStatementRow = {
   statementRowId: string;
   postedDate: string;

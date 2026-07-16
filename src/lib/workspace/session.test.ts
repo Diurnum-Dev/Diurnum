@@ -93,6 +93,7 @@ function makeFakeApi(initial: WorkspaceView) {
     }),
     approveTransferEntry: vi.fn(async () => view),
     revertTransferToStandard: vi.fn(async () => view),
+    approveAiAssistBatch: vi.fn(async () => view),
     importStatementRows: vi.fn(async () => {
       view = { ...view, suggestedEntries: [...view.suggestedEntries, entry("imported")] };
       return { sourceAccount: "Assets:Bank:Checking", importedCount: 1, skippedDuplicateCount: 0 };
@@ -178,6 +179,26 @@ describe("WorkspaceSession", () => {
       matchText: "Row a",
       ledgerAccount: "Expenses:Software",
     });
+  });
+
+  it("approveAiAssistBatch applies the returned view", async () => {
+    const fakeView = {
+      ...emptyView(),
+      summary: { ...summary(), businessName: "Approved batch" },
+    };
+    const { api, setView } = makeFakeApi(emptyView());
+    const session = createWorkspaceSession(api);
+    await session.open(ROOT);
+    setView(fakeView);
+
+    await session.approveAiAssistBatch({
+      workspaceRootPath: "/w",
+      passId: "p",
+      entries: [],
+      rules: [],
+    });
+
+    expect(session.getState().workspace).toEqual(fakeView.summary);
   });
 
   it("import refreshes suggested entries and AI disclosure", async () => {

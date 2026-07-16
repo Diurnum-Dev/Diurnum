@@ -2,6 +2,7 @@ import * as workspaceApi from "./api";
 import type {
   AddSourceAccountInput,
   AiAdapterConfig,
+  ApproveAiAssistBatchInput,
   AiContextDisclosure,
   ApproveSuggestedEntryInput,
   ApproveTransferEntryInput,
@@ -19,6 +20,7 @@ import type {
   RenameSourceAccountInput,
   ReportsInput,
   RestoreSnapshotInput,
+  RevertAiAssistBatchInput,
   RevertTransferToStandardInput,
   SnapshotSummary,
   SourceAccountSummary,
@@ -52,6 +54,8 @@ export type WorkspaceSessionApi = Pick<
   | "approveSuggestedEntry"
   | "approveTransferEntry"
   | "revertTransferToStandard"
+  | "approveAiAssistBatch"
+  | "revertAiAssistBatch"
   | "importStatementRows"
   | "addSourceAccount"
   | "renameSourceAccount"
@@ -111,6 +115,8 @@ export type WorkspaceSession = {
   open: (path: string) => Promise<void>;
   close: () => Promise<void>;
   approve: (input: ApproveSuggestedEntryInput) => Promise<ApproveResult>;
+  approveAiAssistBatch: (input: ApproveAiAssistBatchInput) => Promise<void>;
+  revertAiAssistBatch: (input: RevertAiAssistBatchInput) => Promise<void>;
   approveTransfer: (
     input: ApproveTransferEntryInput,
   ) => Promise<{ approvedRowId: string }>;
@@ -367,6 +373,16 @@ export function createWorkspaceSession(api: WorkspaceSessionApi): WorkspaceSessi
           );
         }
         return { approvedRowId: input.statementRowId, ruleOffer };
+      }),
+
+    approveAiAssistBatch: (input) =>
+      withErrorReset(async () => {
+        applyView(await api.approveAiAssistBatch(input));
+      }),
+
+    revertAiAssistBatch: (input) =>
+      withErrorReset(async () => {
+        applyView(await api.revertAiAssistBatch(input));
       }),
 
     approveTransfer: (input) =>
