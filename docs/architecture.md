@@ -132,9 +132,14 @@ sequenceDiagram
   User->>UI: Revert an approved AI Assist batch
   UI->>Core: Batch id from durable AI Assist history
   Core->>Ledger: Snapshot, then atomically remove matching transaction blocks
-  Core->>State: Restore rows to pending, clear provenance, delete batch-created rules and batch record
-  Core->>Git: Best-effort commit of reverted workspace changes
-  Core-->>UI: Refreshed workspace summary
+  Core->>State: Atomically restore rows, clear provenance, and delete batch-created rules and batch record
+  alt Revert succeeds
+    Core->>Git: Best-effort commit of reverted workspace changes
+    Core-->>UI: Refreshed workspace summary
+  else Ledger rewrite or SQLite transaction fails
+    Core->>Ledger: Restore the pre-revert snapshot
+    Core-->>UI: Return the original error, including compensation failure if any
+  end
 
   User->>UI: Recheck ledger, restore snapshot, run MVP reports, or close workspace
   UI->>Core: Validation/restore/report command
@@ -272,7 +277,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Ledger Editor validation uses the same native structural validation as the rest of the app, with file-aware diagnostics rendered in the CodeMirror gutter and shared status bar.
 - Approval creates a Snapshot before mutating `main.bean` or Monthly Transaction Files. Valid Workspace open creates one daily Snapshot at most, and restore creates a pre-restore Snapshot before replacing current `.bean` contents and rerunning Ledger Validation.
 - AI Assist batch approval validates after ledger writes, then creates rules, Statement Row mappings, the durable batch record, and pass status in one SQLite transaction. Any validation or pre-commit operational failure restores the ledger Snapshot, removes Monthly Transaction Files created by that attempt, and lets the SQLite transaction roll back without partial rules or batch state.
-- AI Assist batch history can drive a revert from the durable Statement Row, Diurnum entry id, ledger-file, and created-rule mappings. Revert snapshots first, removes only transaction blocks whose `diurnum_entry_id` belongs to the batch, restores mapped Statement Rows to pending with cleared ledger provenance, deletes rules created by the batch and its history record, then attempts the exact `AI Assist: reverted batch` Git commit without making commit failure fatal.
+- AI Assist batch history can drive a revert from the durable Statement Row, Diurnum entry id, ledger-file, and created-rule mappings. Revert snapshots first, removes only transaction blocks whose `diurnum_entry_id` belongs to the batch, then restores mapped Statement Rows to pending with cleared ledger provenance and deletes batch-created rules plus the history record in one SQLite transaction. Any ledger rewrite or pre-commit SQLite failure restores the snapshot; a compensation failure is reported alongside the original failure. After success, revert attempts the exact `AI Assist: reverted batch` Git commit without making commit failure fatal.
 - Workspace `.gitignore` excludes `.diurnum/*` while explicitly keeping `workspace.json` committable, and it also excludes snapshot folders; Beancount files, Workspace metadata, and `documents/` remain committable.
 - The Workspace overview renders Invalid Ledger State details from `WorkspaceSummary.ledgerValidation` and blocks unsafe Approval and MVP Report affordances while validation is invalid.
 - The Workspace overview currently exposes recent Snapshots and restore actions, and shows them as a recovery affordance when opening a Workspace in Invalid Ledger State. The full V1 Settings navigation will host the same Snapshot surface when issue #41 lands.

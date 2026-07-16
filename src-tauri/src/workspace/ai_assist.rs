@@ -8,7 +8,7 @@ use crate::workspace::approval::{
     parse_amount, SuggestedEntry, SuggestedEntryKind,
 };
 use crate::workspace::categorization_rules::{
-    create_categorization_rule_from_connection, delete_categorization_rule,
+    create_categorization_rule_from_connection, delete_categorization_rule_from_connection,
     list_categorization_rules, list_categorization_rules_from_connection, CategorizationRule,
     CreateCategorizationRuleInput,
 };
@@ -25,7 +25,7 @@ use crate::workspace::validation::validate_workspace;
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -631,36 +631,41 @@ pub fn revert_ai_assist_batch(
     let rule_ids: Vec<String> = serde_json::from_str(&rule_ids_json)
         .map_err(|error| WorkspaceError::io(error.to_string()))?;
 
-    create_snapshot(root, SnapshotReason::Approval)?;
+    let snapshot = create_snapshot(root, SnapshotReason::Approval)?;
 
-    let mut by_file: HashMap<String, HashSet<String>> = HashMap::new();
-    for record in &records {
-        by_file
-            .entry(record.ledger_entry_file.clone())
-            .or_default()
-            .insert(record.diurnum_entry_id.clone());
-    }
-    for (relative_path, entry_ids) in &by_file {
-        let path = root.join(relative_path);
-        let contents = fs::read_to_string(&path)?;
-        atomic_write(&path, &remove_entry_blocks(&contents, entry_ids))?;
-    }
+    let operation_result = (|| -> Result<(), WorkspaceError> {
+        let mut by_file: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+        for record in &records {
+            by_file
+                .entry(record.ledger_entry_file.clone())
+                .or_default()
+                .insert(record.diurnum_entry_id.clone());
+        }
+        for (relative_path, entry_ids) in &by_file {
+            let path = root.join(relative_path);
+            let contents = fs::read_to_string(&path)?;
+            atomic_write(&path, &remove_entry_blocks(&contents, entry_ids))?;
+        }
 
-    let transaction = connection.unchecked_transaction()?;
-    for record in &records {
+        let transaction = connection.unchecked_transaction()?;
+        for rule_id in &rule_ids {
+            delete_categorization_rule_from_connection(&transaction, rule_id)?;
+        }
+        for record in &records {
+            transaction.execute(
+                "update statement_rows set status = 'pending', diurnum_entry_id = null, ledger_entry_file = null where id = ?1",
+                [&record.statement_row_id],
+            )?;
+        }
         transaction.execute(
-            "update statement_rows set status = 'pending', diurnum_entry_id = null, ledger_entry_file = null where id = ?1",
-            [&record.statement_row_id],
+            "delete from ai_assist_batches where id = ?1",
+            [&input.batch_id],
         )?;
-    }
-    transaction.execute(
-        "delete from ai_assist_batches where id = ?1",
-        [&input.batch_id],
-    )?;
-    transaction.commit()?;
-
-    for rule_id in &rule_ids {
-        let _ = delete_categorization_rule(&input.workspace_root_path, rule_id);
+        transaction.commit()?;
+        Ok(())
+    })();
+    if let Err(error) = operation_result {
+        return rollback_ai_assist_revert(&input.workspace_root_path, &snapshot.id, error);
     }
 
     let _ = commit_workspace_changes(CommitWorkspaceChangesInput {
@@ -670,6 +675,25 @@ pub fn revert_ai_assist_batch(
     });
 
     open_workspace(root)
+}
+
+fn rollback_ai_assist_revert<T>(
+    workspace_root_path: &str,
+    snapshot_id: &str,
+    error: WorkspaceError,
+) -> Result<T, WorkspaceError> {
+    match restore_snapshot(RestoreSnapshotInput {
+        workspace_root_path: workspace_root_path.to_string(),
+        snapshot_id: snapshot_id.to_string(),
+    }) {
+        Ok(_) => Err(error),
+        Err(restore_error) => {
+            let message = format!(
+                "AI Assist batch revert failed: {error}; restoring its snapshot also failed: {restore_error}"
+            );
+            Err(WorkspaceError::new(restore_error.code, message))
+        }
+    }
 }
 
 fn remove_entry_blocks(contents: &str, diurnum_entry_ids: &HashSet<String>) -> String {
@@ -689,8 +713,8 @@ fn remove_entry_blocks(contents: &str, diurnum_entry_ids: &HashSet<String>) -> S
             && bytes[10] == b' '
     }
 
-    let lines: Vec<&str> = contents.lines().collect();
-    let mut kept: Vec<&str> = Vec::new();
+    let lines: Vec<&str> = contents.split_inclusive('\n').collect();
+    let mut kept = String::with_capacity(contents.len());
     let mut index = 0;
     while index < lines.len() {
         if is_entry_start(lines[index]) {
@@ -706,20 +730,17 @@ fn remove_entry_blocks(contents: &str, diurnum_entry_ids: &HashSet<String>) -> S
                 })
             });
             if !drop {
-                kept.extend_from_slice(block);
+                for line in block {
+                    kept.push_str(line);
+                }
             }
             index = end;
         } else {
-            kept.push(lines[index]);
+            kept.push_str(lines[index]);
             index += 1;
         }
     }
-
-    let mut result = kept.join("\n");
-    if contents.ends_with('\n') && !result.ends_with('\n') {
-        result.push('\n');
-    }
-    result
+    kept
 }
 
 pub(crate) fn load_ai_assist_state(
@@ -1805,12 +1826,20 @@ mod tests {
 
     #[test]
     fn remove_entry_blocks_drops_only_target_entries() {
-        let contents = "\n2026-05-06 * \"Keep\"\n  diurnum_entry_id: \"keep-1\"\n  Assets:Bank:Checking  -1.00 USD\n  Expenses:Software  1.00 USD\n\n2026-05-07 * \"Drop\"\n  diurnum_entry_id: \"drop-1\"\n  Assets:Bank:Checking  -2.00 USD\n  Expenses:Software  2.00 USD\n";
+        let contents = "; preamble\n2026-05-06 * \"Keep prefix\"\n  diurnum_entry_id: \"drop-10\"\n  Assets:Bank:Checking  -1.00 USD\n  Expenses:Software  1.00 USD\n  2026-05-07 this indented date is not a boundary\n\n2026-05-08 * \"Drop exact at EOF\"\n  diurnum_entry_id: \"drop-1\"\n  Assets:Bank:Checking  -2.00 USD\n  Expenses:Software  2.00 USD\n";
         let targets: std::collections::HashSet<String> =
             ["drop-1".to_string()].into_iter().collect();
         let result = remove_entry_blocks(contents, &targets);
-        assert!(result.contains("keep-1"));
-        assert!(!result.contains("drop-1"));
+        assert_eq!(
+            result,
+            "; preamble\n2026-05-06 * \"Keep prefix\"\n  diurnum_entry_id: \"drop-10\"\n  Assets:Bank:Checking  -1.00 USD\n  Expenses:Software  1.00 USD\n  2026-05-07 this indented date is not a boundary\n\n"
+        );
+
+        let without_terminal_newline = "2026-05-06 * \"Keep\"\n  diurnum_entry_id: \"keep-1\"";
+        assert_eq!(
+            remove_entry_blocks(without_terminal_newline, &targets),
+            without_terminal_newline
+        );
     }
 
     #[test]
@@ -1867,5 +1896,191 @@ mod tests {
             crate::workspace::categorization_rules::list_categorization_rules(&root).unwrap();
         assert!(!rules.iter().any(|rule| rule.match_text == "Autobooks"));
         assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn revert_batch_restores_ledger_when_a_later_file_disappears() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        for (row_id, posted_date) in [("row-1", "2025-01-06"), ("row-2", "2025-02-06")] {
+            insert_pending_row(&connection, row_id, row_id, "-1.00");
+            connection
+                .execute(
+                    "update statement_rows set posted_date = ?2 where id = ?1",
+                    params![row_id, posted_date],
+                )
+                .unwrap();
+        }
+        let pass = start_ai_assist_pass(&root).unwrap();
+        approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![
+                AiAssistEntryInput {
+                    statement_row_id: "row-1".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+                AiAssistEntryInput {
+                    statement_row_id: "row-2".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+            ],
+        ))
+        .unwrap();
+        let batch_id = list_ai_assist_batches(&root).unwrap()[0].id.clone();
+        let entries_json: String = connection
+            .query_row(
+                "select entries_json from ai_assist_batches where id = ?1",
+                [&batch_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut records: Vec<BatchEntryRecord> = serde_json::from_str(&entries_json).unwrap();
+        let originals: Vec<(std::path::PathBuf, String)> = records
+            .iter()
+            .map(|record| {
+                let path = Path::new(&root).join(&record.ledger_entry_file);
+                let contents = fs::read_to_string(&path).unwrap();
+                (path, contents)
+            })
+            .collect();
+        records[1].ledger_entry_file = "transactions/zz-missing.bean".to_string();
+        connection
+            .execute(
+                "update ai_assist_batches set entries_json = ?2 where id = ?1",
+                params![batch_id, serde_json::to_string(&records).unwrap()],
+            )
+            .unwrap();
+
+        let result = revert_ai_assist_batch(RevertAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            batch_id,
+        });
+
+        assert!(result.is_err());
+        for (path, contents) in originals {
+            assert_eq!(fs::read_to_string(path).unwrap(), contents);
+        }
+        let accounted: i64 = connection
+            .query_row(
+                "select count(*) from statement_rows where status = 'accounted'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(accounted, 2);
+        assert_eq!(list_ai_assist_batches(&root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn revert_batch_restores_ledger_when_sqlite_row_update_fails() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-0.50");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: Some("Autobooks".to_string()),
+                narration: None,
+            }],
+        ))
+        .unwrap();
+        let batch_id = list_ai_assist_batches(&root).unwrap()[0].id.clone();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        let monthly_before = fs::read_to_string(&monthly_path).unwrap();
+        connection
+            .execute_batch(
+                "create trigger fail_ai_assist_revert_row_update
+                 before update of status on statement_rows
+                 when new.status = 'pending'
+                 begin
+                   select raise(abort, 'forced revert row update failure');
+                 end;",
+            )
+            .unwrap();
+
+        let result = revert_ai_assist_batch(RevertAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            batch_id,
+        });
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(monthly_path).unwrap(), monthly_before);
+        let status: String = connection
+            .query_row(
+                "select status from statement_rows where id = 'row-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "accounted");
+        assert_eq!(list_ai_assist_batches(&root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn revert_batch_rule_delete_failure_preserves_rows_rules_and_batch() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-0.50");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        approve_ai_assist_batch(ApproveAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            pass_id: pass.pass_id,
+            entries: vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: Some("Autobooks".to_string()),
+                narration: None,
+            }],
+            rules: vec![AiAssistRuleInput {
+                source_account: "Assets:Bank:Checking".to_string(),
+                match_text: "Autobooks".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+            }],
+        })
+        .unwrap();
+        let batch_id = list_ai_assist_batches(&root).unwrap()[0].id.clone();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        let monthly_before = fs::read_to_string(&monthly_path).unwrap();
+        connection
+            .execute_batch(
+                "create trigger fail_ai_assist_revert_rule_delete
+                 before delete on categorization_rules
+                 begin
+                   select raise(abort, 'forced revert rule delete failure');
+                 end;",
+            )
+            .unwrap();
+
+        let result = revert_ai_assist_batch(RevertAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            batch_id,
+        });
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(monthly_path).unwrap(), monthly_before);
+        let status: String = connection
+            .query_row(
+                "select status from statement_rows where id = 'row-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "accounted");
+        assert_eq!(list_ai_assist_batches(&root).unwrap().len(), 1);
+        let rules =
+            crate::workspace::categorization_rules::list_categorization_rules(&root).unwrap();
+        assert!(rules.iter().any(|rule| rule.match_text == "Autobooks"));
     }
 }
