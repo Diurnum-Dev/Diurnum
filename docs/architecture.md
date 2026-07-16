@@ -76,7 +76,9 @@ items, and groups suggested rows with matching proposed rules by ledger account.
 `AiAssistReview` owns only the momentum-flow UI state (current/reviewed/skipped
 steps plus row and rule inclusion). Its signing boundary emits the exact staged
 entry/rule selection to the session-owned batch approval command; it never writes
-the ledger directly.
+the ledger directly. Group-step state uses stable ledger-account keys while a pass
+is running, and the stateful review surface is keyed by pass id so no staged choice
+can cross into a later pass.
 
 ## Product Runtime Flow
 

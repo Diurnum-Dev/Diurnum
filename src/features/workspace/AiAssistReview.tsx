@@ -27,9 +27,9 @@ type AiAssistReviewProps = {
 };
 
 type ReviewStep =
-  | { kind: "group"; groupIndex: number }
-  | { kind: "needsEye" }
-  | { kind: "signing" };
+  | { kind: "group"; key: string; groupIndex: number }
+  | { kind: "needsEye"; key: "needsEye" }
+  | { kind: "signing"; key: "signing" };
 
 function callSafely(action: () => Promise<void> | void) {
   try {
@@ -46,7 +46,11 @@ function updateSet<T>(current: Set<T>, value: T, included: boolean): Set<T> {
   return next;
 }
 
-export function AiAssistReview({
+export function AiAssistReview(props: AiAssistReviewProps) {
+  return <AiAssistReviewPass key={props.pass.passId} {...props} />;
+}
+
+function AiAssistReviewPass({
   pass,
   entries,
   onApprove,
@@ -68,34 +72,31 @@ export function AiAssistReview({
   );
   const steps = useMemo<ReviewStep[]>(
     () => [
-      ...groups.map((_, groupIndex) => ({ kind: "group" as const, groupIndex })),
-      ...(needsEye.length > 0 ? [{ kind: "needsEye" as const }] : []),
-      { kind: "signing" as const },
+      ...groups.map((group, groupIndex) => ({
+        kind: "group" as const,
+        key: `group:${group.ledgerAccount}`,
+        groupIndex,
+      })),
+      ...(needsEye.length > 0
+        ? [{ kind: "needsEye" as const, key: "needsEye" as const }]
+        : []),
+      { kind: "signing" as const, key: "signing" as const },
     ],
     [groups, needsEye.length],
   );
-  const stepKeys = useMemo(
-    () =>
-      steps.map((step) =>
-        step.kind === "group"
-          ? `group:${groups[step.groupIndex].ledgerAccount}`
-          : step.kind,
-      ),
-    [groups, steps],
-  );
-  const stepSignature = stepKeys.join("\u0000");
-  const previousStepKeysRef = useRef(stepKeys);
-  const previousPassIdRef = useRef(pass.passId);
 
-  const [stepIndex, setStepIndex] = useState(0);
-  const [reviewedSteps, setReviewedSteps] = useState<Set<number>>(new Set());
-  const [skippedSteps, setSkippedSteps] = useState<Set<number>>(new Set());
+  const [currentStepKey, setCurrentStepKey] = useState<string | null>(null);
+  const [reviewedSteps, setReviewedSteps] = useState<Set<string>>(new Set());
+  const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [excludedRows, setExcludedRows] = useState<Set<string>>(new Set());
   const [includedNeedsEye, setIncludedNeedsEye] = useState<Set<string>>(new Set());
   const [excludedRules, setExcludedRules] = useState<Set<string>>(new Set());
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const currentStepIndex = Math.min(stepIndex, Math.max(steps.length - 1, 0));
+  const requestedStepIndex = currentStepKey
+    ? steps.findIndex((step) => step.key === currentStepKey)
+    : 0;
+  const currentStepIndex = requestedStepIndex >= 0 ? requestedStepIndex : 0;
   const currentStep = steps[currentStepIndex];
   const currentRows = useMemo(() => {
     if (currentStep?.kind === "group") return groups[currentStep.groupIndex]?.rows ?? [];
@@ -106,50 +107,6 @@ export function AiAssistReview({
   useEffect(() => {
     rootRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    if (previousPassIdRef.current === pass.passId) return;
-    previousPassIdRef.current = pass.passId;
-    previousStepKeysRef.current = stepKeys;
-    setStepIndex(0);
-    setReviewedSteps(new Set());
-    setSkippedSteps(new Set());
-    setExcludedRows(new Set());
-    setIncludedNeedsEye(new Set());
-    setExcludedRules(new Set());
-    setSelectedRowId(null);
-    rootRef.current?.focus();
-  }, [pass.passId, stepKeys]);
-
-  useEffect(() => {
-    if (stepIndex !== currentStepIndex) setStepIndex(currentStepIndex);
-  }, [currentStepIndex, stepIndex]);
-
-  useEffect(() => {
-    const previousKeys = previousStepKeysRef.current;
-    if (previousKeys.join("\u0000") === stepSignature) return;
-
-    const remapGroupIndices = (current: Set<number>) => {
-      const remapped = new Set<number>();
-      current.forEach((oldIndex) => {
-        const key = previousKeys[oldIndex];
-        const nextIndex = key ? stepKeys.indexOf(key) : -1;
-        if (nextIndex >= 0 && steps[nextIndex]?.kind === "group") remapped.add(nextIndex);
-      });
-      return remapped;
-    };
-    const currentKey = previousKeys[stepIndex];
-    const nextCurrentIndex = currentKey ? stepKeys.indexOf(currentKey) : -1;
-
-    setReviewedSteps(remapGroupIndices);
-    setSkippedSteps(remapGroupIndices);
-    setStepIndex(
-      nextCurrentIndex >= 0
-        ? nextCurrentIndex
-        : Math.min(stepIndex, Math.max(stepKeys.length - 1, 0)),
-    );
-    previousStepKeysRef.current = stepKeys;
-  }, [stepIndex, stepKeys, stepSignature, steps]);
 
   useEffect(() => {
     if (!currentRows.some((row) => row.statementRowId === selectedRowId)) {
@@ -232,20 +189,22 @@ export function AiAssistReview({
         })),
   );
 
-  const moveToNextStep = () =>
-    setStepIndex((current) => Math.min(current + 1, steps.length - 1));
+  const moveToNextStep = () => {
+    const nextIndex = Math.min(currentStepIndex + 1, steps.length - 1);
+    setCurrentStepKey(steps[nextIndex]?.key ?? null);
+  };
 
   const acceptCurrentGroup = () => {
     if (currentStep?.kind !== "group") return;
-    setReviewedSteps((current) => updateSet(current, currentStep.groupIndex, true));
-    setSkippedSteps((current) => updateSet(current, currentStep.groupIndex, false));
+    setReviewedSteps((current) => updateSet(current, currentStep.key, true));
+    setSkippedSteps((current) => updateSet(current, currentStep.key, false));
     moveToNextStep();
   };
 
   const skipCurrentGroup = () => {
     if (currentStep?.kind !== "group") return;
-    setSkippedSteps((current) => updateSet(current, currentStep.groupIndex, true));
-    setReviewedSteps((current) => updateSet(current, currentStep.groupIndex, false));
+    setSkippedSteps((current) => updateSet(current, currentStep.key, true));
+    setReviewedSteps((current) => updateSet(current, currentStep.key, false));
     moveToNextStep();
   };
 
@@ -318,8 +277,11 @@ export function AiAssistReview({
     }
   };
 
-  const reviewedGroupCount = [...reviewedSteps].filter(
-    (index) => index < groups.length,
+  const currentGroupStepKeys = new Set(
+    steps.filter((step) => step.kind === "group").map((step) => step.key),
+  );
+  const reviewedGroupCount = [...reviewedSteps].filter((key) =>
+    currentGroupStepKeys.has(key),
   ).length;
 
   return (
@@ -348,10 +310,10 @@ export function AiAssistReview({
             {reviewedGroupCount} of {groups.length} groups reviewed
           </p>
           <div className="ai-assist-meter" aria-hidden="true">
-            {groups.map((group, index) => (
+            {groups.map((group) => (
               <span
                 key={group.ledgerAccount}
-                className={reviewedSteps.has(index) ? "is-done" : ""}
+                className={reviewedSteps.has(`group:${group.ledgerAccount}`) ? "is-done" : ""}
               />
             ))}
           </div>
@@ -363,8 +325,8 @@ export function AiAssistReview({
                 const accepted = group.rows.filter(
                   (row) => !excludedRows.has(row.statementRowId),
                 ).length;
-                const reviewed = reviewedSteps.has(step.groupIndex);
-                const skipped = skippedSteps.has(step.groupIndex);
+                const reviewed = reviewedSteps.has(step.key);
+                const skipped = skippedSteps.has(step.key);
                 return (
                   <li key={group.ledgerAccount}>
                     <button
@@ -372,7 +334,7 @@ export function AiAssistReview({
                       className={`ai-assist-step${current ? " is-current" : ""}${reviewed ? " is-done" : ""}`}
                       aria-label={group.ledgerAccount}
                       aria-current={current ? "step" : undefined}
-                      onClick={() => setStepIndex(index)}
+                      onClick={() => setCurrentStepKey(step.key)}
                     >
                       <span className="ai-assist-step-marker" aria-hidden="true">
                         {reviewed ? "✓" : step.groupIndex + 1}
@@ -399,7 +361,7 @@ export function AiAssistReview({
                     className={`ai-assist-step ai-assist-step--${step.kind}${current ? " is-current" : ""}`}
                     aria-label={label}
                     aria-current={current ? "step" : undefined}
-                    onClick={() => setStepIndex(index)}
+                    onClick={() => setCurrentStepKey(step.key)}
                   >
                     <span className="ai-assist-step-marker" aria-hidden="true">
                       {step.kind === "needsEye" ? "•" : "✦"}
@@ -566,7 +528,7 @@ function GroupStep({
                 >
                   <input
                     type="checkbox"
-                    aria-label={`Include proposed rule ${group.rules.indexOf(rule) + 1}`}
+                    aria-label={`Include rule ${rule.matchText} to ${rule.ledgerAccount}`}
                     checked={checked}
                     disabled={!hasCheckedRows}
                     onChange={(event) => onToggleRule(rule.id, event.target.checked)}
@@ -716,7 +678,7 @@ function ReviewRow({
     >
       <input
         type="checkbox"
-        aria-label={row.payee}
+        aria-label={`${row.payee}, ${formatInboxDate(row.postedDate)}, ${formatInboxAmount(row.sourceAmount)}`}
         checked={checked}
         disabled={disabled}
         onFocus={onSelect}
