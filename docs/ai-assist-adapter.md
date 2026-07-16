@@ -9,7 +9,47 @@ All protocol field names are camelCase. The current batch request identifies
 itself with `type: "batchSuggestionRequest"` and `version: 1`. An adapter should
 reject request types or versions it does not support.
 
-## Batch request
+## Design schema envelope (verbatim)
+
+This is the request/response envelope from the approved design specification,
+including its comments and placeholders exactly as written. It is illustrative
+JSONC, not a payload to execute or parse directly.
+
+```jsonc
+// stdin →
+{
+  "type": "batchSuggestionRequest",
+  "version": 1,
+  "sharedContext": {
+    "chartOfAccounts": ["..."],
+    "categorizationRules": [ ... ],
+    "businessProfile": { "name": "...", "baseCurrency": "...", "booksStartDate": "..." },
+    "recentApprovedEntries": [ ... ]
+  },
+  "rows": [
+    { "id": "...", "postedDate": "...", "description": "...",
+      "sourceAccount": "...", "sourceAmount": "..." }
+  ]
+}
+
+// stdout ←
+{
+  "suggestions": [
+    { "rowId": "...", "ledgerAccount": "Expenses:Software",
+      "payee": "Autobooks", "narration": "...",
+      "confidence": 0.93, "explanation": "...",
+      "needsHumanAttention": false }
+  ],
+  "proposedRules": [
+    { "matchText": "WEB PMTS Autobooks", "sourceAccount": "...",
+      "ledgerAccount": "Expenses:Software", "matchedRowIds": ["..."] }
+  ]
+}
+```
+
+The concrete examples below are valid JSON with the placeholders filled in.
+
+## Concrete batch request example
 
 ```json
 {
@@ -81,7 +121,7 @@ Each `rows` item contains:
 Context arrays can be empty. `rows` is non-empty in normal invocations because
 Diurnum finishes a pass instead of invoking the adapter when no rows remain.
 
-## Batch response
+## Concrete batch response example
 
 Write only the response JSON to standard output. Diagnostic output belongs on
 standard error.

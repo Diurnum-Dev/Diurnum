@@ -123,14 +123,21 @@ a row temporarily returns to the ordinary Inbox inspector without discarding the
 pass. Signing sends the exact selected entries and rules to Rust; the review UI
 never writes ledger files itself.
 
-Approval is compensating-atomic across Beancount and SQLite. Rust first rejects
-an already-invalid ledger, filters selections to rows that are still pending,
-and snapshots the Workspace. It writes selected entries to monthly transaction
-files, validates the resulting ledger, then creates selected rules, updates
-Statement Row provenance, records the batch, and marks the pass approved in one
-SQLite transaction. A file, validation, or pre-commit SQLite failure restores
-the snapshot, removes monthly files created by that attempt, and rolls back the
-SQLite transaction. The later Workspace Git commit is best effort.
+Approval coordinates Beancount and SQLite with a pre-write snapshot. Rust first
+rejects an already-invalid ledger and filters selections to rows that are still
+pending. It writes selected entries to monthly transaction files and validates
+the resulting ledger, then creates selected rules, updates Statement Row
+provenance, records the batch, and marks the pass approved in one SQLite
+transaction. Every post-write validation or SQLite-stage failure before the Git
+commit uses checked snapshot compensation, while the SQLite transaction rolls
+back without partial rules or batch state. Cleanup of monthly files newly created
+by the attempt is best effort. The later Workspace Git commit is also best effort.
+
+A failure during the entry-write loop takes a weaker exceptional path: Rust
+attempts snapshot restore and newly-created-file cleanup, but discards restore
+and deletion errors before returning the original write error. That integrity
+limitation remains queued for final review; it is not part of the normal
+post-write validation/SQLite compensation guarantee.
 
 Every approved entry carries `ai_assist_batch_id` in its Beancount metadata in
 addition to its `diurnum_entry_id`; the durable batch record maps Statement Row,
