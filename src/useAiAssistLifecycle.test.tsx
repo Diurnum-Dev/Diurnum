@@ -142,4 +142,37 @@ describe("useAiAssistLifecycle", () => {
     expect(api.dismissPass).toHaveBeenCalledTimes(2);
     expect(result.current.pass).toBeNull();
   });
+
+  it("ignores a mismatched pass returned by the chunk API", async () => {
+    const { result, api } = setup(pass("pass-old", "running"));
+    api.runNextChunk.mockResolvedValue(pass("pass-wrong"));
+    await waitFor(() => expect(api.runNextChunk).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current.running).toBe(false));
+
+    expect(result.current.pass?.passId).toBe("pass-old");
+    expect(api.runNextChunk).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.dismiss();
+    });
+    expect(api.dismissPass).toHaveBeenCalledWith("/books", "pass-old");
+  });
+
+  it("ignores a mismatched pass returned by retry without starting a continuation", async () => {
+    const { result, api } = setup(pass("pass-old"));
+    await waitFor(() => expect(result.current.pass?.passId).toBe("pass-old"));
+    api.retryFailedRows.mockResolvedValue(pass("pass-wrong", "running"));
+
+    await act(async () => {
+      await result.current.retry();
+    });
+
+    expect(result.current.pass?.passId).toBe("pass-old");
+    expect(api.getPass).toHaveBeenCalledTimes(1);
+    expect(api.runNextChunk).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.dismiss();
+    });
+    expect(api.dismissPass).toHaveBeenCalledWith("/books", "pass-old");
+  });
 });

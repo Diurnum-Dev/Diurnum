@@ -85,29 +85,31 @@ export function useAiAssistLifecycle({
     );
   }, []);
 
+  const acceptsPassState = useCallback(
+    (token: PassToken, state: AiAssistPassState) =>
+      state.passId === token.passId && isCurrent(token),
+    [isCurrent],
+  );
+
   const driveOnce = useCallback(
     async (token: PassToken) => {
       if (!isCurrent(token)) return;
       setRunning(true);
       try {
         let state = await api.getPass(token.workspaceRootPath);
-        while (
-          state?.status === "running" &&
-          state.passId === token.passId &&
-          isCurrent(token)
-        ) {
+        while (state?.status === "running" && acceptsPassState(token, state)) {
           state = await api.runNextChunk(token.workspaceRootPath, token.passId);
-          if (!isCurrent(token)) return;
+          if (!acceptsPassState(token, state)) return;
           setPass(state);
         }
-        if (state?.passId === token.passId && isCurrent(token)) setPass(state);
+        if (state && acceptsPassState(token, state)) setPass(state);
       } catch (caught) {
         if (isCurrent(token)) session.setError(userFacingError(caught));
       } finally {
         if (isCurrent(token)) setRunning(false);
       }
     },
-    [api, isCurrent, session],
+    [acceptsPassState, api, isCurrent, session],
   );
 
   const queueDriver = useCallback(
@@ -270,7 +272,7 @@ export function useAiAssistLifecycle({
     setActionBusy(true);
     try {
       const state = await api.retryFailedRows(token.workspaceRootPath, token.passId);
-      if (!isCurrent(token)) return;
+      if (!acceptsPassState(token, state)) return;
       setPass(state);
       void queueDriver(token);
     } catch (caught) {
@@ -281,7 +283,7 @@ export function useAiAssistLifecycle({
     } finally {
       releaseAction(key, token);
     }
-  }, [api, isCurrent, queueDriver, releaseAction, session]);
+  }, [acceptsPassState, api, isCurrent, queueDriver, releaseAction, session]);
 
   useEffect(() => {
     const previous = identityRef.current;
