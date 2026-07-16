@@ -26,8 +26,6 @@ import {
   userFacingError,
 } from "./lib/workspace/session";
 import type {
-  AiAssistPassState,
-  ApproveAiAssistBatchInput,
   CsvSourceMappingInput,
   CloseSourceAccountInput,
   SourceMappingUpdateInput,
@@ -62,12 +60,20 @@ import {
   saveUpdatePrefs,
   type UpdatePrefs,
 } from "./lib/updatePreferences";
+import { useAiAssistLifecycle } from "./useAiAssistLifecycle";
 
 type View = "start" | "create" | "open" | "workspace";
 
 const RECENT_WORKSPACES_KEY = "diurnum.workspaceRecents.v1";
 const RECENT_COMMANDS_KEY = "diurnum.commandPaletteRecents.v1";
 const APP_VERSION = "0.1.0";
+const AI_ASSIST_API = {
+  getPass: getAiAssistPass,
+  startPass: startAiAssistPass,
+  runNextChunk: runAiAssistNextChunk,
+  retryFailedRows: retryAiAssistFailedRows,
+  dismissPass: dismissAiAssistPass,
+};
 
 export default function App() {
   // The open Workspace and its derived data live in one module. App owns only
@@ -117,14 +123,12 @@ export default function App() {
     loadRecentWorkspaces,
   );
   const [recentLedgerFiles, setRecentLedgerFiles] = useState<string[]>([]);
-  const [aiAssistPass, setAiAssistPass] = useState<AiAssistPassState | null>(null);
-  const [aiAssistRunning, setAiAssistRunning] = useState(false);
   const autoUpdateCheckRef = useRef(false);
-  const aiAssistLifecycleRef = useRef(0);
-  const aiAssistPassGenerationRef = useRef(0);
-  const aiAssistDriversRef = useRef(new Set<string>());
-  const aiAssistStartInFlightRef = useRef(false);
-  const aiAssistRetryInFlightRef = useRef(false);
+  const aiAssist = useAiAssistLifecycle({
+    workspaceRootPath: view === "workspace" ? (workspace?.rootPath ?? null) : null,
+    session,
+    api: AI_ASSIST_API,
+  });
 
   const checkForAppUpdate = useCallback(async (): Promise<boolean> => {
     setUpdateCheckInProgress(true);
@@ -601,166 +605,6 @@ export default function App() {
     }
   }
 
-  async function driveAiAssistChunks(
-    workspaceRootPath: string,
-    passId: string,
-    passGeneration: number,
-  ) {
-    const driverKey = `${workspaceRootPath}\u0000${passId}\u0000${passGeneration}`;
-    if (aiAssistDriversRef.current.has(driverKey)) return;
-
-    const lifecycle = aiAssistLifecycleRef.current;
-    aiAssistDriversRef.current.add(driverKey);
-    setAiAssistRunning(true);
-    try {
-      let state = await getAiAssistPass(workspaceRootPath);
-      while (
-        state?.status === "running" &&
-        state.passId === passId &&
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        state = await runAiAssistNextChunk(workspaceRootPath, state.passId);
-        if (
-          lifecycle !== aiAssistLifecycleRef.current ||
-          passGeneration !== aiAssistPassGenerationRef.current
-        ) {
-          return;
-        }
-        setAiAssistPass(state);
-      }
-      if (
-        state &&
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        setAiAssistPass(state);
-      }
-    } catch (caught) {
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        session.setError(userFacingError(caught));
-      }
-    } finally {
-      aiAssistDriversRef.current.delete(driverKey);
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        setAiAssistRunning(false);
-      }
-    }
-  }
-
-  async function handleStartAiAssist() {
-    if (!workspace || aiAssistStartInFlightRef.current) return;
-    const workspaceRootPath = workspace.rootPath;
-    const lifecycle = aiAssistLifecycleRef.current;
-    const passGeneration = aiAssistPassGenerationRef.current + 1;
-    aiAssistPassGenerationRef.current = passGeneration;
-    aiAssistStartInFlightRef.current = true;
-    try {
-      const state = await startAiAssistPass(workspaceRootPath);
-      if (
-        lifecycle !== aiAssistLifecycleRef.current ||
-        passGeneration !== aiAssistPassGenerationRef.current
-      ) {
-        return;
-      }
-      setAiAssistPass(state);
-      void driveAiAssistChunks(workspaceRootPath, state.passId, passGeneration);
-    } catch (caught) {
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        session.setError(userFacingError(caught));
-      }
-    } finally {
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        aiAssistStartInFlightRef.current = false;
-      }
-    }
-  }
-
-  async function handleApproveAiAssistBatch(selection: {
-    entries: ApproveAiAssistBatchInput["entries"];
-    rules: ApproveAiAssistBatchInput["rules"];
-  }) {
-    if (!workspace || !aiAssistPass) return;
-    const lifecycle = aiAssistLifecycleRef.current;
-    try {
-      await session.approveAiAssistBatch({
-        workspaceRootPath: workspace.rootPath,
-        passId: aiAssistPass.passId,
-        ...selection,
-      });
-      if (lifecycle === aiAssistLifecycleRef.current) {
-        aiAssistPassGenerationRef.current += 1;
-        setAiAssistPass(null);
-        setAiAssistRunning(false);
-      }
-    } catch {
-      // Session owns the error; preserve the pass and staged review selection.
-    }
-  }
-
-  async function handleDismissAiAssist() {
-    if (!workspace || !aiAssistPass) return;
-    const lifecycle = aiAssistLifecycleRef.current;
-    try {
-      await dismissAiAssistPass(workspace.rootPath, aiAssistPass.passId);
-      if (lifecycle === aiAssistLifecycleRef.current) {
-        aiAssistPassGenerationRef.current += 1;
-        setAiAssistPass(null);
-        setAiAssistRunning(false);
-      }
-    } catch (caught) {
-      if (lifecycle === aiAssistLifecycleRef.current) {
-        session.setError(userFacingError(caught));
-      }
-    }
-  }
-
-  async function handleRetryAiAssist() {
-    if (!workspace || !aiAssistPass || aiAssistRetryInFlightRef.current) return;
-    const workspaceRootPath = workspace.rootPath;
-    const lifecycle = aiAssistLifecycleRef.current;
-    const passGeneration = aiAssistPassGenerationRef.current + 1;
-    aiAssistPassGenerationRef.current = passGeneration;
-    aiAssistRetryInFlightRef.current = true;
-    try {
-      const state = await retryAiAssistFailedRows(workspaceRootPath, aiAssistPass.passId);
-      if (
-        lifecycle !== aiAssistLifecycleRef.current ||
-        passGeneration !== aiAssistPassGenerationRef.current
-      ) {
-        return;
-      }
-      setAiAssistPass(state);
-      void driveAiAssistChunks(workspaceRootPath, state.passId, passGeneration);
-    } catch (caught) {
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        session.setError(userFacingError(caught));
-      }
-    } finally {
-      if (
-        lifecycle === aiAssistLifecycleRef.current &&
-        passGeneration === aiAssistPassGenerationRef.current
-      ) {
-        aiAssistRetryInFlightRef.current = false;
-      }
-    }
-  }
-
   async function handleApproveSuggestedEntry(input: {
     statementRowId: string;
     ledgerAccount: string;
@@ -926,45 +770,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, workspace?.rootPath]);
 
-  useEffect(() => {
-    const lifecycle = aiAssistLifecycleRef.current + 1;
-    aiAssistLifecycleRef.current = lifecycle;
-    const passGeneration = aiAssistPassGenerationRef.current + 1;
-    aiAssistPassGenerationRef.current = passGeneration;
-    setAiAssistPass(null);
-    setAiAssistRunning(false);
-    aiAssistStartInFlightRef.current = false;
-    aiAssistRetryInFlightRef.current = false;
-
-    if (view !== "workspace" || !workspace) return;
-    const workspaceRootPath = workspace.rootPath;
-    let cancelled = false;
-    void getAiAssistPass(workspaceRootPath)
-      .then((state) => {
-        if (
-          cancelled ||
-          lifecycle !== aiAssistLifecycleRef.current ||
-          passGeneration !== aiAssistPassGenerationRef.current
-        ) {
-          return;
-        }
-        setAiAssistPass(state);
-        if (state?.status === "running") {
-          void driveAiAssistChunks(workspaceRootPath, state.passId, passGeneration);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-      if (lifecycle === aiAssistLifecycleRef.current) {
-        aiAssistLifecycleRef.current += 1;
-      }
-    };
-    // driveAiAssistChunks is intentionally scoped by the lifecycle token above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, workspace?.rootPath]);
-
   const recentPathsKey = recentWorkspaces.map((entry) => entry.path).join("\n");
   useEffect(() => {
     if (recentWorkspaces.length === 0) return;
@@ -1117,14 +922,15 @@ export default function App() {
             onApproveTransfer={handleApproveTransferEntry}
             onRevertTransfer={handleRevertTransferToStandard}
             aiAssist={{
-              pass: aiAssistPass,
+              pass: aiAssist.pass,
               adapterConfigured: aiAdapterConfig.command != null,
-              running: aiAssistRunning,
+              running: aiAssist.running,
+              actionBusy: aiAssist.actionBusy,
               disclosure: aiContextDisclosure,
-              onStart: handleStartAiAssist,
-              onApprove: handleApproveAiAssistBatch,
-              onDismiss: handleDismissAiAssist,
-              onRetry: handleRetryAiAssist,
+              onStart: aiAssist.start,
+              onApprove: aiAssist.approve,
+              onDismiss: aiAssist.dismiss,
+              onRetry: aiAssist.retry,
               onOpenSettings: () => setActiveScreen("settings"),
             }}
           />

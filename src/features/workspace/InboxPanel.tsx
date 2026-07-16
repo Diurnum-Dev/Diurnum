@@ -33,6 +33,7 @@ type InboxPanelProps = {
     pass: AiAssistPassState | null;
     adapterConfigured: boolean;
     running: boolean;
+    actionBusy?: boolean;
     disclosure: AiContextDisclosure | null;
     onStart: () => void;
     onApprove: (selection: {
@@ -289,7 +290,11 @@ export function InboxPanel({
           onApprove={aiAssist.onApprove}
           onDismiss={aiAssist.onDismiss}
           onRetry={aiAssist.onRetry}
+          busy={aiAssist.actionBusy}
           onEditRow={(statementRowId) => {
+            setAccount("all");
+            setMonth("all");
+            setTab("all");
             setSelectedStatementRowId(statementRowId);
             setEditing(true);
             setReviewExitPassId(activeReviewPass.passId);

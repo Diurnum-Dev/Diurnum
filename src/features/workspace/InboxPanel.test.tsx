@@ -160,6 +160,35 @@ describe("InboxPanel", () => {
     expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
   });
 
+  it("clears filters so an edited review row remains selected and visible", () => {
+    const inactiveAssist = aiAssist();
+    const { rerender } = render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={inactiveAssist}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Matched/ }));
+
+    rerender(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={{ ...inactiveAssist, pass: aiAssistPass }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Lyft.*was: LYFT \*RIDE/ }));
+
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByLabelText("Ledger Account")).toBeTruthy();
+  });
+
   it("cancels disclosure without acknowledging or starting", () => {
     const onStart = vi.fn();
     render(
@@ -241,6 +270,21 @@ describe("InboxPanel", () => {
 
     await waitFor(() => expect(onApprove).toHaveBeenCalled());
     expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
+  });
+
+  it("disables signing actions while an AI Assist mutation is busy", () => {
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ pass: aiAssistPass, actionBusy: true })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Sign & approve/ }));
+    expect(screen.getByRole("button", { name: /Approve 1 entry/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Dismiss results" })).toBeDisabled();
   });
 
   it("lists pending and matched rows with category chips", () => {

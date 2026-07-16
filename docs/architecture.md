@@ -78,15 +78,19 @@ steps plus row and rule inclusion). Its signing boundary emits the exact staged
 entry/rule selection to the session-owned batch approval command; it never writes
 the ledger directly. Group-step state uses stable ledger-account keys while a pass
 is running, and the stateful review surface is keyed by pass id so no staged choice
-can cross into a later pass. `App` owns the active pass and its sequential chunk
-driver. The driver captures the Workspace root, rejects a second loop for the same
-pass, and uses Workspace-lifecycle and pass-generation tokens to discard responses
-after close, switch, replacement, approval, or dismissal; Workspace entry
-rehydrates a durable pass and resumes it when still running. `InboxPanel` owns only
-the local disclosure and presentation mode: an edit
+can cross into a later pass. `useAiAssistLifecycle` is the deep App-facing owner of
+the active pass, mutation guards, and sequential chunk driver. One driver record is
+keyed by Workspace root plus pass id regardless of generation; retry queues the
+newest generation behind an unresolved chunk, so adapter calls for one pass never
+overlap. Workspace-lifecycle, pass-id, and generation tokens discard stale
+rehydration, mutation, and chunk responses after close, switch, replacement,
+approval, or dismissal. Approval/dismiss/retry share a pass-scoped in-flight guard
+whose busy state disables the existing review actions and is released on every
+error path. Workspace entry rehydrates a durable pass and resumes it when still
+running. `InboxPanel` owns only the local disclosure and presentation mode: an edit
 action temporarily returns to its normal list/inspector with that row selected,
-while the unchanged pass remains available for review and a new pass id clears the
-override.
+after resetting filters so the row is guaranteed visible; the unchanged pass
+remains available for review and a new pass id clears the override.
 
 ## Product Runtime Flow
 
@@ -139,7 +143,7 @@ sequenceDiagram
   UI->>UI: Navigate to Inbox after a successful import
 
   User->>UI: Confirm AI Assist disclosure and start a pass
-  loop One non-overlapping chunk at a time
+  loop One serialized chunk at a time per Workspace and pass
     UI->>Core: Run next chunk for captured Workspace and pass
     Core->>State: Persist suggestions and pass progress
     Core-->>UI: Running or complete pass state
@@ -330,7 +334,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Imported statement rows carry a `pending_at_import` flag so approval metadata can distinguish rows that were still awaiting review when they entered the staging area.
 - Suggested Entry review reads pending Statement Rows, previews the Beancount entry, exposes Journal Detail, and approves non-transfer entries into Monthly Transaction Files.
 - The Inbox is the shell-native review surface for pending Statement Rows. It uses a full-height split layout with header, filters, and grouped rows in the left work area plus a flush right-hand inspector, highlights rows marked `pending_at_import`, and returns to the Ledger Editor after approval with the newly written monthly file opened.
-- App owns AI Assist pass rehydration and the guarded sequential chunk loop; Inbox owns the disclosure gate and whether that pass is shown as momentum review or temporarily as the normal row inspector. Failed approval, dismissal, and retry operations preserve the pass so the existing error surface can report a recoverable failure.
+- The App-facing AI Assist lifecycle hook owns pass rehydration, pass-scoped mutation locks, and the root-plus-pass serialized chunk queue; Inbox owns the disclosure gate and whether that pass is shown as momentum review or temporarily as the normal row inspector. Failed approval, dismissal, and retry operations release their locks and preserve the pass so the existing error surface can report a recoverable failure.
 - After approving a Suggested Entry or Transfer Match, the UI returns to the Ledger Editor and requests the monthly transaction file that received the new Beancount entry.
 - Categorization Rules are user-confirmed SQLite records scoped to Source Account by default, visible/editable in the Workspace overview, and used to prefill future Standard Suggested Entries before any AI suggestion layer.
 - Categorization Rules can now be edited, disabled, re-enabled, or deleted from the shell-native Settings surface, while predictive completion only considers enabled rules.

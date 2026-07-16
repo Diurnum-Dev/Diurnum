@@ -24,6 +24,7 @@ type AiAssistReviewProps = {
   onDismiss: () => Promise<void> | void;
   onRetry: () => Promise<void> | void;
   onEditRow: (statementRowId: string) => void;
+  busy?: boolean;
 };
 
 type ReviewStep =
@@ -57,6 +58,7 @@ function AiAssistReviewPass({
   onDismiss,
   onRetry,
   onEditRow,
+  busy = false,
 }: AiAssistReviewProps) {
   const rootRef = useRef<HTMLElement>(null);
   const { groups, needsEye } = useMemo(
@@ -208,8 +210,10 @@ function AiAssistReviewPass({
     moveToNextStep();
   };
 
-  const approveSelection = () =>
+  const approveSelection = () => {
+    if (busy) return;
     callSafely(() => onApprove({ entries: entriesSelection, rules: rulesSelection }));
+  };
 
   const runPrimaryAction = () => {
     if (currentStep?.kind === "group") acceptCurrentGroup();
@@ -412,6 +416,7 @@ function AiAssistReviewPass({
               }
               onEditRow={onEditRow}
               onRetry={() => callSafely(onRetry)}
+              busy={busy}
               onContinue={moveToNextStep}
             />
           ) : null}
@@ -431,6 +436,7 @@ function AiAssistReviewPass({
                 <button
                   type="button"
                   className="ai-assist-link-button"
+                  disabled={busy}
                   onClick={() => callSafely(onDismiss)}
                 >
                   Dismiss results
@@ -438,6 +444,7 @@ function AiAssistReviewPass({
                 <button
                   type="button"
                   className="ai-assist-primary"
+                  disabled={busy}
                   onClick={approveSelection}
                 >
                   Approve {entriesSelection.length}{" "}
@@ -587,6 +594,7 @@ type NeedsEyeStepProps = {
   onToggleRow: (rowId: string, checked: boolean) => void;
   onEditRow: (rowId: string) => void;
   onRetry: () => void;
+  busy: boolean;
   onContinue: () => void;
 };
 
@@ -599,6 +607,7 @@ function NeedsEyeStep({
   onToggleRow,
   onEditRow,
   onRetry,
+  busy,
   onContinue,
 }: NeedsEyeStepProps) {
   return (
@@ -626,7 +635,12 @@ function NeedsEyeStep({
                 onEdit={() => onEditRow(row.statementRowId)}
                 trailingAction={
                   row.failed ? (
-                    <button type="button" className="ai-assist-link-button" onClick={onRetry}>
+                    <button
+                      type="button"
+                      className="ai-assist-link-button"
+                      disabled={busy}
+                      onClick={onRetry}
+                    >
                       Retry
                     </button>
                   ) : null
