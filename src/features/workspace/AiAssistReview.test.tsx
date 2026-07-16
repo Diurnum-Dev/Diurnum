@@ -202,6 +202,27 @@ describe("AiAssistReview", () => {
     expect(screen.getByText(/AI unsure — deposit source\?/)).toBeTruthy();
   });
 
+  test("boundary-rejected account suggestions cannot be selected", () => {
+    renderReview({
+      pass: {
+        ...pass,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-4"
+            ? {
+                ...suggestion,
+                ledgerAccount: null,
+                explanation: "Suggested account is not in the chart of accounts",
+              }
+            : suggestion,
+        ),
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Needs your eye/ }));
+
+    expect(rowCheckbox("Mobile Deposit", "+$2500.00")).toBeDisabled();
+    expect(screen.getByText(/not in the chart of accounts/)).toBeTruthy();
+  });
+
   test("running pass shows progress", () => {
     renderReview({ pass: { ...pass, status: "running", processedRows: 2 } });
     expect(screen.getByText(/2 of 4 categorized/)).toBeTruthy();

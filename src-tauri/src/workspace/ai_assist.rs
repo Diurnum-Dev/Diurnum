@@ -4,8 +4,8 @@ use crate::workspace::ai_adapter::{
 };
 use crate::workspace::approval::{
     ensure_main_includes, ensure_provenance_columns, get_suggested_entries,
-    load_pending_suggested_entry, monthly_transaction_file, open_ledger_account_if_missing,
-    parse_amount, SuggestedEntry, SuggestedEntryKind,
+    load_pending_suggested_entry, monthly_transaction_file, parse_amount, SuggestedEntry,
+    SuggestedEntryKind,
 };
 use crate::workspace::categorization_rules::{
     create_categorization_rule_from_connection, delete_categorization_rule_from_connection,
@@ -427,9 +427,32 @@ pub fn approve_ai_assist_batch(
         ));
     }
 
+    let chart: HashSet<String> = read_chart_of_accounts(root)?.into_iter().collect();
     // Rows approved or edited elsewhere since review started drop out silently.
+    // Client entry data is untrusted: the account must still be the validated,
+    // durable suggestion for a row that belongs to this pass.
     let mut approvals: Vec<(AiAssistEntryInput, SuggestedEntry)> = Vec::new();
     for entry in input.entries {
+        if !chart.contains(&entry.ledger_account) {
+            continue;
+        }
+        let validated_account: Option<String> = connection
+            .query_row(
+                "select suggestions.ledger_account
+                 from ai_assist_pass_rows pass_rows
+                 join ai_assist_suggestions suggestions
+                   on suggestions.pass_id = pass_rows.pass_id
+                  and suggestions.statement_row_id = pass_rows.statement_row_id
+                 where pass_rows.pass_id = ?1 and pass_rows.statement_row_id = ?2
+                   and suggestions.status in ('suggested', 'needsEye')
+                   and suggestions.ledger_account is not null",
+                params![input.pass_id, entry.statement_row_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if validated_account.as_deref() != Some(entry.ledger_account.as_str()) {
+            continue;
+        }
         match load_pending_suggested_entry(&connection, &entry.statement_row_id) {
             Ok(row) => approvals.push((entry, row)),
             Err(_) => continue,
@@ -441,7 +464,6 @@ pub fn approve_ai_assist_batch(
             "AI Assist has nothing to approve: no selected entries are still pending.",
         ));
     }
-    let chart: HashSet<String> = read_chart_of_accounts(root)?.into_iter().collect();
     let selected_row_ids: HashSet<&str> = approvals
         .iter()
         .map(|(_, row)| row.statement_row_id.as_str())
@@ -517,7 +539,6 @@ pub fn approve_ai_assist_batch(
     let mut created_monthly_files: Vec<std::path::PathBuf> = Vec::new();
     let mut write = || -> Result<(), WorkspaceError> {
         for (entry, row) in &approvals {
-            open_ledger_account_if_missing(root, &entry.ledger_account)?;
             let monthly_relative_path = monthly_transaction_file(&row.posted_date)?;
             let monthly_path = root.join(&monthly_relative_path);
             if let Some(parent) = monthly_path.parent() {
@@ -619,10 +640,22 @@ pub fn approve_ai_assist_batch(
                 rule_ids_json
             ],
         )?;
-        transaction.execute(
-            "update ai_assist_passes set status = 'approved' where id = ?1",
+        let updated_passes = transaction.execute(
+            "update ai_assist_passes set status = 'approved'
+             where id = ?1 and status in ('running', 'complete')
+               and id = (
+                 select id from ai_assist_passes
+                 where status in ('running', 'complete')
+                 order by started_at desc limit 1
+               )",
             [input.pass_id.as_str()],
         )?;
+        if updated_passes != 1 {
+            return Err(WorkspaceError::new(
+                WorkspaceErrorCode::InvalidLedger,
+                "AI Assist approval was cancelled because the pass is no longer current.",
+            ));
+        }
         transaction.commit()?;
         Ok(())
     })();
@@ -1228,12 +1261,16 @@ fn persist_chunk_response(
         } else {
             suggestion.explanation.clone()
         };
+        let validated_ledger_account = suggestion
+            .ledger_account
+            .as_deref()
+            .filter(|_| account_known);
         insert_suggestion(
             connection,
             pass_id,
             &suggestion.row_id,
             status,
-            suggestion.ledger_account.as_deref(),
+            validated_ledger_account,
             suggestion.payee.as_deref(),
             suggestion.narration.as_deref(),
             suggestion.confidence,
@@ -1287,21 +1324,11 @@ fn persist_chunk_response(
         if unique_matched_ids.len() != proposed.matched_row_ids.len() {
             continue;
         }
-        let all_matches_are_current = proposed.matched_row_ids.iter().all(|row_id| {
-            connection
-                .query_row(
-                    "select count(*)
-                     from ai_assist_pass_rows pr
-                     join statement_rows sr on sr.id = pr.statement_row_id
-                     where pr.pass_id = ?1 and pr.statement_row_id = ?2
-                       and sr.status = 'pending' and sr.source_account = ?3",
-                    params![pass_id, row_id, proposed.source_account],
-                    |row| row.get::<_, i64>(0),
-                )
-                .map(|count| count == 1)
-                .unwrap_or(false)
+        let all_matches_are_current_request_rows = proposed.matched_row_ids.iter().all(|row_id| {
+            live.iter()
+                .any(|row| row.id == *row_id && row.source_account == proposed.source_account)
         });
-        if !all_matches_are_current {
+        if !all_matches_are_current_request_rows {
             continue;
         }
         let already_proposed: i64 = connection.query_row(
@@ -1630,6 +1657,7 @@ mod tests {
         };
         assert_eq!(by_id("row-1").status, "suggested");
         assert_eq!(by_id("row-2").status, "needsEye");
+        assert_eq!(by_id("row-2").ledger_account, None);
         assert_eq!(by_id("row-3").status, "needsEye");
         assert_eq!(state.suggestions.len(), 3); // row-unknown ignored
     }
@@ -1746,6 +1774,25 @@ mod tests {
         assert_eq!(state.proposed_rules.len(), 1);
         assert_eq!(state.proposed_rules[0].matched_row_ids, vec!["row-1"]);
         assert_eq!(state.proposed_rules[0].matched_row_count, 1);
+    }
+
+    #[test]
+    fn proposed_rule_matches_must_be_within_the_current_adapter_chunk() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "First", "-1.00");
+        insert_pending_row(&connection, "row-2", "Second", "-2.00");
+        let command = write_adapter_script(
+            tempdir.path(),
+            r#"{"suggestions":[{"rowId":"row-1","ledgerAccount":"Expenses:Software","confidence":0.9,"needsHumanAttention":false}],"proposedRules":[{"matchText":"Second","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":["row-2"]}]}"#,
+        );
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_next_chunk_with_size(Path::new(&root), &pass.pass_id, 1).unwrap();
+
+        assert!(state.proposed_rules.is_empty());
     }
 
     #[test]
@@ -1876,6 +1923,24 @@ mod tests {
         pass_id: &str,
         entries: Vec<AiAssistEntryInput>,
     ) -> ApproveAiAssistBatchInput {
+        let connection = open_test_connection(root);
+        for entry in &entries {
+            let exists: i64 = connection
+                .query_row(
+                    "select count(*) from ai_assist_suggestions where pass_id = ?1 and statement_row_id = ?2",
+                    params![pass_id, entry.statement_row_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            if exists == 0 {
+                insert_validated_suggestion(
+                    &connection,
+                    pass_id,
+                    &entry.statement_row_id,
+                    &entry.ledger_account,
+                );
+            }
+        }
         ApproveAiAssistBatchInput {
             workspace_root_path: root.to_string(),
             pass_id: pass_id.to_string(),
@@ -1904,6 +1969,26 @@ mod tests {
                 serde_json::to_string(matched_row_ids).unwrap(),
             ],
         ).unwrap();
+    }
+
+    fn insert_validated_suggestion(
+        connection: &Connection,
+        pass_id: &str,
+        row_id: &str,
+        ledger_account: &str,
+    ) {
+        insert_suggestion(
+            connection,
+            pass_id,
+            row_id,
+            "suggested",
+            Some(ledger_account),
+            None,
+            None,
+            Some(0.9),
+            None,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -2016,6 +2101,106 @@ mod tests {
     }
 
     #[test]
+    fn approval_rejects_unknown_or_changed_suggestion_accounts() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-1", "Expenses:Software");
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Hallucinated".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        ));
+
+        assert!(result.is_err());
+        assert!(!fs::read_to_string(Path::new(&root).join("accounts.bean"))
+            .unwrap()
+            .contains("Expenses:Hallucinated"));
+    }
+
+    #[test]
+    fn approval_rejects_rows_without_current_pass_membership() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "In pass", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        insert_pending_row(&connection, "row-late", "Not in pass", "-2.00");
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-late", "Expenses:Software");
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-late".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        ));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn approval_compensates_when_pass_is_superseded_during_finalization() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-1", "Expenses:Software");
+        connection
+            .execute_batch(&format!(
+                "create trigger supersede_during_batch before insert on ai_assist_batches
+                 begin
+                   update ai_assist_passes set status = 'dismissed' where id = '{}';
+                   insert into ai_assist_passes (id, started_at, status, total_rows)
+                   values ('new-current-pass', '9999-01-01T00:00:00Z', 'running', 1);
+                 end;",
+                pass.pass_id
+            ))
+            .unwrap();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        ));
+
+        assert!(result.is_err());
+        assert!(!monthly_path.exists());
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+        let (pass_status, row_status): (String, String) = connection
+            .query_row(
+                "select p.status, sr.status
+                 from ai_assist_passes p cross join statement_rows sr
+                 where p.id = ?1 and sr.id = 'row-1'",
+                [&pass.pass_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (pass_status.as_str(), row_status.as_str()),
+            ("running", "pending")
+        );
+    }
+
+    #[test]
     fn compensation_reports_original_restore_and_created_file_cleanup_failures() {
         let original = WorkspaceError::io("original write failure");
         let restore = WorkspaceError::io("restore failure");
@@ -2059,6 +2244,8 @@ mod tests {
             "Autobooks",
             &["row-1"],
         );
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-1", "Expenses:Software");
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-2", "Expenses:Software");
 
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
@@ -2358,6 +2545,7 @@ mod tests {
             "Autobooks",
             &["row-1"],
         );
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-1", "Expenses:Software");
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
             pass_id: pass.pass_id.clone(),
@@ -2557,6 +2745,7 @@ mod tests {
             "Autobooks",
             &["row-1"],
         );
+        insert_validated_suggestion(&connection, &pass.pass_id, "row-1", "Expenses:Software");
         approve_ai_assist_batch(ApproveAiAssistBatchInput {
             workspace_root_path: root.clone(),
             pass_id: pass.pass_id,

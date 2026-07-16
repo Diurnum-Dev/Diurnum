@@ -136,17 +136,24 @@ boundary shown above.
 
 Approval coordinates Beancount and SQLite with a pre-write snapshot. Rust first
 rejects an already-invalid ledger and filters selections to rows that are still
-pending. It writes selected entries to monthly transaction files and validates
+pending members of the current pass with a durable eligible suggestion. The
+submitted account must equal that validated suggestion and still exist in the
+chart; approval never opens an adapter- or client-supplied account. It writes
+selected entries to monthly transaction files and validates
 the resulting ledger, then creates selected rules, updates Statement Row
 provenance, records the batch, and marks the pass approved in one SQLite
 transaction. Adapter-proposed rules are untrusted: source and ledger accounts
-must exist in the current chart, every recorded match must be a live pending row
-in that pass and source account, and approval revalidates the durable proposal
+must exist in the current chart, every recorded match must be a unique row from
+the current adapter request with the stated source account, and approval
+revalidates the durable proposal
 against selected rows. Canonical rule keys prevent duplicates within a request
 and against existing enabled or disabled rules. Every entry-write, validation,
 or SQLite-stage failure before the Git commit uses checked snapshot and
 newly-created-file compensation, while the SQLite transaction rolls back
-without partial rules or batch state. If the original operation and either
+without partial rules or batch state. Final pass consumption is conditional on
+the pass still being the current running/complete pass inside that transaction;
+a concurrent supersession rolls back SQLite and triggers filesystem
+compensation. If the original operation and either
 compensation step fail, the returned error preserves all failures. The later
 Workspace Git commit is best effort.
 

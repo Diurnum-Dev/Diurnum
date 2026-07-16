@@ -169,25 +169,28 @@ Each `proposedRules` item contains:
 | `matchText` | string | yes | Vendor substring for the proposed Categorization Rule. |
 | `sourceAccount` | string | yes | Source Account to which the rule applies. |
 | `ledgerAccount` | string | yes | Account the proposed rule selects; use an exact chart value. |
-| `matchedRowIds` | string array | no | Defaults to an empty array; Diurnum currently uses its length as the displayed matched-row count. |
+| `matchedRowIds` | string array | yes | Non-empty, deduplicated ids from the current request whose rows use this rule's `sourceAccount`. The displayed count is derived from the validated ids. |
 
 The top-level `suggestions` and `proposedRules` arrays each default to an empty
 array when omitted. Do not send `null` in place of either array. A proposed rule
-that duplicates an enabled rule with the same `sourceAccount` and `matchText` is
-ignored, as is a duplicate proposal for the same pair elsewhere in the pass.
-Rules are only created if the user selects them during approval.
-Response ingestion does not independently chart-validate proposed rules or
-cross-check `matchedRowIds`; adapters should therefore use request row ids,
-request Source Accounts, and exact `chartOfAccounts` values.
+that duplicates an existing rule with the same canonical `sourceAccount` and
+`matchText` is ignored, as is a duplicate proposal elsewhere in the pass.
+Diurnum accepts a proposal only when its source and ledger accounts are exact
+chart values and every `matchedRowIds` value is unique, belongs to the current
+adapter request, and names a request row with the stated Source Account. Empty,
+cross-request, cross-source, and duplicate match lists are rejected. Rules are
+only created if the user selects them during approval, when these invariants and
+the selected-row intersection are validated again.
 
 ## Validation and failure behavior
 
 Diurnum compares each suggestion's `ledgerAccount` with
 `sharedContext.chartOfAccounts` using an exact string match. A missing, null,
 unknown, or differently formatted account cannot be a normal suggestion: the
-row is placed in “Needs your eye.” An unknown account also replaces the supplied
-explanation with a boundary-validation message. Diurnum does not normalize an
-account name or add an adapter-suggested account at this boundary.
+row is placed in “Needs your eye.” An unknown account is discarded (stored as
+null) and also replaces the supplied explanation with a boundary-validation
+message, so the attention row cannot be selected for approval. Diurnum does not
+normalize an account name or add an adapter-suggested account at this boundary.
 
 Unknown `rowId` values are ignored. Every requested row should appear exactly
 once: a requested row omitted from `suggestions` is stored as failed and can be
