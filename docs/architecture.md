@@ -73,6 +73,10 @@ applies atomically through the same `applyView` path as per-row approval.
 Before AI Assist review mode renders, the pure `buildAiAssistGroups` frontend
 transformation filters suggestions to still-pending rows, partitions attention
 items, and groups suggested rows with matching proposed rules by ledger account.
+`AiAssistReview` owns only the momentum-flow UI state (current/reviewed/skipped
+steps plus row and rule inclusion). Its signing boundary emits the exact staged
+entry/rule selection to the session-owned batch approval command; it never writes
+the ledger directly.
 
 ## Product Runtime Flow
 
@@ -186,6 +190,7 @@ flowchart LR
     Settings[Workspace Settings]
     Validation[Ledger validation]
     Approval[Approval and transfer matching]
+    AiReview[AI Assist momentum review and staged selection]
     Provenance[Broken provenance check]
     Reports[MVP reports]
   end
@@ -199,6 +204,9 @@ flowchart LR
   LedgerFiles --> Validation
   LedgerFiles --> Reports
   SQLite --> Approval
+  Rows --> AiReview
+  Rules --> AiReview
+  AiReview --> Approval
   SQLite --> Provenance
   Recents --> Shell
   Shell --> Editor
