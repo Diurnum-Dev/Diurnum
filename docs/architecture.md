@@ -123,6 +123,11 @@ a row temporarily returns to the ordinary Inbox inspector without discarding the
 pass. Signing sends the exact selected entries and rules to Rust; the review UI
 never writes ledger files itself.
 
+The test-API-backed Playwright golden path in `e2e/ai-assist.spec.ts` verifies
+the disclosure, progress, grouped review, signing, and refreshed-Inbox flow with
+a deterministic backend double; production continues to use the Tauri command
+boundary shown above.
+
 Approval coordinates Beancount and SQLite with a pre-write snapshot. Rust first
 rejects an already-invalid ledger and filters selections to rows that are still
 pending. It writes selected entries to monthly transaction files and validates
