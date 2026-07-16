@@ -1,10 +1,14 @@
-use crate::workspace::ai_adapter::{invoke_adapter_raw, AiBusinessProfile, SimilarApprovedEntry};
+use crate::workspace::ai_adapter::{
+    invoke_adapter_raw, load_adapter_command, read_chart_of_accounts, read_manifest,
+    AiBusinessProfile, SimilarApprovedEntry,
+};
 use crate::workspace::approval::{get_suggested_entries, SuggestedEntryKind};
-use crate::workspace::categorization_rules::CategorizationRule;
+use crate::workspace::categorization_rules::{list_categorization_rules, CategorizationRule};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
 use uuid::Uuid;
 
@@ -290,6 +294,337 @@ pub(crate) fn load_ai_assist_state(
     })
 }
 
+struct ChunkRow {
+    id: String,
+    posted_date: String,
+    description: String,
+    source_account: String,
+    source_amount: String,
+    row_status: String,
+}
+
+pub fn run_ai_assist_next_chunk(
+    workspace_root_path: impl AsRef<Path>,
+    pass_id: &str,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    run_next_chunk_with_size(workspace_root_path.as_ref(), pass_id, AI_ASSIST_CHUNK_SIZE)
+}
+
+fn run_next_chunk_with_size(
+    root: &Path,
+    pass_id: &str,
+    chunk_size: usize,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    let connection = open_workspace_connection(root)?;
+    ensure_ai_assist_tables(&connection)?;
+    let status: String = connection.query_row(
+        "select status from ai_assist_passes where id = ?1",
+        [pass_id],
+        |row| row.get(0),
+    )?;
+    if status != "running" {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "AI Assist pass is not running.",
+        ));
+    }
+
+    let mut statement = connection.prepare(
+        "
+        select rows.statement_row_id, sr.posted_date, sr.description, sr.source_account, sr.source_amount, sr.status
+        from ai_assist_pass_rows rows
+        join statement_rows sr on sr.id = rows.statement_row_id
+        where rows.pass_id = ?1 and rows.processed = 0
+        order by rows.statement_row_id
+        limit ?2
+        ",
+    )?;
+    let chunk = statement
+        .query_map(params![pass_id, chunk_size as i64], |row| {
+            Ok(ChunkRow {
+                id: row.get(0)?,
+                posted_date: row.get(1)?,
+                description: row.get(2)?,
+                source_account: row.get(3)?,
+                source_amount: row.get(4)?,
+                row_status: row.get(5)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if chunk.is_empty() {
+        connection.execute(
+            "update ai_assist_passes set status = 'complete' where id = ?1",
+            [pass_id],
+        )?;
+        return load_ai_assist_state(&connection, pass_id);
+    }
+
+    // Rows approved/edited elsewhere since the pass started drop out silently.
+    let (live, stale): (Vec<_>, Vec<_>) = chunk
+        .into_iter()
+        .partition(|row| row.row_status == "pending");
+    for row in &stale {
+        mark_processed(&connection, pass_id, &row.id)?;
+    }
+
+    if !live.is_empty() {
+        match load_adapter_command(&connection)? {
+            None => {
+                for row in &live {
+                    insert_suggestion(
+                        &connection,
+                        pass_id,
+                        &row.id,
+                        "failed",
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some("No BYO AI Adapter is configured."),
+                    )?;
+                    mark_processed(&connection, pass_id, &row.id)?;
+                }
+            }
+            Some(command) => {
+                let request = BatchSuggestionRequest {
+                    r#type: "batchSuggestionRequest".to_string(),
+                    version: 1,
+                    shared_context: build_shared_context(root, &connection)?,
+                    rows: live
+                        .iter()
+                        .map(|row| BatchRow {
+                            id: row.id.clone(),
+                            posted_date: row.posted_date.clone(),
+                            description: row.description.clone(),
+                            source_account: row.source_account.clone(),
+                            source_amount: row.source_amount.clone(),
+                        })
+                        .collect(),
+                };
+                match invoke_batch_adapter(&command, &request) {
+                    Err(error) => {
+                        let reason = format!("Adapter call failed: {error}");
+                        for row in &live {
+                            insert_suggestion(
+                                &connection,
+                                pass_id,
+                                &row.id,
+                                "failed",
+                                None,
+                                None,
+                                None,
+                                None,
+                                Some(&reason),
+                            )?;
+                            mark_processed(&connection, pass_id, &row.id)?;
+                        }
+                    }
+                    Ok(response) => {
+                        persist_chunk_response(root, &connection, pass_id, &live, response)?;
+                        for row in &live {
+                            mark_processed(&connection, pass_id, &row.id)?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let remaining: i64 = connection.query_row(
+        "select count(*) from ai_assist_pass_rows where pass_id = ?1 and processed = 0",
+        [pass_id],
+        |row| row.get(0),
+    )?;
+    if remaining == 0 {
+        connection.execute(
+            "update ai_assist_passes set status = 'complete' where id = ?1",
+            [pass_id],
+        )?;
+    }
+    load_ai_assist_state(&connection, pass_id)
+}
+
+fn build_shared_context(
+    root: &Path,
+    connection: &Connection,
+) -> Result<SharedContext, WorkspaceError> {
+    let manifest = read_manifest(root)?;
+    let mut statement = connection.prepare(
+        "select description, source_account from statement_rows
+         where status = 'accounted' order by posted_date desc limit 12",
+    )?;
+    let recent_approved_entries = statement
+        .query_map([], |row| {
+            Ok(SimilarApprovedEntry {
+                description: row.get(0)?,
+                source_account: row.get(1)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(SharedContext {
+        chart_of_accounts: read_chart_of_accounts(root)?,
+        categorization_rules: list_categorization_rules(root)?,
+        business_profile: AiBusinessProfile {
+            name: manifest.business.name,
+            base_currency: manifest.business.base_currency,
+            books_start_date: manifest.business.books_start_date,
+        },
+        recent_approved_entries,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn insert_suggestion(
+    connection: &Connection,
+    pass_id: &str,
+    statement_row_id: &str,
+    status: &str,
+    ledger_account: Option<&str>,
+    payee: Option<&str>,
+    narration: Option<&str>,
+    confidence: Option<f64>,
+    explanation: Option<&str>,
+) -> Result<(), WorkspaceError> {
+    connection.execute(
+        "
+        insert into ai_assist_suggestions
+          (pass_id, statement_row_id, status, ledger_account, payee, narration, confidence, explanation)
+        values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        on conflict(pass_id, statement_row_id) do update set
+          status = excluded.status,
+          ledger_account = excluded.ledger_account,
+          payee = excluded.payee,
+          narration = excluded.narration,
+          confidence = excluded.confidence,
+          explanation = excluded.explanation
+        ",
+        params![
+            pass_id,
+            statement_row_id,
+            status,
+            ledger_account,
+            payee,
+            narration,
+            confidence,
+            explanation
+        ],
+    )?;
+    Ok(())
+}
+
+fn mark_processed(
+    connection: &Connection,
+    pass_id: &str,
+    statement_row_id: &str,
+) -> Result<(), WorkspaceError> {
+    connection.execute(
+        "update ai_assist_pass_rows set processed = 1 where pass_id = ?1 and statement_row_id = ?2",
+        params![pass_id, statement_row_id],
+    )?;
+    Ok(())
+}
+
+fn persist_chunk_response(
+    root: &Path,
+    connection: &Connection,
+    pass_id: &str,
+    live: &[ChunkRow],
+    response: BatchSuggestionResponse,
+) -> Result<(), WorkspaceError> {
+    let chart: HashSet<String> = read_chart_of_accounts(root)?.into_iter().collect();
+    let requested: HashSet<&str> = live.iter().map(|row| row.id.as_str()).collect();
+    let mut answered: HashSet<String> = HashSet::new();
+
+    for suggestion in response.suggestions {
+        if !requested.contains(suggestion.row_id.as_str()) {
+            continue; // unknown rowId: ignore
+        }
+        answered.insert(suggestion.row_id.clone());
+        let account_known = suggestion
+            .ledger_account
+            .as_deref()
+            .map(|account| chart.contains(account))
+            .unwrap_or(false);
+        let confident = suggestion
+            .confidence
+            .map(|value| value >= NEEDS_EYE_CONFIDENCE_THRESHOLD)
+            .unwrap_or(false);
+        let status = if account_known && confident && !suggestion.needs_human_attention {
+            "suggested"
+        } else {
+            "needsEye"
+        };
+        let explanation = if suggestion.ledger_account.is_some() && !account_known {
+            Some(format!(
+                "Suggested account is not in the chart of accounts: {}",
+                suggestion.ledger_account.as_deref().unwrap_or_default()
+            ))
+        } else {
+            suggestion.explanation.clone()
+        };
+        insert_suggestion(
+            connection,
+            pass_id,
+            &suggestion.row_id,
+            status,
+            suggestion.ledger_account.as_deref(),
+            suggestion.payee.as_deref(),
+            suggestion.narration.as_deref(),
+            suggestion.confidence,
+            explanation.as_deref(),
+        )?;
+    }
+
+    for row in live {
+        if !answered.contains(&row.id) {
+            insert_suggestion(
+                connection,
+                pass_id,
+                &row.id,
+                "failed",
+                None,
+                None,
+                None,
+                None,
+                Some("The adapter response did not include this row."),
+            )?;
+        }
+    }
+
+    let existing_rules: HashSet<(String, String)> = list_categorization_rules(root)?
+        .into_iter()
+        .filter(|rule| rule.enabled)
+        .map(|rule| (rule.source_account, rule.match_text))
+        .collect();
+    for proposed in response.proposed_rules {
+        let key = (proposed.source_account.clone(), proposed.match_text.clone());
+        if existing_rules.contains(&key) {
+            continue;
+        }
+        let already_proposed: i64 = connection.query_row(
+            "select count(*) from ai_assist_proposed_rules where pass_id = ?1 and source_account = ?2 and match_text = ?3",
+            params![pass_id, proposed.source_account, proposed.match_text],
+            |row| row.get(0),
+        )?;
+        if already_proposed > 0 {
+            continue;
+        }
+        connection.execute(
+            "insert into ai_assist_proposed_rules (id, pass_id, source_account, match_text, ledger_account, matched_row_count) values (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                Uuid::new_v4().to_string(),
+                pass_id,
+                proposed.source_account,
+                proposed.match_text,
+                proposed.ledger_account,
+                proposed.matched_row_ids.len() as i64
+            ],
+        )?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,5 +829,160 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert!(entries[0].ai_suggestion.is_none());
         assert!(entries[0].suggested_ledger_account.is_none());
+    }
+
+    #[allow(dead_code)]
+    fn response_for_rows(rows: &[(&str, &str, f64)]) -> String {
+        // (row_id, ledger_account, confidence)
+        let suggestions = rows
+            .iter()
+            .map(|(id, account, confidence)| {
+                format!(
+                    r#"{{"rowId":"{id}","ledgerAccount":"{account}","payee":"Vendor","narration":"Cleaned","confidence":{confidence},"explanation":"Matched.","needsHumanAttention":false}}"#
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            r#"{{"suggestions":[{suggestions}],"proposedRules":[{{"matchText":"Autobooks","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":["row-1"]}}]}}"#
+        )
+    }
+
+    fn configure_adapter(root: &str, command: &str) {
+        crate::workspace::ai_adapter::configure_ai_adapter(
+            crate::workspace::ai_adapter::ConfigureAiAdapterInput {
+                workspace_root_path: root.to_string(),
+                command: Some(command.to_string()),
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn chunk_persists_suggestions_and_boundary_validates() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "WEB PMTS Autobooks", "-0.50");
+        insert_pending_row(&connection, "row-2", "Mystery", "-9.99");
+        insert_pending_row(&connection, "row-3", "Low confidence thing", "-1.00");
+        // row-1: good. row-2: unknown account -> needsEye. row-3: low confidence -> needsEye.
+        let response = r#"{"suggestions":[
+            {"rowId":"row-1","ledgerAccount":"Expenses:Software","payee":"Autobooks","narration":"Fee","confidence":0.93,"explanation":"ok","needsHumanAttention":false},
+            {"rowId":"row-2","ledgerAccount":"Expenses:DoesNotExist","confidence":0.9,"needsHumanAttention":false},
+            {"rowId":"row-3","ledgerAccount":"Expenses:Software","confidence":0.41,"needsHumanAttention":false},
+            {"rowId":"row-unknown","ledgerAccount":"Expenses:Software","confidence":0.9,"needsHumanAttention":false}
+        ],"proposedRules":[]}"#
+            .replace('\n', "");
+        let command = write_adapter_script(tempdir.path(), &response);
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+
+        assert_eq!(state.status, "complete");
+        assert_eq!(state.processed_rows, 3);
+        let by_id = |id: &str| {
+            state
+                .suggestions
+                .iter()
+                .find(|s| s.statement_row_id == id)
+                .unwrap()
+                .clone()
+        };
+        assert_eq!(by_id("row-1").status, "suggested");
+        assert_eq!(by_id("row-2").status, "needsEye");
+        assert_eq!(by_id("row-3").status, "needsEye");
+        assert_eq!(state.suggestions.len(), 3); // row-unknown ignored
+    }
+
+    #[test]
+    fn missing_rows_fail_and_adapter_error_fails_only_that_chunk() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        insert_pending_row(&connection, "row-2", "B", "-2.00");
+        // Adapter only answers row-1; row-2 must be marked failed.
+        let command = write_adapter_script(
+            tempdir.path(),
+            r#"{"suggestions":[{"rowId":"row-1","ledgerAccount":"Expenses:Software","confidence":0.9,"needsHumanAttention":false}],"proposedRules":[]}"#,
+        );
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+        assert_eq!(
+            state
+                .suggestions
+                .iter()
+                .filter(|s| s.status == "failed")
+                .count(),
+            1
+        );
+
+        // Broken adapter: whole chunk fails but the call itself succeeds.
+        let tempdir2 = tempfile::tempdir().unwrap();
+        let root2 = test_workspace(&tempdir2);
+        let connection2 = open_test_connection(&root2);
+        insert_pending_row(&connection2, "row-1", "A", "-1.00");
+        configure_adapter(&root2, "/nonexistent/broken-adapter");
+        let pass2 = start_ai_assist_pass(&root2).unwrap();
+        let state2 = run_ai_assist_next_chunk(&root2, &pass2.pass_id).unwrap();
+        assert_eq!(state2.suggestions[0].status, "failed");
+        assert_eq!(state2.status, "complete");
+    }
+
+    #[test]
+    fn chunking_processes_in_slices_and_completes() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        for index in 0..3 {
+            insert_pending_row(&connection, &format!("row-{index}"), "Thing", "-1.00");
+        }
+        let command =
+            write_adapter_script(tempdir.path(), r#"{"suggestions":[],"proposedRules":[]}"#);
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let first = run_next_chunk_with_size(Path::new(&root), &pass.pass_id, 2).unwrap();
+        assert_eq!(first.status, "running");
+        assert_eq!(first.processed_rows, 2);
+        let second = run_next_chunk_with_size(Path::new(&root), &pass.pass_id, 2).unwrap();
+        assert_eq!(second.status, "complete");
+        assert_eq!(second.processed_rows, 3);
+    }
+
+    #[test]
+    fn proposed_rules_deduplicate_against_existing_rules() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "SQSP* CMPGNS", "-10.66");
+        crate::workspace::categorization_rules::create_categorization_rule(
+            crate::workspace::categorization_rules::CreateCategorizationRuleInput {
+                workspace_root_path: root.clone(),
+                source_account: "Assets:Bank:Checking".to_string(),
+                match_text: "Autobooks".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+            },
+        )
+        .unwrap();
+        // Adapter proposes a duplicate of the existing rule plus a novel one.
+        let command = write_adapter_script(
+            tempdir.path(),
+            r#"{"suggestions":[],"proposedRules":[
+                {"matchText":"Autobooks","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":[]},
+                {"matchText":"SQSP*","sourceAccount":"Assets:Bank:Checking","ledgerAccount":"Expenses:Software","matchedRowIds":["row-1"]}
+            ]}"#.replace('\n', "").as_str(),
+        );
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+
+        assert_eq!(state.proposed_rules.len(), 1);
+        assert_eq!(state.proposed_rules[0].match_text, "SQSP*");
     }
 }
