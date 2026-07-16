@@ -8,8 +8,8 @@ use crate::workspace::approval::{
     parse_amount, SuggestedEntry, SuggestedEntryKind,
 };
 use crate::workspace::categorization_rules::{
-    create_categorization_rule, list_categorization_rules, CategorizationRule,
-    CreateCategorizationRuleInput,
+    create_categorization_rule_from_connection, list_categorization_rules,
+    list_categorization_rules_from_connection, CategorizationRule, CreateCategorizationRuleInput,
 };
 use crate::workspace::data_integrity::{
     atomic_append, create_snapshot, restore_snapshot, RestoreSnapshotInput, SnapshotReason,
@@ -372,6 +372,12 @@ pub fn approve_ai_assist_batch(
             "AI Assist has nothing to approve: no selected entries are still pending.",
         ));
     }
+    let existing_rules: HashSet<(String, String)> =
+        list_categorization_rules_from_connection(&connection)?
+            .into_iter()
+            .filter(|rule| rule.enabled)
+            .map(|rule| (rule.source_account, rule.match_text))
+            .collect();
 
     let snapshot = create_snapshot(root, SnapshotReason::Approval)?;
     let batch_id = Uuid::new_v4().to_string();
@@ -422,68 +428,86 @@ pub fn approve_ai_assist_batch(
     }
 
     // Golden-path gate: the whole batch lands or none of it does.
-    let post_validation = validate_workspace(root)?;
-    if post_validation.status == LedgerStatus::Invalid {
-        let restore_result = restore_snapshot(RestoreSnapshotInput {
-            workspace_root_path: input.workspace_root_path.clone(),
-            snapshot_id: snapshot.id,
-        });
-        remove_batch_created_files(&created_monthly_files);
-        restore_result?;
-        return Err(WorkspaceError::new(
-            WorkspaceErrorCode::InvalidLedger,
-            "AI Assist batch was rolled back because the ledger became invalid.",
-        ));
-    }
-
-    let mut rule_ids: Vec<String> = Vec::new();
-    let existing_rules: HashSet<(String, String)> = list_categorization_rules(root)?
-        .into_iter()
-        .filter(|rule| rule.enabled)
-        .map(|rule| (rule.source_account, rule.match_text))
-        .collect();
-    for rule in &input.rules {
-        if existing_rules.contains(&(rule.source_account.clone(), rule.match_text.clone())) {
-            continue;
+    let post_validation = match validate_workspace(root) {
+        Ok(validation) => validation,
+        Err(error) => {
+            return rollback_ai_assist_batch(
+                &input.workspace_root_path,
+                &snapshot.id,
+                &created_monthly_files,
+                error,
+            );
         }
-        let created = create_categorization_rule(CreateCategorizationRuleInput {
-            workspace_root_path: input.workspace_root_path.clone(),
-            source_account: rule.source_account.clone(),
-            match_text: rule.match_text.clone(),
-            ledger_account: rule.ledger_account.clone(),
-        })?;
-        rule_ids.push(created.id);
+    };
+    if post_validation.status == LedgerStatus::Invalid {
+        return rollback_ai_assist_batch(
+            &input.workspace_root_path,
+            &snapshot.id,
+            &created_monthly_files,
+            WorkspaceError::new(
+                WorkspaceErrorCode::InvalidLedger,
+                "AI Assist batch was rolled back because the ledger became invalid.",
+            ),
+        );
     }
 
-    let transaction = connection.unchecked_transaction()?;
-    for record in &records {
+    let sqlite_result = (|| -> Result<(), WorkspaceError> {
+        let transaction = connection.unchecked_transaction()?;
+        let mut rule_ids: Vec<String> = Vec::new();
+        for rule in &input.rules {
+            if existing_rules.contains(&(rule.source_account.clone(), rule.match_text.clone())) {
+                continue;
+            }
+            let rule_input = CreateCategorizationRuleInput {
+                workspace_root_path: input.workspace_root_path.clone(),
+                source_account: rule.source_account.clone(),
+                match_text: rule.match_text.clone(),
+                ledger_account: rule.ledger_account.clone(),
+            };
+            let created = create_categorization_rule_from_connection(&transaction, &rule_input)?;
+            rule_ids.push(created.id);
+        }
+
+        let entries_json = serde_json::to_string(&records)
+            .map_err(|error| WorkspaceError::io(error.to_string()))?;
+        let rule_ids_json = serde_json::to_string(&rule_ids)
+            .map_err(|error| WorkspaceError::io(error.to_string()))?;
+        for record in &records {
+            transaction.execute(
+                "update statement_rows set status = 'accounted', diurnum_entry_id = ?2, ledger_entry_file = ?3 where id = ?1",
+                params![
+                    record.statement_row_id,
+                    record.diurnum_entry_id,
+                    record.ledger_entry_file
+                ],
+            )?;
+        }
         transaction.execute(
-            "update statement_rows set status = 'accounted', diurnum_entry_id = ?2, ledger_entry_file = ?3 where id = ?1",
+            "insert into ai_assist_batches (id, pass_id, approved_at, entry_count, entries_json, rule_ids_json) values (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
-                record.statement_row_id,
-                record.diurnum_entry_id,
-                record.ledger_entry_file
+                batch_id,
+                input.pass_id,
+                Utc::now().to_rfc3339(),
+                records.len() as i64,
+                entries_json,
+                rule_ids_json
             ],
         )?;
+        transaction.execute(
+            "update ai_assist_passes set status = 'approved' where id = ?1",
+            [input.pass_id.as_str()],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    })();
+    if let Err(error) = sqlite_result {
+        return rollback_ai_assist_batch(
+            &input.workspace_root_path,
+            &snapshot.id,
+            &created_monthly_files,
+            error,
+        );
     }
-    transaction.execute(
-        "insert into ai_assist_batches (id, pass_id, approved_at, entry_count, entries_json, rule_ids_json) values (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![
-            batch_id,
-            input.pass_id,
-            Utc::now().to_rfc3339(),
-            records.len() as i64,
-            serde_json::to_string(&records)
-                .map_err(|error| WorkspaceError::io(error.to_string()))?,
-            serde_json::to_string(&rule_ids)
-                .map_err(|error| WorkspaceError::io(error.to_string()))?
-        ],
-    )?;
-    transaction.execute(
-        "update ai_assist_passes set status = 'approved' where id = ?1",
-        [input.pass_id.as_str()],
-    )?;
-    transaction.commit()?;
 
     let _ = commit_workspace_changes(CommitWorkspaceChangesInput {
         workspace_root_path: input.workspace_root_path.clone(),
@@ -492,6 +516,21 @@ pub fn approve_ai_assist_batch(
     });
 
     open_workspace(root)
+}
+
+fn rollback_ai_assist_batch<T>(
+    workspace_root_path: &str,
+    snapshot_id: &str,
+    created_monthly_files: &[std::path::PathBuf],
+    error: WorkspaceError,
+) -> Result<T, WorkspaceError> {
+    let restore_result = restore_snapshot(RestoreSnapshotInput {
+        workspace_root_path: workspace_root_path.to_string(),
+        snapshot_id: snapshot_id.to_string(),
+    });
+    remove_batch_created_files(created_monthly_files);
+    restore_result?;
+    Err(error)
 }
 
 /// Best-effort cleanup of monthly files this batch created: `restore_snapshot`
@@ -1535,5 +1574,116 @@ mod tests {
         // If the file survived, a later legitimate approval for this month
         // would re-include it and resurrect the rolled-back entry.
         assert!(!monthly_path.exists());
+    }
+
+    #[test]
+    fn batch_approval_rolls_back_when_post_write_validation_errors() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        let mut entries = Vec::new();
+        for index in 0..32 {
+            let row_id = format!("row-{index}");
+            insert_pending_row(&connection, &row_id, "A", "-1.00");
+            entries.push(AiAssistEntryInput {
+                statement_row_id: row_id,
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            });
+        }
+        let pass = start_ai_assist_pass(&root).unwrap();
+        let main_path = Path::new(&root).join("main.bean");
+        let main_before = fs::read_to_string(&main_path).unwrap();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+
+        // Once the first append proves the post-snapshot write phase started,
+        // introduce a real filesystem read error for the later validation.
+        // Remaining fsync-backed appends keep the write loop active until the
+        // injected path is present.
+        let transactions_path = Path::new(&root).join("transactions");
+        let watched_monthly_path = monthly_path.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let injector = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            while !watched_monthly_path.exists() {
+                std::thread::yield_now();
+            }
+            fs::create_dir(transactions_path.join("validation-error.bean")).unwrap();
+        });
+        ready_rx.recv().unwrap();
+
+        let result = approve_ai_assist_batch(approve_input(&root, &pass.pass_id, entries));
+        injector.join().unwrap();
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(main_path).unwrap(), main_before);
+        assert!(!monthly_path.exists());
+        let pending: i64 = connection
+            .query_row(
+                "select count(*) from statement_rows where status = 'pending'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending, 32);
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn batch_approval_rolls_back_ledger_and_rules_when_sqlite_update_fails() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        let main_path = Path::new(&root).join("main.bean");
+        let main_before = fs::read_to_string(&main_path).unwrap();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        crate::workspace::categorization_rules::list_categorization_rules(&root).unwrap();
+        connection
+            .execute_batch(
+                "create trigger fail_ai_assist_status_update
+                 before update of status on statement_rows
+                 when new.status = 'accounted'
+                 begin
+                   select raise(abort, 'forced status update failure');
+                 end;",
+            )
+            .unwrap();
+
+        let result = approve_ai_assist_batch(ApproveAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            pass_id: pass.pass_id,
+            entries: vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            }],
+            rules: vec![AiAssistRuleInput {
+                source_account: "Assets:Bank:Checking".to_string(),
+                match_text: "A".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+            }],
+        });
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(main_path).unwrap(), main_before);
+        assert!(!monthly_path.exists());
+        let pending: i64 = connection
+            .query_row(
+                "select count(*) from statement_rows where status = 'pending'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending, 1);
+        assert!(
+            crate::workspace::categorization_rules::list_categorization_rules(&root)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
     }
 }
