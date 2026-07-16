@@ -399,6 +399,17 @@ pub fn dismiss_ai_assist_pass(
 pub fn approve_ai_assist_batch(
     input: ApproveAiAssistBatchInput,
 ) -> Result<WorkspaceSummary, WorkspaceError> {
+    let mut statement_row_ids = HashSet::new();
+    if input
+        .entries
+        .iter()
+        .any(|entry| !statement_row_ids.insert(entry.statement_row_id.as_str()))
+    {
+        return Err(WorkspaceError::new(
+            WorkspaceErrorCode::InvalidLedger,
+            "AI Assist approval contains a duplicate Statement Row.",
+        ));
+    }
     let root = Path::new(&input.workspace_root_path);
     let validation = validate_workspace(root)?;
     if validation.status == LedgerStatus::Invalid {
@@ -2148,6 +2159,60 @@ mod tests {
         ));
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn approval_rejects_duplicate_statement_rows_before_any_mutation() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Autobooks", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        let main_path = Path::new(&root).join("main.bean");
+        let accounts_path = Path::new(&root).join("accounts.bean");
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        let main_before = fs::read(&main_path).unwrap();
+        let accounts_before = fs::read(&accounts_path).unwrap();
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![
+                AiAssistEntryInput {
+                    statement_row_id: "row-1".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: Some("First payee".to_string()),
+                    narration: Some("First narration".to_string()),
+                },
+                AiAssistEntryInput {
+                    statement_row_id: "row-1".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: Some("Conflicting payee".to_string()),
+                    narration: Some("Conflicting narration".to_string()),
+                },
+            ],
+        ));
+
+        let error = result.unwrap_err();
+        assert_eq!(error.code, WorkspaceErrorCode::InvalidLedger);
+        assert!(error.message.contains("duplicate Statement Row"));
+        assert_eq!(fs::read(main_path).unwrap(), main_before);
+        assert_eq!(fs::read(accounts_path).unwrap(), accounts_before);
+        assert!(!monthly_path.exists());
+        let (row_status, pass_status): (String, String) = connection
+            .query_row(
+                "select sr.status, p.status from statement_rows sr cross join ai_assist_passes p
+                 where sr.id = 'row-1' and p.id = ?1",
+                [&pass.pass_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (row_status.as_str(), pass_status.as_str()),
+            ("pending", "running")
+        );
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+        assert!(list_categorization_rules(&root).unwrap().is_empty());
     }
 
     #[test]

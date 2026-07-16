@@ -135,7 +135,9 @@ a deterministic backend double; production continues to use the Tauri command
 boundary shown above.
 
 Approval coordinates Beancount and SQLite with a pre-write snapshot. Rust first
-rejects an already-invalid ledger and filters selections to rows that are still
+rejects duplicate Statement Row ids in the request as conflicting input before
+any snapshot or mutation, rejects an already-invalid ledger, and filters
+selections to rows that are still
 pending members of the current pass with a durable eligible suggestion. The
 submitted account must equal that validated suggestion and still exist in the
 chart; approval never opens an adapter- or client-supplied account. It writes
