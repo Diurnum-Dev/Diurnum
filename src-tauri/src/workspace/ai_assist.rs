@@ -238,6 +238,48 @@ pub fn get_ai_assist_pass(
     }
 }
 
+pub fn retry_ai_assist_failed_rows(
+    workspace_root_path: impl AsRef<Path>,
+    pass_id: &str,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    let root = workspace_root_path.as_ref();
+    let connection = open_workspace_connection(root)?;
+    ensure_ai_assist_tables(&connection)?;
+    connection.execute(
+        "
+        update ai_assist_pass_rows set processed = 0
+        where pass_id = ?1 and statement_row_id in (
+          select statement_row_id from ai_assist_suggestions
+          where pass_id = ?1 and status = 'failed'
+        )
+        ",
+        [pass_id],
+    )?;
+    connection.execute(
+        "delete from ai_assist_suggestions where pass_id = ?1 and status = 'failed'",
+        [pass_id],
+    )?;
+    connection.execute(
+        "update ai_assist_passes set status = 'running' where id = ?1",
+        [pass_id],
+    )?;
+    load_ai_assist_state(&connection, pass_id)
+}
+
+pub fn dismiss_ai_assist_pass(
+    workspace_root_path: impl AsRef<Path>,
+    pass_id: &str,
+) -> Result<(), WorkspaceError> {
+    let root = workspace_root_path.as_ref();
+    let connection = open_workspace_connection(root)?;
+    ensure_ai_assist_tables(&connection)?;
+    connection.execute(
+        "update ai_assist_passes set status = 'dismissed' where id = ?1",
+        [pass_id],
+    )?;
+    Ok(())
+}
+
 pub(crate) fn load_ai_assist_state(
     connection: &Connection,
     pass_id: &str,
@@ -984,5 +1026,43 @@ mod tests {
 
         assert_eq!(state.proposed_rules.len(), 1);
         assert_eq!(state.proposed_rules[0].match_text, "SQSP*");
+    }
+
+    #[test]
+    fn retry_resets_failed_rows_and_resumes() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        configure_adapter(&root, "/nonexistent/broken-adapter");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        let failed = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+        assert_eq!(failed.suggestions[0].status, "failed");
+        assert_eq!(failed.status, "complete");
+
+        // Fix the adapter, retry, resume.
+        let command = write_adapter_script(
+            tempdir.path(),
+            r#"{"suggestions":[{"rowId":"row-1","ledgerAccount":"Expenses:Software","confidence":0.9,"needsHumanAttention":false}],"proposedRules":[]}"#,
+        );
+        configure_adapter(&root, &command);
+        let retried = retry_ai_assist_failed_rows(&root, &pass.pass_id).unwrap();
+        assert_eq!(retried.status, "running");
+        assert_eq!(retried.processed_rows, 0);
+        let done = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+        assert_eq!(done.suggestions[0].status, "suggested");
+    }
+
+    #[test]
+    fn dismiss_hides_pass_from_get() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        dismiss_ai_assist_pass(&root, &pass.pass_id).unwrap();
+
+        assert!(get_ai_assist_pass(&root).unwrap().is_none());
     }
 }
