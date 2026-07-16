@@ -1,9 +1,9 @@
 // src/features/workspace/InboxPanel.test.tsx
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InboxPanel } from "./InboxPanel";
-import type { SuggestedEntry } from "../../lib/workspace/types";
+import type { AiAssistPassState, SuggestedEntry } from "../../lib/workspace/types";
 
 function entry(overrides: Partial<SuggestedEntry>): SuggestedEntry {
   return {
@@ -53,7 +53,196 @@ const entries: SuggestedEntry[] = [
   }),
 ];
 
+const aiAssistPass: AiAssistPassState = {
+  passId: "pass-1",
+  status: "complete",
+  totalRows: 1,
+  processedRows: 1,
+  suggestions: [
+    {
+      statementRowId: "needs-1",
+      status: "suggested",
+      ledgerAccount: "Expenses:Travel",
+      payee: "Lyft",
+      narration: null,
+      confidence: 0.9,
+      explanation: null,
+    },
+  ],
+  proposedRules: [],
+};
+
+function aiAssist(overrides: Record<string, unknown> = {}) {
+  return {
+    pass: null,
+    adapterConfigured: true,
+    running: false,
+    disclosure: { adapterConfigured: true, fieldsSent: ["Chart of Accounts"] },
+    onStart: vi.fn(),
+    onApprove: vi.fn(async () => undefined),
+    onDismiss: vi.fn(async () => undefined),
+    onRetry: vi.fn(async () => undefined),
+    onOpenSettings: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe("InboxPanel", () => {
+  const storage = new Map<string, string>();
+
+  beforeEach(() => {
+    storage.clear();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+    });
+  });
+
+  it("AI Assist button starts a pass after disclosure acknowledgment", () => {
+    localStorage.removeItem("diurnum.aiAssist.disclosureAcknowledged");
+    const onStart = vi.fn();
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ onStart })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /AI Assist/ }));
+    expect(onStart).not.toHaveBeenCalled();
+    expect(screen.getByText(/Chart of Accounts/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Run AI Assist/ }));
+    expect(onStart).toHaveBeenCalled();
+    expect(localStorage.getItem("diurnum.aiAssist.disclosureAcknowledged")).toBe("true");
+  });
+
+  it("renders review mode when a pass is active", () => {
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ pass: aiAssistPass })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Sign & approve/ }));
+    expect(screen.getByRole("heading", { name: /Sign & approve/ })).toBeTruthy();
+    expect(screen.queryByLabelText("Transaction inspector")).toBeNull();
+  });
+
+  it("exits review to edit a selected row and can return to the same pass", () => {
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ pass: aiAssistPass })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Lyft.*was: LYFT \*RIDE/ }));
+
+    expect(screen.queryByLabelText("AI Assist review")).toBeNull();
+    expect(screen.getByRole("button", { name: /LYFT \*RIDE/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByLabelText("Ledger Account")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Review AI Assist/ }));
+    expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
+  });
+
+  it("cancels disclosure without acknowledging or starting", () => {
+    const onStart = vi.fn();
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ onStart })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /AI Assist/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onStart).not.toHaveBeenCalled();
+    expect(localStorage.getItem("diurnum.aiAssist.disclosureAcknowledged")).toBeNull();
+    expect(screen.queryByLabelText("AI Assist disclosure")).toBeNull();
+  });
+
+  it("unconfigured adapter shows setup state", () => {
+    const onOpenSettings = vi.fn();
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ adapterConfigured: false, onOpenSettings })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Set up AI Assist/ }));
+    expect(onOpenSettings).toHaveBeenCalled();
+  });
+
+  it("keeps the AI Assist toolbar entry point in an empty Inbox", () => {
+    render(
+      <InboxPanel
+        suggestedEntries={[]}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /AI Assist.*0 pending/ })).toBeTruthy();
+  });
+
+  it("shows a disabled categorizing affordance while a pass is running", () => {
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({
+          pass: { ...aiAssistPass, status: "running", processedRows: 0 },
+          running: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Categorizing…" })).toBeDisabled();
+  });
+
+  it("preserves review mode when approval fails", async () => {
+    const onApprove = vi.fn(async () => {
+      throw new Error("approval failed");
+    });
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ pass: aiAssistPass, onApprove })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Sign & approve/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Approve 1 entry/ }));
+
+    await waitFor(() => expect(onApprove).toHaveBeenCalled());
+    expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
+  });
+
   it("lists pending and matched rows with category chips", () => {
     render(<InboxPanel suggestedEntries={entries} ledgerStatus="valid" onApprove={vi.fn()} />);
 

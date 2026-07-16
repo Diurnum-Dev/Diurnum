@@ -1,6 +1,13 @@
 // src/features/workspace/InboxPanel.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
+import type {
+  AiAssistPassState,
+  AiContextDisclosure,
+  ApproveAiAssistBatchInput,
+  LedgerStatus,
+  SuggestedEntry,
+} from "../../lib/workspace/types";
+import { AiAssistReview } from "./AiAssistReview";
 import { InboxInspector } from "./InboxInspector";
 import { InboxToolbar } from "./InboxToolbar";
 import {
@@ -22,7 +29,23 @@ type InboxPanelProps = {
     linkedStatementRowId: string;
   }) => Promise<void> | void;
   onRevertTransfer?: (input: { statementRowId: string }) => Promise<void> | void;
+  aiAssist?: {
+    pass: AiAssistPassState | null;
+    adapterConfigured: boolean;
+    running: boolean;
+    disclosure: AiContextDisclosure | null;
+    onStart: () => void;
+    onApprove: (selection: {
+      entries: ApproveAiAssistBatchInput["entries"];
+      rules: ApproveAiAssistBatchInput["rules"];
+    }) => Promise<void>;
+    onDismiss: () => Promise<void>;
+    onRetry: () => Promise<void>;
+    onOpenSettings: () => void;
+  };
 };
+
+const AI_ASSIST_DISCLOSURE_KEY = "diurnum.aiAssist.disclosureAcknowledged";
 
 export function InboxPanel({
   suggestedEntries,
@@ -31,12 +54,15 @@ export function InboxPanel({
   onApprove,
   onApproveTransfer,
   onRevertTransfer,
+  aiAssist,
 }: InboxPanelProps) {
   const [account, setAccount] = useState("all");
   const [month, setMonth] = useState("all");
   const [tab, setTab] = useState<InboxTab>("all");
   const [selectedStatementRowId, setSelectedStatementRowId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [disclosureOpen, setDisclosureOpen] = useState(false);
+  const [reviewExitPassId, setReviewExitPassId] = useState<string | null>(null);
 
   const accounts = useMemo(() => accountOptions(suggestedEntries), [suggestedEntries]);
   const months = useMemo(() => monthOptions(suggestedEntries), [suggestedEntries]);
@@ -55,6 +81,37 @@ export function InboxPanel({
     () => filterEntries(suggestedEntries, { account, month, tab }),
     [suggestedEntries, account, month, tab],
   );
+  const activeReviewPass =
+    aiAssist?.pass &&
+    (aiAssist.pass.status === "running" || aiAssist.pass.status === "complete")
+      ? aiAssist.pass
+      : null;
+  const reviewing = activeReviewPass?.passId !== reviewExitPassId && activeReviewPass !== null;
+
+  function handleAiAssistClick() {
+    if (!aiAssist) return;
+    if (!aiAssist.adapterConfigured) {
+      aiAssist.onOpenSettings();
+      return;
+    }
+    if (activeReviewPass && reviewExitPassId === activeReviewPass.passId) {
+      setReviewExitPassId(null);
+      return;
+    }
+    if (activeReviewPass) return;
+    if (readDisclosureAcknowledgment()) {
+      aiAssist.onStart();
+    } else {
+      setDisclosureOpen(true);
+    }
+  }
+
+  function confirmAiAssistDisclosure() {
+    if (!aiAssist) return;
+    acknowledgeDisclosure();
+    setDisclosureOpen(false);
+    aiAssist.onStart();
+  }
   const ordered = useMemo(
     () => [...filtered].sort((a, b) => b.postedDate.localeCompare(a.postedDate)),
     [filtered],
@@ -155,11 +212,100 @@ export function InboxPanel({
     </header>
   );
 
+  const aiAssistAction = aiAssist ? (
+    <button
+      type="button"
+      className="inbox-ai-assist-button"
+      disabled={aiAssist.running || reviewing}
+      onClick={handleAiAssistClick}
+    >
+      <span>
+        {!aiAssist.adapterConfigured
+          ? "Set up AI Assist"
+          : aiAssist.running
+            ? "Categorizing…"
+            : activeReviewPass
+              ? "Review AI Assist"
+              : "AI Assist"}
+      </span>
+      {!aiAssist.running && !activeReviewPass ? (
+        <small>{suggestedEntries.length} pending</small>
+      ) : null}
+    </button>
+  ) : null;
+  const inboxToolbar = (
+    <InboxToolbar
+      accounts={accounts}
+      account={account}
+      onAccountChange={setAccount}
+      months={months}
+      month={month}
+      onMonthChange={setMonth}
+      tab={tab}
+      onTabChange={setTab}
+      counts={tabCounts}
+      action={aiAssistAction}
+    />
+  );
+  const disclosurePanel =
+    disclosureOpen && aiAssist?.disclosure ? (
+      <section className="ai-assist-disclosure" aria-label="AI Assist disclosure">
+        <div>
+          <p className="eyebrow">Before AI Assist runs</p>
+          <h2>Review the context sent to your adapter</h2>
+          <ul>
+            {aiAssist.disclosure.fieldsSent.map((field) => (
+              <li key={field}>{field}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="ai-assist-disclosure-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setDisclosureOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={confirmAiAssistDisclosure}
+          >
+            Run AI Assist
+          </button>
+        </div>
+      </section>
+    ) : null;
+
+  if (reviewing && activeReviewPass && aiAssist) {
+    return (
+      <section className="inbox-panel" aria-labelledby="inbox-title">
+        {header}
+        {inboxToolbar}
+        <AiAssistReview
+          pass={activeReviewPass}
+          entries={suggestedEntries}
+          onApprove={aiAssist.onApprove}
+          onDismiss={aiAssist.onDismiss}
+          onRetry={aiAssist.onRetry}
+          onEditRow={(statementRowId) => {
+            setSelectedStatementRowId(statementRowId);
+            setEditing(true);
+            setReviewExitPassId(activeReviewPass.passId);
+          }}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="inbox-panel" aria-labelledby="inbox-title">
       {suggestedEntries.length === 0 ? (
         <>
           {header}
+          {aiAssist ? inboxToolbar : null}
+          {disclosurePanel}
           <section className="inbox-empty-state" aria-live="polite">
             <p className="eyebrow">Inbox</p>
             <h2>No pending Statement Rows</h2>
@@ -174,18 +320,8 @@ export function InboxPanel({
           <div className="inbox-layout">
             <div className="inbox-content-col">
               {header}
-
-              <InboxToolbar
-                accounts={accounts}
-                account={account}
-                onAccountChange={setAccount}
-                months={months}
-                month={month}
-                onMonthChange={setMonth}
-                tab={tab}
-                onTabChange={setTab}
-                counts={tabCounts}
-              />
+              {inboxToolbar}
+              {disclosurePanel}
 
               <section className="inbox-list-col" aria-labelledby="inbox-list-title">
                 <span id="inbox-list-title" className="sr-only">
@@ -218,6 +354,24 @@ export function InboxPanel({
       )}
     </section>
   );
+}
+
+function readDisclosureAcknowledgment(): boolean {
+  try {
+    const storage = window.localStorage as Partial<Storage> | undefined;
+    return storage?.getItem?.(AI_ASSIST_DISCLOSURE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function acknowledgeDisclosure() {
+  try {
+    const storage = window.localStorage as Partial<Storage> | undefined;
+    storage?.setItem?.(AI_ASSIST_DISCLOSURE_KEY, "true");
+  } catch {
+    // Storage can be unavailable in a hardened webview; the current run still proceeds.
+  }
 }
 
 function InboxGroup({
