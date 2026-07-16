@@ -1,4 +1,4 @@
-use crate::workspace::ai_adapter::{suggestion_for_row, AiSuggestion, AiSuggestionRow};
+use crate::workspace::ai_adapter::{AiSuggestion, AiSuggestionRow};
 use crate::workspace::categorization_rules::matching_rule_for_row;
 use crate::workspace::data_integrity::{atomic_append, create_snapshot, SnapshotReason};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
@@ -379,18 +379,13 @@ fn apply_suggestion_layers(
     connection: &Connection,
     mut entry: SuggestedEntry,
 ) -> Result<SuggestedEntry, WorkspaceError> {
+    let _ = root;
     if entry.kind == SuggestedEntryKind::Standard {
         if let Some(rule) =
             matching_rule_for_row(connection, &entry.source_account, &entry.description)?
         {
             entry.suggested_ledger_account = Some(rule.ledger_account);
             entry.categorization_rule_id = Some(rule.id);
-        }
-        if entry.suggested_ledger_account.is_none() {
-            if let Some(ai_suggestion) = suggestion_for_row(root, connection, &entry)? {
-                entry.suggested_ledger_account = ai_suggestion.ledger_account.clone();
-                entry.ai_suggestion = Some(ai_suggestion);
-            }
         }
     }
     Ok(entry)
@@ -1132,7 +1127,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_configured_ai_adapter_suggestions_to_future_suggested_entries() {
+    fn configured_ai_adapter_is_not_invoked_per_row_by_suggestion_layers() {
         let tempdir = tempfile::tempdir().unwrap();
         let created = create_workspace(CreateWorkspaceInput {
             business_name: "Acme Studio".to_string(),
@@ -1193,17 +1188,10 @@ mod tests {
 
         let suggested_entries = get_suggested_entries(&created.root_path).unwrap();
 
-        assert_eq!(
-            suggested_entries[0].suggested_ledger_account.as_deref(),
-            Some("Expenses:Software")
-        );
-        assert_eq!(
-            suggested_entries[0]
-                .ai_suggestion
-                .as_ref()
-                .and_then(|suggestion| suggestion.explanation.as_deref()),
-            Some("Matched software vendor.")
-        );
+        // AI Assist owns AI suggestions now; the inbox's rules layer never
+        // calls the adapter per row, even when one is configured.
+        assert_eq!(suggested_entries[0].suggested_ledger_account, None);
+        assert!(suggested_entries[0].ai_suggestion.is_none());
     }
 
     #[test]
