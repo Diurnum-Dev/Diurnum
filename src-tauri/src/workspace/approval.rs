@@ -403,7 +403,7 @@ fn linked_statement_row(row: SuggestedEntry) -> LinkedStatementRow {
     }
 }
 
-fn load_pending_suggested_entry(
+pub(crate) fn load_pending_suggested_entry(
     connection: &Connection,
     statement_row_id: &str,
 ) -> Result<SuggestedEntry, WorkspaceError> {
@@ -441,7 +441,10 @@ fn load_pending_suggested_entry(
         })
 }
 
-fn open_ledger_account_if_missing(root: &Path, ledger_account: &str) -> Result<(), WorkspaceError> {
+pub(crate) fn open_ledger_account_if_missing(
+    root: &Path,
+    ledger_account: &str,
+) -> Result<(), WorkspaceError> {
     let accounts_path = root.join("accounts.bean");
     let accounts = fs::read_to_string(&accounts_path)?;
     if accounts
@@ -518,7 +521,7 @@ impl AiSuggestionRow for SuggestedEntry {
     }
 }
 
-fn parse_amount(value: &str) -> Result<f64, WorkspaceError> {
+pub(crate) fn parse_amount(value: &str) -> Result<f64, WorkspaceError> {
     value.parse::<f64>().map_err(|_| {
         WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
@@ -558,7 +561,7 @@ fn looks_like_one_sided_transfer(row: &SuggestedEntry) -> bool {
     description.contains("transfer") || description.contains("payment")
 }
 
-fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError> {
+pub(crate) fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError> {
     if posted_date.len() < 7 {
         return Err(WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
@@ -568,7 +571,10 @@ fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError>
     Ok(format!("transactions/{}.bean", &posted_date[..7]))
 }
 
-fn ensure_main_includes(root: &Path, monthly_relative_path: &str) -> Result<(), WorkspaceError> {
+pub(crate) fn ensure_main_includes(
+    root: &Path,
+    monthly_relative_path: &str,
+) -> Result<(), WorkspaceError> {
     let main_path = root.join("main.bean");
     let include = format!("include \"{monthly_relative_path}\"");
     let main = fs::read_to_string(&main_path)?;
@@ -649,7 +655,7 @@ fn append_transfer_entry(
     atomic_append(monthly_path, &entry)
 }
 
-fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceError> {
+pub(crate) fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceError> {
     let columns = connection
         .prepare("pragma table_info(statement_rows)")?
         .query_map([], |row| row.get::<_, String>(1))?
