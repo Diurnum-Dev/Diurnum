@@ -376,6 +376,10 @@ pub fn approve_ai_assist_batch(
     let snapshot = create_snapshot(root, SnapshotReason::Approval)?;
     let batch_id = Uuid::new_v4().to_string();
     let mut records: Vec<BatchEntryRecord> = Vec::new();
+    // The snapshot only covers files that existed when it was taken. Monthly
+    // files this batch creates must be deleted on rollback, or a later
+    // approval for the same month would re-include the rolled-back entries.
+    let mut created_monthly_files: Vec<std::path::PathBuf> = Vec::new();
     let mut write = || -> Result<(), WorkspaceError> {
         for (entry, row) in &approvals {
             open_ledger_account_if_missing(root, &entry.ledger_account)?;
@@ -383,6 +387,9 @@ pub fn approve_ai_assist_batch(
             let monthly_path = root.join(&monthly_relative_path);
             if let Some(parent) = monthly_path.parent() {
                 fs::create_dir_all(parent)?;
+            }
+            if !monthly_path.exists() {
+                created_monthly_files.push(monthly_path.clone());
             }
             ensure_main_includes(root, &monthly_relative_path)?;
             let diurnum_entry_id = Uuid::new_v4().to_string();
@@ -410,16 +417,19 @@ pub fn approve_ai_assist_batch(
             workspace_root_path: input.workspace_root_path.clone(),
             snapshot_id: snapshot.id.clone(),
         });
+        remove_batch_created_files(&created_monthly_files);
         return Err(error);
     }
 
     // Golden-path gate: the whole batch lands or none of it does.
     let post_validation = validate_workspace(root)?;
     if post_validation.status == LedgerStatus::Invalid {
-        restore_snapshot(RestoreSnapshotInput {
+        let restore_result = restore_snapshot(RestoreSnapshotInput {
             workspace_root_path: input.workspace_root_path.clone(),
             snapshot_id: snapshot.id,
-        })?;
+        });
+        remove_batch_created_files(&created_monthly_files);
+        restore_result?;
         return Err(WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
             "AI Assist batch was rolled back because the ledger became invalid.",
@@ -482,6 +492,16 @@ pub fn approve_ai_assist_batch(
     });
 
     open_workspace(root)
+}
+
+/// Best-effort cleanup of monthly files this batch created: `restore_snapshot`
+/// cannot remove them (it only rewrites files captured in the snapshot), and a
+/// leftover file would resurrect rolled-back entries the next time an approval
+/// re-includes that month.
+fn remove_batch_created_files(paths: &[std::path::PathBuf]) {
+    for path in paths {
+        let _ = fs::remove_file(path);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1486,5 +1506,34 @@ mod tests {
             .unwrap();
         assert_eq!(pending, 1);
         assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn rollback_removes_monthly_file_created_by_the_batch() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        // The batch's posted date lands in a month with no monthly file yet,
+        // so the snapshot taken before writing cannot cover it.
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        assert!(!monthly_path.exists());
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Bad Account".to_string(),
+                payee: None,
+                narration: None,
+            }],
+        ));
+
+        assert!(result.is_err());
+        // If the file survived, a later legitimate approval for this month
+        // would re-include it and resurrect the rolled-back entry.
+        assert!(!monthly_path.exists());
     }
 }
