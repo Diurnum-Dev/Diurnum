@@ -175,4 +175,64 @@ describe("useAiAssistLifecycle", () => {
     });
     expect(api.dismissPass).toHaveBeenCalledWith("/books", "pass-old");
   });
+
+  it("never reports running once the pass it reflects has reached a terminal status", async () => {
+    const { result, api } = setup(pass("pass-old", "complete"));
+    await waitFor(() => expect(result.current.pass?.passId).toBe("pass-old"));
+
+    // The pass is already complete, but a retry kicks off a driver anyway
+    // (e.g. the backend replies "nothing left to retry, already complete").
+    // The driver's own bookkeeping still flips its internal running flag on
+    // before it has a chance to confirm the pass is done; the signal the
+    // hook exposes must not echo that internal flicker back to the UI.
+    const getPassGate = deferred<AiAssistPassState | null>();
+    api.retryFailedRows.mockResolvedValueOnce(pass("pass-old", "complete"));
+    api.getPass.mockReturnValueOnce(getPassGate.promise);
+
+    await act(async () => {
+      await result.current.retry();
+    });
+
+    expect(result.current.pass?.status).toBe("complete");
+    expect(result.current.running).toBe(false);
+
+    getPassGate.resolve(pass("pass-old", "complete"));
+    await waitFor(() => expect(result.current.running).toBe(false));
+  });
+
+  it("does not call retryFailedRows a second time while a driver is already mid-flight", async () => {
+    const chunkGate = deferred<AiAssistPassState>();
+    const { result, api } = setup(pass("pass-old", "running"));
+    api.runNextChunk.mockReturnValueOnce(chunkGate.promise);
+    await waitFor(() => expect(api.runNextChunk).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.retry();
+    });
+    expect(api.retryFailedRows).not.toHaveBeenCalled();
+
+    await act(async () => {
+      chunkGate.resolve(pass("pass-old", "complete"));
+      await chunkGate.promise;
+    });
+    await waitFor(() => expect(result.current.pass?.status).toBe("complete"));
+  });
+
+  it("does not call startPass a second time while a driver is already mid-flight", async () => {
+    const chunkGate = deferred<AiAssistPassState>();
+    const { result, api } = setup(pass("pass-old", "running"));
+    api.runNextChunk.mockReturnValueOnce(chunkGate.promise);
+    await waitFor(() => expect(api.runNextChunk).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(api.startPass).not.toHaveBeenCalled();
+
+    await act(async () => {
+      chunkGate.resolve(pass("pass-old", "complete"));
+      await chunkGate.promise;
+    });
+    await waitFor(() => expect(result.current.pass?.status).toBe("complete"));
+  });
 });

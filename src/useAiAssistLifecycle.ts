@@ -155,9 +155,17 @@ export function useAiAssistLifecycle({
     }
   }, []);
 
+  const hasActiveDriver = useCallback((workspaceRootPath: string) => {
+    for (const record of driversRef.current.values()) {
+      if (record.active.workspaceRootPath === workspaceRootPath) return true;
+    }
+    return false;
+  }, []);
+
   const start = useCallback(async () => {
     const current = identityRef.current;
     if (!current.workspaceRootPath || startRef.current) return;
+    if (hasActiveDriver(current.workspaceRootPath)) return;
     const request = {
       workspaceRootPath: current.workspaceRootPath,
       lifecycle: current.lifecycle,
@@ -194,7 +202,7 @@ export function useAiAssistLifecycle({
     } finally {
       if (startRef.current === request) startRef.current = null;
     }
-  }, [api, queueDriver, session]);
+  }, [api, hasActiveDriver, queueDriver, session]);
 
   const approve = useCallback(
     async (selection: Pick<ApproveAiAssistBatchInput, "entries" | "rules">) => {
@@ -264,7 +272,7 @@ export function useAiAssistLifecycle({
     if (!current.workspaceRootPath || !current.passId) return;
     const previous = current as PassToken;
     const key = passKey(previous);
-    if (actionsRef.current.has(key)) return;
+    if (actionsRef.current.has(key) || driversRef.current.has(key)) return;
     const token = { ...previous, generation: previous.generation + 1 };
     identityRef.current = token;
     actionsRef.current.set(key, token);
@@ -336,5 +344,12 @@ export function useAiAssistLifecycle({
     };
   }, [api, queueDriver, workspaceRootPath]);
 
-  return { pass, running, actionBusy, start, approve, dismiss, retry };
+  // Belt-and-suspenders: `running` tracks the driver loop itself, but a
+  // driver can flip it on (e.g. via a fresh queueDriver call) moments before
+  // it confirms the backend pass is already done. Gate the exposed signal on
+  // the backend's own status so the UI never shows "Categorizing…" once the
+  // pass we're displaying has actually finished.
+  const exposedRunning = running && pass?.status === "running";
+
+  return { pass, running: exposedRunning, actionBusy, start, approve, dismiss, retry };
 }
