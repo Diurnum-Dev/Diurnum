@@ -240,9 +240,10 @@ fn invoke_adapter_raw_with_timeout(
 
     // The pipes are pumped on helper threads so a full pipe buffer can never
     // deadlock the child while we poll for exit.
-    let mut stdin = child.stdin.take().ok_or_else(|| {
-        WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string())
-    })?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string()))?;
     let payload = payload.to_vec();
     let stdin_writer = thread::spawn(move || stdin.write_all(&payload));
 
