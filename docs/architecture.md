@@ -52,6 +52,32 @@ flowchart TB
   Issues --> PRs
 ```
 
+## AI Assist Design Artifact Boundary
+
+The approved AI Assist bulk-categorization specification currently has three
+standalone HTML interface studies under `docs/html-mockups/ai-assist/`. They are
+design artifacts for comparing review models, not runtime routes or implemented
+React components. A later implementation plan will select or synthesize one
+direction before changing the product runtime.
+
+```mermaid
+flowchart LR
+  Spec[Approved AI Assist design spec]
+  Ledger[Category Ledger HTML study]
+  Matrix[Review Matrix HTML study]
+  Folio[Guided Review Folio HTML study]
+  Plan[Future implementation plan]
+  Runtime[React Inbox review mode]
+
+  Spec --> Ledger
+  Spec --> Matrix
+  Spec --> Folio
+  Ledger -. compare and synthesize .-> Plan
+  Matrix -. compare and synthesize .-> Plan
+  Folio -. compare and synthesize .-> Plan
+  Plan --> Runtime
+```
+
 ## Workspace Session
 
 The open Workspace is owned by a single React-free store,
