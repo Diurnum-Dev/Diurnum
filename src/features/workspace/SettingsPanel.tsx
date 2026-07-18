@@ -186,11 +186,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
     }
   }
 
-  async function handleAdapterSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleAdapterSelect(command: string) {
     setLocalError(null);
+    setCustomAdapterCommand(command);
     try {
-      await onConfigureAiAdapter(customAdapterCommand.trim() || null);
+      await onConfigureAiAdapter(command);
       setStatusNote("AI adapter updated.");
     } catch (error) {
       setLocalError(messageFromError(error));
@@ -267,7 +267,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                       name="adapter"
                       checked={customAdapterCommand.trim() === adapter.command}
                       disabled={!adapter.available}
-                      onChange={() => setCustomAdapterCommand(adapter.command)}
+                      onChange={() => void handleAdapterSelect(adapter.command)}
                     />
                     <span className="adapter-meta">
                       <strong>{adapter.name}</strong>
