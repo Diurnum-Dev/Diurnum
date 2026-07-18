@@ -107,6 +107,16 @@ persistence, approval history, and revert. `ai_adapter.rs` remains responsible
 for adapter configuration, subprocess invocation, shared context types, and the
 legacy per-row completion contract.
 
+Adapter invocation is defensive by design. Detection stores each harness's
+non-interactive invocation (`claude --print`, `codex exec`, `opencode run`) —
+a bare binary name would launch an interactive session that never exits. Every
+subprocess call is bounded by a 120-second timeout that kills a wedged adapter,
+with stdin/stdout/stderr pumped on helper threads so a full pipe buffer cannot
+deadlock the child. The Tauri commands that can reach the adapter
+(`run_ai_assist_next_chunk`, `test_ai_adapter`, `get_predictive_entry_completion`)
+are `async` and dispatch onto `tauri::async_runtime::spawn_blocking`, so a slow
+or stuck adapter can never freeze the main thread.
+
 ```mermaid
 flowchart LR
   Trigger[Inbox AI Assist trigger] --> Hook[useAiAssistLifecycle]

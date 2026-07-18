@@ -196,8 +196,12 @@ Unknown `rowId` values are ignored. Every requested row should appear exactly
 once: a requested row omitted from `suggestions` is stored as failed and can be
 retried. Invalid response JSON, a failure to start the adapter, or a non-zero
 adapter exit marks every live row in that invocation as failed; other chunks in
-the pass can continue. Diurnum currently imposes no adapter timeout, so wrappers
-should terminate on their own when appropriate.
+the pass can continue. Each adapter invocation is bounded by a 120-second
+timeout: an adapter that has not exited by then is killed and its rows are
+marked failed. Adapters therefore must run non-interactively — read the request
+from standard input, print the response, and exit. The auto-detected commands
+already do this (`claude --print`, `codex exec`, `opencode run`); custom wrapper
+scripts should do the same.
 
 Suggestions and proposed rules are drafts. Normal suggestions start selected;
 attention and failed rows start unselected. Nothing is written to Beancount and

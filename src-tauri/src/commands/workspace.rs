@@ -145,10 +145,15 @@ pub fn read_document_preview(
 }
 
 #[tauri::command]
-pub fn get_predictive_entry_completion(
+pub async fn get_predictive_entry_completion(
     input: PredictiveEntryCompletionInput,
 ) -> Result<Option<PredictiveEntryCompletion>, WorkspaceError> {
-    ledger_editor::get_predictive_entry_completion(input)
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        ledger_editor::get_predictive_entry_completion(input)
+    })
+    .await
+    .map_err(|error| WorkspaceError::io(format!("Predictive completion failed to run: {error}")))?
 }
 
 #[tauri::command]
@@ -321,11 +326,14 @@ pub fn start_ai_assist_pass(path: String) -> Result<AiAssistPassState, Workspace
 }
 
 #[tauri::command]
-pub fn run_ai_assist_next_chunk(
+pub async fn run_ai_assist_next_chunk(
     path: String,
     pass_id: String,
 ) -> Result<AiAssistPassState, WorkspaceError> {
-    ai_assist::run_ai_assist_next_chunk(path, &pass_id)
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || ai_assist::run_ai_assist_next_chunk(path, &pass_id))
+        .await
+        .map_err(|error| WorkspaceError::io(format!("AI Assist task failed to run: {error}")))?
 }
 
 #[tauri::command]
@@ -441,10 +449,13 @@ pub fn detect_ai_adapters() -> Result<Vec<DetectedAiAdapter>, WorkspaceError> {
 }
 
 #[tauri::command]
-pub fn test_ai_adapter(
+pub async fn test_ai_adapter(
     input: TestAiAdapterInput,
 ) -> Result<Option<crate::workspace::ai_adapter::AiSuggestion>, WorkspaceError> {
-    settings::test_ai_adapter(input)
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || settings::test_ai_adapter(input))
+        .await
+        .map_err(|error| WorkspaceError::io(format!("AI Adapter test failed to run: {error}")))?
 }
 
 #[cfg(test)]

@@ -7,11 +7,17 @@ use crate::workspace::types::WorkspaceManifest;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 const ADAPTER_CONFIG_KEY: &str = "byo_ai_adapter_command";
+
+/// Upper bound for a single adapter invocation. A wedged or interactive
+/// adapter must never block the app indefinitely.
+const ADAPTER_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -200,6 +206,14 @@ fn build_curated_context<T: AiSuggestionRow>(
 }
 
 pub(crate) fn invoke_adapter_raw(command: &str, payload: &[u8]) -> Result<Vec<u8>, WorkspaceError> {
+    invoke_adapter_raw_with_timeout(command, payload, ADAPTER_TIMEOUT)
+}
+
+fn invoke_adapter_raw_with_timeout(
+    command: &str,
+    payload: &[u8],
+    timeout: Duration,
+) -> Result<Vec<u8>, WorkspaceError> {
     let parts = split_command(command)?;
     let Some((program, args)) = parts.split_first() else {
         return Err(WorkspaceError::new(
@@ -214,20 +228,66 @@ pub(crate) fn invoke_adapter_raw(command: &str, payload: &[u8]) -> Result<Vec<u8
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| WorkspaceError::io(format!("BYO AI Adapter failed to start: {error}")))?;
-    {
-        let stdin = child.stdin.as_mut().ok_or_else(|| {
-            WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string())
-        })?;
-        stdin.write_all(payload)?;
-    }
-    let output = child.wait_with_output()?;
-    if !output.status.success() {
+
+    // The pipes are pumped on helper threads so a full pipe buffer can never
+    // deadlock the child while we poll for exit.
+    let mut stdin = child.stdin.take().ok_or_else(|| {
+        WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string())
+    })?;
+    let payload = payload.to_vec();
+    let stdin_writer = thread::spawn(move || stdin.write_all(&payload));
+
+    let mut stdout = child.stdout.take().ok_or_else(|| {
+        WorkspaceError::io("BYO AI Adapter stdout was not available.".to_string())
+    })?;
+    let stdout_reader = thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stdout.read_to_end(&mut buffer);
+        buffer
+    });
+
+    let mut stderr = child.stderr.take().ok_or_else(|| {
+        WorkspaceError::io("BYO AI Adapter stderr was not available.".to_string())
+    })?;
+    let stderr_reader = thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stderr.read_to_end(&mut buffer);
+        buffer
+    });
+
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdin_writer.join();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(WorkspaceError::io(format!(
+                "BYO AI Adapter did not finish within {} seconds and was stopped.",
+                timeout.as_secs()
+            )));
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+
+    let _ = stdin_writer.join();
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| WorkspaceError::io("BYO AI Adapter stdout reader failed.".to_string()))?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| WorkspaceError::io("BYO AI Adapter stderr reader failed.".to_string()))?;
+    if !status.success() {
         return Err(WorkspaceError::io(format!(
             "BYO AI Adapter exited unsuccessfully: {}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&stderr)
         )));
     }
-    Ok(output.stdout)
+    Ok(stdout)
 }
 
 fn invoke_adapter(
@@ -346,16 +406,28 @@ pub(crate) fn open_connection(root: &Path) -> Result<Connection, WorkspaceError>
 #[cfg(test)]
 mod tests {
     use crate::workspace::ai_adapter::{
-        configure_ai_adapter, get_ai_adapter_config, get_ai_context_disclosure, suggestion_for_row,
-        AiSuggestionRow, ConfigureAiAdapterInput,
+        configure_ai_adapter, get_ai_adapter_config, get_ai_context_disclosure,
+        invoke_adapter_raw_with_timeout, suggestion_for_row, AiSuggestionRow,
+        ConfigureAiAdapterInput,
     };
     use crate::workspace::create::create_workspace;
     use crate::workspace::types::CreateWorkspaceInput;
     use rusqlite::Connection;
     use std::fs;
     use std::path::Path;
+    use std::time::{Duration, Instant};
 
     struct TestRow;
+
+    #[test]
+    fn unresponsive_adapter_is_killed_after_timeout() {
+        let started = Instant::now();
+        let error = invoke_adapter_raw_with_timeout("sleep 30", b"{}", Duration::from_millis(200))
+            .unwrap_err();
+
+        assert!(error.message.contains("did not finish"));
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
 
     impl AiSuggestionRow for TestRow {
         fn posted_date(&self) -> &str {
