@@ -248,7 +248,7 @@ describe("AiAssistReview", () => {
         ),
       },
     });
-    expect(screen.getByText(/1 need another pass/)).toBeTruthy();
+    expect(screen.getByText(/1 needs another pass/)).toBeTruthy();
   });
 
   test("needs-your-eye rows never show a per-row Retry button", () => {

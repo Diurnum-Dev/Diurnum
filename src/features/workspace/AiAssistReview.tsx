@@ -324,7 +324,9 @@ function AiAssistReviewPass({
           <p className="ai-assist-progress-status">
             <span className="ai-assist-progress-spinner" aria-hidden="true" />
             {`Categorizing ${pass.processedRows} of ${pass.totalRows}…`}
-            {failedCount > 0 ? ` · ${failedCount} need another pass` : ""}
+            {failedCount > 0
+              ? ` · ${failedCount} ${failedCount === 1 ? "needs" : "need"} another pass`
+              : ""}
           </p>
         </div>
       ) : null}
