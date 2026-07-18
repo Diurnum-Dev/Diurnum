@@ -45,7 +45,9 @@ use crate::workspace::source_accounts::{self, AddSourceAccountInput};
 use crate::workspace::types::{CreateWorkspaceInput, LedgerValidationSummary, WorkspaceSummary};
 use crate::workspace::validation::{self, ValidateLedgerBufferInput};
 use crate::workspace::view::{self, WorkspaceView};
-use crate::workspace::WorkspaceError;
+use crate::workspace::{WorkspaceError, WorkspaceErrorCode};
+
+use super::inflight_guard::InflightGuard;
 
 #[tauri::command]
 pub fn get_workspace_view(path: String) -> Result<WorkspaceView, WorkspaceError> {
@@ -331,9 +333,23 @@ pub async fn run_ai_assist_next_chunk(
     pass_id: String,
 ) -> Result<AiAssistPassState, WorkspaceError> {
     // The adapter subprocess call blocks, so it must never run on the main thread.
-    tauri::async_runtime::spawn_blocking(move || ai_assist::run_ai_assist_next_chunk(path, &pass_id))
-        .await
-        .map_err(|error| WorkspaceError::io(format!("AI Assist task failed to run: {error}")))?
+    tauri::async_runtime::spawn_blocking(move || {
+        // Single-flight guard: if another chunk for this workspace is already
+        // running, don't spend adapter tokens again — just hand back the
+        // current pass state so the caller can keep polling.
+        match InflightGuard::try_acquire(&path) {
+            Some(_guard) => ai_assist::run_ai_assist_next_chunk(path, &pass_id),
+            None => match ai_assist::get_ai_assist_pass(&path)? {
+                Some(state) => Ok(state),
+                None => Err(WorkspaceError::new(
+                    WorkspaceErrorCode::InvalidLedger,
+                    "AI Assist pass is not running.",
+                )),
+            },
+        }
+    })
+    .await
+    .map_err(|error| WorkspaceError::io(format!("AI Assist task failed to run: {error}")))?
 }
 
 #[tauri::command]
