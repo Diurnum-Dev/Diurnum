@@ -249,7 +249,7 @@ describe("InboxPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Categorizing…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Categorizing… 0/1" })).toBeDisabled();
   });
 
   it("preserves review mode when approval fails", async () => {

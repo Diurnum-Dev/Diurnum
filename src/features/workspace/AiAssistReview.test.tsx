@@ -223,9 +223,103 @@ describe("AiAssistReview", () => {
     expect(screen.getByText(/not in the chart of accounts/)).toBeTruthy();
   });
 
-  test("running pass shows progress", () => {
+  test("running pass shows a determinate progress bar", () => {
     renderReview({ pass: { ...pass, status: "running", processedRows: 2 } });
-    expect(screen.getByText(/2 of 4 categorized/)).toBeTruthy();
+    expect(screen.getByText(/Categorizing 2 of 4…/)).toBeTruthy();
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "2");
+    expect(bar).toHaveAttribute("aria-valuemin", "0");
+    expect(bar).toHaveAttribute("aria-valuemax", "4");
+    const fill = bar.querySelector(".ai-assist-progress-bar-fill") as HTMLElement;
+    expect(fill).toBeTruthy();
+    expect(fill.style.width).toBe("50%");
+  });
+
+  test("running pass with failed suggestions shows an unobtrusive failed count", () => {
+    renderReview({
+      pass: {
+        ...pass,
+        status: "running",
+        processedRows: 2,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-1"
+            ? { ...suggestion, status: "failed" as const, ledgerAccount: null }
+            : suggestion,
+        ),
+      },
+    });
+    expect(screen.getByText(/1 need another pass/)).toBeTruthy();
+  });
+
+  test("needs-your-eye rows never show a per-row Retry button", () => {
+    renderReview({
+      pass: {
+        ...pass,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-1"
+            ? { ...suggestion, status: "failed" as const, ledgerAccount: null }
+            : suggestion,
+        ),
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Needs your eye/ }));
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+
+  test("complete pass with failed suggestions shows a single top-level Retry banner", () => {
+    const onRetry = vi.fn();
+    renderReview({
+      pass: {
+        ...pass,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-1"
+            ? { ...suggestion, status: "failed" as const, ledgerAccount: null }
+            : suggestion,
+        ),
+      },
+      onRetry,
+    });
+    expect(screen.getByText(/couldn't be categorized/)).toBeTruthy();
+    const retryButton = screen.getByRole("button", { name: "Retry 1" });
+    fireEvent.click(retryButton);
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  test("top-level Retry button is disabled while busy", () => {
+    renderReview({
+      pass: {
+        ...pass,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-1"
+            ? { ...suggestion, status: "failed" as const, ledgerAccount: null }
+            : suggestion,
+        ),
+      },
+      busy: true,
+    });
+    expect(screen.getByRole("button", { name: "Retry 1" })).toBeDisabled();
+  });
+
+  test("no top-level Retry banner when there are no failed suggestions", () => {
+    renderReview();
+    expect(screen.queryByText(/couldn't be categorized/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Retry/ })).toBeNull();
+  });
+
+  test("no top-level Retry banner while the pass is still running", () => {
+    renderReview({
+      pass: {
+        ...pass,
+        status: "running",
+        processedRows: 2,
+        suggestions: pass.suggestions.map((suggestion) =>
+          suggestion.statementRowId === "row-1"
+            ? { ...suggestion, status: "failed" as const, ledgerAccount: null }
+            : suggestion,
+        ),
+      },
+    });
+    expect(screen.queryByRole("button", { name: /^Retry \d/ })).toBeNull();
   });
 
   test("keyboard controls stay root-scoped and operate the selected row", () => {

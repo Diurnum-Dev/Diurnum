@@ -224,7 +224,7 @@ export function InboxPanel({
         {!aiAssist.adapterConfigured
           ? "Set up AI Assist"
           : aiAssist.running
-            ? "Categorizing…"
+            ? `Categorizing… ${aiAssist.pass?.processedRows ?? 0}/${aiAssist.pass?.totalRows ?? 0}`
             : activeReviewPass
               ? "Review AI Assist"
               : "AI Assist"}

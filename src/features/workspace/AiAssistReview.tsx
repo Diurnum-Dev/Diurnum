@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type {
   AiAssistPassState,
   ApproveAiAssistBatchInput,
@@ -72,6 +65,16 @@ function AiAssistReviewPass({
       ),
     [pass.suggestions],
   );
+  const failedCount = useMemo(
+    () => pass.suggestions.filter((suggestion) => suggestion.status === "failed").length,
+    [pass.suggestions],
+  );
+  const progressPercent =
+    pass.totalRows > 0
+      ? Math.min(100, Math.max(0, Math.round((pass.processedRows / pass.totalRows) * 100)))
+      : 0;
+  const passIsRunning = pass.status === "running";
+  const passIsComplete = pass.status === "complete";
   const steps = useMemo<ReviewStep[]>(
     () => [
       ...groups.map((group, groupIndex) => ({
@@ -303,9 +306,41 @@ function AiAssistReviewPass({
       tabIndex={-1}
       onKeyDown={handleKeyDown}
     >
-      {pass.status === "running" ? (
+      {passIsRunning ? (
         <div className="ai-assist-progress" role="status" aria-live="polite">
-          <strong>{`${pass.processedRows} of ${pass.totalRows} categorized…`}</strong>
+          <div
+            className="ai-assist-progress-bar"
+            role="progressbar"
+            aria-valuenow={pass.processedRows}
+            aria-valuemin={0}
+            aria-valuemax={pass.totalRows}
+            aria-label={`Categorizing ${pass.processedRows} of ${pass.totalRows}`}
+          >
+            <span
+              className="ai-assist-progress-bar-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <p className="ai-assist-progress-status">
+            <span className="ai-assist-progress-spinner" aria-hidden="true" />
+            {`Categorizing ${pass.processedRows} of ${pass.totalRows}…`}
+            {failedCount > 0 ? ` · ${failedCount} need another pass` : ""}
+          </p>
+        </div>
+      ) : null}
+      {passIsComplete && failedCount > 0 ? (
+        <div className="ai-assist-retry-banner" role="status">
+          <p>
+            {failedCount} {failedCount === 1 ? "row" : "rows"} couldn't be categorized.
+          </p>
+          <button
+            type="button"
+            className="ai-assist-primary"
+            disabled={busy || passIsRunning}
+            onClick={() => callSafely(onRetry)}
+          >
+            Retry {failedCount}
+          </button>
         </div>
       ) : null}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -422,8 +457,6 @@ function AiAssistReviewPass({
                 setIncludedNeedsEye((current) => updateSet(current, rowId, checked))
               }
               onEditRow={onEditRow}
-              onRetry={() => callSafely(onRetry)}
-              busy={busy}
               onContinue={moveToNextStep}
             />
           ) : null}
@@ -601,8 +634,6 @@ type NeedsEyeStepProps = {
   onSelectRow: (rowId: string) => void;
   onToggleRow: (rowId: string, checked: boolean) => void;
   onEditRow: (rowId: string) => void;
-  onRetry: () => void;
-  busy: boolean;
   onContinue: () => void;
 };
 
@@ -614,8 +645,6 @@ function NeedsEyeStep({
   onSelectRow,
   onToggleRow,
   onEditRow,
-  onRetry,
-  busy,
   onContinue,
 }: NeedsEyeStepProps) {
   return (
@@ -641,18 +670,6 @@ function NeedsEyeStep({
                 onSelect={() => onSelectRow(row.statementRowId)}
                 onToggle={(checked) => onToggleRow(row.statementRowId, checked)}
                 onEdit={() => onEditRow(row.statementRowId)}
-                trailingAction={
-                  row.failed ? (
-                    <button
-                      type="button"
-                      className="ai-assist-link-button"
-                      disabled={busy}
-                      onClick={onRetry}
-                    >
-                      Retry
-                    </button>
-                  ) : null
-                }
               />
               {row.explanation ? (
                 <p className="ai-assist-explanation">{row.explanation}</p>
@@ -679,7 +696,6 @@ type ReviewRowProps = {
   onSelect: () => void;
   onToggle: (checked: boolean) => void;
   onEdit: () => void;
-  trailingAction?: ReactNode;
 };
 
 function ReviewRow({
@@ -690,7 +706,6 @@ function ReviewRow({
   onSelect,
   onToggle,
   onEdit,
-  trailingAction,
 }: ReviewRowProps) {
   return (
     <div
@@ -711,7 +726,6 @@ function ReviewRow({
         <span>{`was: ${row.rawDescription}`}</span>
         {selected ? <small className="ai-assist-selected-label">Selected</small> : null}
       </button>
-      {trailingAction}
       <time dateTime={row.postedDate}>{formatInboxDate(row.postedDate)}</time>
       <span className="ai-assist-amount">{formatInboxAmount(row.sourceAmount)}</span>
     </div>
