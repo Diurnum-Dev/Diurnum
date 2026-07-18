@@ -55,6 +55,7 @@ The concrete examples below are valid JSON with the placeholders filled in.
 {
   "type": "batchSuggestionRequest",
   "version": 1,
+  "responseContract": "You are an accounting categorization adapter. Reply with exactly one JSON object and no other text, markdown, or code fences: {\"suggestions\":[...],\"proposedRules\":[...]}. Every rows[].id must appear exactly once in suggestions. When unsure, use a null ledgerAccount and needsHumanAttention true.",
   "sharedContext": {
     "chartOfAccounts": ["Expenses:Software"],
     "categorizationRules": [
@@ -96,6 +97,7 @@ The concrete examples below are valid JSON with the placeholders filled in.
 | --- | --- | --- |
 | `type` | string | Always `batchSuggestionRequest` for this protocol. |
 | `version` | integer | Currently `1`. |
+| `responseContract` | string | Natural-language instruction describing the exact response shape. Present so a general-purpose agent harness (e.g. `opencode run`, `claude --print`, `codex exec`), which receives the payload as its prompt, answers with contract JSON instead of prose. Purpose-built wrappers can ignore it. |
 | `sharedContext` | object | Context shared by every row in this invocation. |
 | `rows` | array | Up to 40 pending standard Statement Rows in the current chunk. |
 
@@ -194,9 +196,12 @@ normalize an account name or add an adapter-suggested account at this boundary.
 
 Unknown `rowId` values are ignored. Every requested row should appear exactly
 once: a requested row omitted from `suggestions` is stored as failed and can be
-retried. Invalid response JSON, a failure to start the adapter, or a non-zero
-adapter exit marks every live row in that invocation as failed; other chunks in
-the pass can continue. Each adapter invocation is bounded by a 120-second
+retried. Diurnum parses responses strictly first, then falls back to extracting
+a JSON object embedded in prose or markdown fences, so agent harnesses that
+add commentary can still succeed. Output with no parseable JSON object, a
+failure to start the adapter, or a non-zero adapter exit marks every live row
+in that invocation as failed; other chunks in the pass can continue. Each
+adapter invocation is bounded by a 10-minute
 timeout: an adapter that has not exited by then is killed and its rows are
 marked failed. Adapters therefore must run non-interactively — read the request
 from standard input, print the response, and exit. The auto-detected commands
@@ -213,9 +218,9 @@ The batch protocol coexists with the original per-row adapter contract. Ledger
 Editor predictive completion can still invoke the same configured command once
 for a row, after Categorization Rules and approved-entry history do not produce a
 completion. It sends a camelCase `CuratedLedgerContext` object with
-`statementRow`, `sourceAccount`, `chartOfAccounts`, `categorizationRules`,
-`similarApprovedEntries`, and `businessProfile`; it expects one `AiSuggestion`
-object rather than the batch response envelope.
+`responseContract`, `statementRow`, `sourceAccount`, `chartOfAccounts`,
+`categorizationRules`, `similarApprovedEntries`, and `businessProfile`; it
+expects one `AiSuggestion` object rather than the batch response envelope.
 
 That legacy response has `ledgerAccount`, optional `sourceAccount` and
 `sourceAmount`, `payee`, `narration`, `confidence`, `explanation`, and

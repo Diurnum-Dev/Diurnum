@@ -1,6 +1,6 @@
 use crate::workspace::ai_adapter::{
-    invoke_adapter_raw, load_adapter_command, read_chart_of_accounts, read_manifest,
-    AiBusinessProfile, SimilarApprovedEntry,
+    invoke_adapter_raw, load_adapter_command, parse_adapter_output, read_chart_of_accounts,
+    read_manifest, AiBusinessProfile, SimilarApprovedEntry,
 };
 use crate::workspace::approval::{
     ensure_main_includes, ensure_provenance_columns, get_suggested_entries,
@@ -33,11 +33,18 @@ use uuid::Uuid;
 pub const AI_ASSIST_CHUNK_SIZE: usize = 40;
 pub const NEEDS_EYE_CONFIDENCE_THRESHOLD: f64 = 0.6;
 
+/// Sent inside every batch request so general-purpose agent harnesses (which
+/// receive the payload as their prompt) know to answer with the contract JSON
+/// instead of prose. Purpose-built wrapper scripts can ignore it.
+pub const BATCH_RESPONSE_CONTRACT: &str = "You are an accounting categorization adapter. Reply with exactly one JSON object and no other text, markdown, or code fences: {\"suggestions\":[{\"rowId\":<an id from rows>,\"ledgerAccount\":<an exact account from sharedContext.chartOfAccounts, or null>,\"payee\":<string or null>,\"narration\":<string or null>,\"confidence\":<number 0-1 or null>,\"explanation\":<short string or null>,\"needsHumanAttention\":<boolean>}],\"proposedRules\":[{\"matchText\":<description substring>,\"sourceAccount\":<the row's sourceAccount>,\"ledgerAccount\":<an exact sharedContext.chartOfAccounts account>,\"matchedRowIds\":[<ids from rows>]}]}. Every rows[].id must appear exactly once in suggestions. When unsure, use a null ledgerAccount and needsHumanAttention true.";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BatchSuggestionRequest {
     pub r#type: String,
     pub version: u32,
+    #[serde(default)]
+    pub response_contract: String,
     pub shared_context: SharedContext,
     pub rows: Vec<BatchRow>,
 }
@@ -104,7 +111,7 @@ pub(crate) fn invoke_batch_adapter(
     let payload =
         serde_json::to_vec(request).map_err(|error| WorkspaceError::io(error.to_string()))?;
     let stdout = invoke_adapter_raw(command, &payload)?;
-    serde_json::from_slice::<BatchSuggestionResponse>(&stdout).map_err(|error| {
+    parse_adapter_output::<BatchSuggestionResponse>(&stdout).map_err(|error| {
         WorkspaceError::io(format!(
             "BYO AI Adapter returned invalid batch JSON: {error}"
         ))
@@ -1147,6 +1154,7 @@ fn run_next_chunk_with_size(
                 let request = BatchSuggestionRequest {
                     r#type: "batchSuggestionRequest".to_string(),
                     version: 1,
+                    response_contract: BATCH_RESPONSE_CONTRACT.to_string(),
                     shared_context: build_shared_context(root, &connection)?,
                     rows: live
                         .iter()
@@ -1453,6 +1461,7 @@ mod tests {
         let request = BatchSuggestionRequest {
             r#type: "batchSuggestionRequest".to_string(),
             version: 1,
+            response_contract: BATCH_RESPONSE_CONTRACT.to_string(),
             shared_context: SharedContext {
                 chart_of_accounts: vec!["Expenses:Software".to_string()],
                 categorization_rules: vec![],
@@ -1485,6 +1494,43 @@ mod tests {
         assert!(received.contains("\"type\":\"batchSuggestionRequest\""));
         assert!(received.contains("\"version\":1"));
         assert!(received.contains("\"chartOfAccounts\""));
+        assert!(received.contains("\"responseContract\""));
+    }
+
+    #[test]
+    fn batch_adapter_prose_wrapped_json_is_accepted() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let command = write_adapter_script(
+            tempdir.path(),
+            "Here are the suggestions:\n```json\n{\"suggestions\":[{\"rowId\":\"row-1\",\"ledgerAccount\":\"Expenses:Software\",\"needsHumanAttention\":false}],\"proposedRules\":[]}\n```\nLet me know if you need anything else.",
+        );
+        let request = BatchSuggestionRequest {
+            r#type: "batchSuggestionRequest".to_string(),
+            version: 1,
+            response_contract: BATCH_RESPONSE_CONTRACT.to_string(),
+            shared_context: SharedContext {
+                chart_of_accounts: vec!["Expenses:Software".to_string()],
+                categorization_rules: vec![],
+                business_profile: crate::workspace::ai_adapter::AiBusinessProfile {
+                    name: "Acme".to_string(),
+                    base_currency: "USD".to_string(),
+                    books_start_date: "2026-01-01".to_string(),
+                },
+                recent_approved_entries: vec![],
+            },
+            rows: vec![BatchRow {
+                id: "row-1".to_string(),
+                posted_date: "2026-05-07".to_string(),
+                description: "WEB PMTS Autobooks, Inc. WEB".to_string(),
+                source_account: "Assets:Bank:Checking".to_string(),
+                source_amount: "-0.50".to_string(),
+            }],
+        };
+
+        let response = invoke_batch_adapter(&command, &request).unwrap();
+
+        assert_eq!(response.suggestions.len(), 1);
+        assert_eq!(response.suggestions[0].row_id, "row-1");
     }
 
     #[test]
@@ -1494,6 +1540,7 @@ mod tests {
         let request = BatchSuggestionRequest {
             r#type: "batchSuggestionRequest".to_string(),
             version: 1,
+            response_contract: BATCH_RESPONSE_CONTRACT.to_string(),
             shared_context: SharedContext {
                 chart_of_accounts: vec![],
                 categorization_rules: vec![],

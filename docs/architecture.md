@@ -110,7 +110,11 @@ legacy per-row completion contract.
 Adapter invocation is defensive by design. Detection stores each harness's
 non-interactive invocation (`claude --print`, `codex exec`, `opencode run`) —
 a bare binary name would launch an interactive session that never exits. Every
-subprocess call is bounded by a 120-second timeout that kills a wedged adapter,
+request carries a `responseContract` instruction so a general-purpose harness,
+which receives the payload as its prompt, answers with the contract JSON;
+responses are parsed strictly first, then by extracting a JSON object embedded
+in prose or markdown fences. Every
+subprocess call is bounded by a 10-minute timeout that kills a wedged adapter,
 with stdin/stdout/stderr pumped on helper threads so a full pipe buffer cannot
 deadlock the child. The Tauri commands that can reach the adapter
 (`run_ai_assist_next_chunk`, `test_ai_adapter`, `get_predictive_entry_completion`)

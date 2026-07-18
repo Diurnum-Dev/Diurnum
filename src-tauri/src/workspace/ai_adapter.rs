@@ -5,7 +5,7 @@ use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::imports::ensure_import_tables;
 use crate::workspace::types::WorkspaceManifest;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -15,9 +15,15 @@ use std::time::{Duration, Instant};
 
 const ADAPTER_CONFIG_KEY: &str = "byo_ai_adapter_command";
 
-/// Upper bound for a single adapter invocation. A wedged or interactive
-/// adapter must never block the app indefinitely.
-const ADAPTER_TIMEOUT: Duration = Duration::from_secs(120);
+/// Upper bound for a single adapter invocation. Generous enough for a real
+/// agent harness to reason over a full 40-row chunk; exists to reap wedged or
+/// interactive adapters, not to rush legitimate work.
+const ADAPTER_TIMEOUT: Duration = Duration::from_secs(600);
+
+/// Sent inside every per-row request so general-purpose agent harnesses (which
+/// receive the payload as their prompt) know to answer with the contract JSON
+/// instead of prose. Purpose-built wrapper scripts can ignore it.
+pub(crate) const PER_ROW_RESPONSE_CONTRACT: &str = "You are an accounting categorization adapter. Reply with exactly one JSON object and no other text, markdown, or code fences: {\"ledgerAccount\":<an exact account from chartOfAccounts, or null>,\"sourceAccount\":<string or null>,\"sourceAmount\":<string or null>,\"payee\":<string or null>,\"narration\":<string or null>,\"confidence\":<number 0-1 or null>,\"explanation\":<short string or null>,\"needsHumanAttention\":<boolean>}.";
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +48,8 @@ pub struct AiContextDisclosure {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CuratedLedgerContext {
+    #[serde(default)]
+    pub response_contract: String,
     pub statement_row: AiStatementRowContext,
     pub source_account: String,
     pub chart_of_accounts: Vec<String>,
@@ -182,6 +190,7 @@ fn build_curated_context<T: AiSuggestionRow>(
     ensure_categorization_rules_table(connection)?;
     let manifest = read_manifest(root)?;
     Ok(CuratedLedgerContext {
+        response_contract: PER_ROW_RESPONSE_CONTRACT.to_string(),
         statement_row: AiStatementRowContext {
             posted_date: row.posted_date().to_string(),
             description: row.description().to_string(),
@@ -297,9 +306,70 @@ fn invoke_adapter(
     let payload =
         serde_json::to_vec(context).map_err(|error| WorkspaceError::io(error.to_string()))?;
     let stdout = invoke_adapter_raw(command, &payload)?;
-    serde_json::from_slice::<AiSuggestion>(&stdout).map_err(|error| {
+    parse_adapter_output::<AiSuggestion>(&stdout).map_err(|error| {
         WorkspaceError::io(format!("BYO AI Adapter returned invalid JSON: {error}"))
     })
+}
+
+/// Parses adapter stdout, tolerating agent harnesses that wrap the contract
+/// JSON in prose or markdown fences. Falls back to the strict parse error when
+/// no embedded JSON object matches.
+pub(crate) fn parse_adapter_output<T: DeserializeOwned>(
+    bytes: &[u8],
+) -> Result<T, serde_json::Error> {
+    match serde_json::from_slice::<T>(bytes) {
+        Ok(value) => Ok(value),
+        Err(strict_error) => {
+            let text = String::from_utf8_lossy(bytes);
+            for candidate in embedded_json_objects(&text) {
+                if let Ok(value) = serde_json::from_str::<T>(&candidate) {
+                    return Ok(value);
+                }
+            }
+            Err(strict_error)
+        }
+    }
+}
+
+/// Extracts balanced top-level `{...}` substrings, ignoring braces inside
+/// string literals, so prose-wrapped output can still be parsed.
+fn embedded_json_objects(text: &str) -> Vec<String> {
+    let mut objects = Vec::new();
+    let mut depth = 0usize;
+    let mut start = None;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (index, ch) in text.char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' if depth > 0 => in_string = true,
+            '{' => {
+                if depth == 0 {
+                    start = Some(index);
+                }
+                depth += 1;
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(begin) = start.take() {
+                        objects.push(text[begin..=index].to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    objects
 }
 
 pub(crate) fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
@@ -507,6 +577,51 @@ mod tests {
             .fields_sent
             .iter()
             .any(|field| field.contains("Statement Row")));
+    }
+
+    #[test]
+    fn prose_wrapped_adapter_output_is_accepted() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        let adapter_path = tempdir.path().join("chatty-adapter.sh");
+        fs::write(
+            &adapter_path,
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s' 'Here is the suggestion:\n```json\n{\"ledgerAccount\":\"Expenses:Software\",\"payee\":\"Vendor\",\"confidence\":0.88,\"needsHumanAttention\":false}\n```\n'",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = fs::metadata(&adapter_path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&adapter_path, permissions).unwrap();
+        }
+        configure_ai_adapter(ConfigureAiAdapterInput {
+            workspace_root_path: created.root_path.clone(),
+            command: Some(adapter_path.to_string_lossy().to_string()),
+        })
+        .unwrap();
+        let connection = Connection::open(
+            Path::new(&created.root_path)
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
+        )
+        .unwrap();
+
+        let suggestion = suggestion_for_row(Path::new(&created.root_path), &connection, &TestRow)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            suggestion.ledger_account.as_deref(),
+            Some("Expenses:Software")
+        );
     }
 
     #[test]
