@@ -194,8 +194,30 @@ pub struct AiAssistBatchSummary {
     pub entry_count: i64,
 }
 
+/// Replaces every ASCII control character (including `\n`, `\r`, `\t`, and DEL)
+/// with a single space. Adapter output is untrusted free text that ends up in a
+/// single-line `format!` when written to a ledger file; an embedded newline can
+/// split that line and splice in fabricated postings the line-oriented validator
+/// would accept as legitimate. Applied both at the SQLite trust boundary
+/// (`persist_chunk_response`) and again at the ledger-write boundary
+/// (`escape_beancount_string`) so no code path can skip it.
+fn sanitize_control_chars(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| {
+            if (c as u32) < 0x20 || (c as u32) == 0x7F {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 fn escape_beancount_string(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
+    sanitize_control_chars(value)
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
 }
 
 fn canonical_rule_key(source_account: &str, match_text: &str) -> (String, String) {
@@ -390,7 +412,7 @@ pub fn dismiss_ai_assist_pass(
     let connection = open_workspace_connection(root)?;
     ensure_ai_assist_tables(&connection)?;
     connection.execute(
-        "update ai_assist_passes set status = 'dismissed' where id = ?1",
+        "update ai_assist_passes set status = 'dismissed' where id = ?1 and status in ('running', 'complete')",
         [pass_id],
     )?;
     Ok(())
@@ -631,14 +653,20 @@ pub fn approve_ai_assist_batch(
         let rule_ids_json = serde_json::to_string(&rule_ids)
             .map_err(|error| WorkspaceError::io(error.to_string()))?;
         for record in &records {
-            transaction.execute(
-                "update statement_rows set status = 'accounted', diurnum_entry_id = ?2, ledger_entry_file = ?3 where id = ?1",
+            let updated_rows = transaction.execute(
+                "update statement_rows set status = 'accounted', diurnum_entry_id = ?2, ledger_entry_file = ?3 where id = ?1 and status = 'pending'",
                 params![
                     record.statement_row_id,
                     record.diurnum_entry_id,
                     record.ledger_entry_file
                 ],
             )?;
+            if updated_rows != 1 {
+                return Err(WorkspaceError::new(
+                    WorkspaceErrorCode::InvalidLedger,
+                    "AI Assist approval was cancelled because a Statement Row was no longer pending.",
+                ));
+            }
         }
         transaction.execute(
             "insert into ai_assist_batches (id, pass_id, approved_at, entry_count, entries_json, rule_ids_json) values (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -832,6 +860,10 @@ pub fn revert_ai_assist_batch(
         .map_err(|error| WorkspaceError::io(error.to_string()))?;
 
     let snapshot = create_snapshot(root, SnapshotReason::Approval)?;
+    // Captured before any rewrite so the post-rewrite check below only fires on
+    // a regression this revert itself introduced, not on pre-existing damage
+    // (reverting a batch may be how someone recovers from that).
+    let pre_validation = validate_workspace(root)?;
 
     let operation_result = (|| -> Result<(), WorkspaceError> {
         let mut by_file: BTreeMap<String, HashSet<String>> = BTreeMap::new();
@@ -847,14 +879,30 @@ pub fn revert_ai_assist_batch(
             atomic_write(&path, &remove_entry_blocks(&contents, entry_ids))?;
         }
 
+        // Golden-path gate, mirroring approval: a revert that breaks a
+        // previously valid ledger must compensate before touching SQLite.
+        if pre_validation.status == LedgerStatus::Valid {
+            let post_validation = validate_workspace(root)?;
+            if post_validation.status == LedgerStatus::Invalid {
+                return Err(WorkspaceError::new(
+                    WorkspaceErrorCode::InvalidLedger,
+                    "AI Assist batch revert was rolled back because the ledger became invalid.",
+                ));
+            }
+        }
+
         let transaction = connection.unchecked_transaction()?;
         for rule_id in &rule_ids {
             delete_categorization_rule_from_connection(&transaction, rule_id)?;
         }
         for record in &records {
+            // Provenance must still match: a row an out-of-band process already
+            // repointed to a different entry is left alone rather than clobbered.
+            // The block removal above is keyed by diurnum_entry_id too, so it is
+            // already a no-op for such rows.
             transaction.execute(
-                "update statement_rows set status = 'pending', diurnum_entry_id = null, ledger_entry_file = null where id = ?1",
-                [&record.statement_row_id],
+                "update statement_rows set status = 'pending', diurnum_entry_id = null, ledger_entry_file = null where id = ?1 and diurnum_entry_id = ?2",
+                params![record.statement_row_id, record.diurnum_entry_id],
             )?;
         }
         transaction.execute(
@@ -1276,16 +1324,21 @@ fn persist_chunk_response(
             .ledger_account
             .as_deref()
             .filter(|_| account_known);
+        // Trust boundary: sanitize before this untrusted adapter text ever
+        // reaches SQLite (and, from there, the UI or a future ledger write).
+        let sanitized_payee = suggestion.payee.as_deref().map(sanitize_control_chars);
+        let sanitized_narration = suggestion.narration.as_deref().map(sanitize_control_chars);
+        let sanitized_explanation = explanation.as_deref().map(sanitize_control_chars);
         insert_suggestion(
             connection,
             pass_id,
             &suggestion.row_id,
             status,
             validated_ledger_account,
-            suggestion.payee.as_deref(),
-            suggestion.narration.as_deref(),
+            sanitized_payee.as_deref(),
+            sanitized_narration.as_deref(),
             suggestion.confidence,
-            explanation.as_deref(),
+            sanitized_explanation.as_deref(),
         )?;
     }
 
@@ -2859,5 +2912,338 @@ mod tests {
         let rules =
             crate::workspace::categorization_rules::list_categorization_rules(&root).unwrap();
         assert!(rules.iter().any(|rule| rule.match_text == "Autobooks"));
+    }
+
+    // --- Finding 1: control-character sanitization -------------------------
+
+    #[test]
+    fn escape_beancount_string_strips_control_chars_and_escapes_quotes_and_backslashes() {
+        assert_eq!(escape_beancount_string("a\nb"), "a b");
+        assert_eq!(escape_beancount_string("a\rb"), "a b");
+        assert_eq!(escape_beancount_string("a\tb"), "a b");
+        assert_eq!(escape_beancount_string("say \"hi\""), "say \\\"hi\\\"");
+        assert_eq!(escape_beancount_string("back\\slash"), "back\\\\slash");
+        // Combined: a hostile payload with all five at once.
+        assert_eq!(
+            escape_beancount_string("a\r\n\"q\"\t\\x"),
+            "a  \\\"q\\\" \\\\x"
+        );
+    }
+
+    #[test]
+    fn adapter_newline_in_payee_cannot_inject_ledger_lines() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "Evil vendor", "-1.00");
+        // The adapter tries to smuggle a whole extra, self-balancing
+        // transaction into the payee field via embedded newlines.
+        let response = r#"{"suggestions":[{"rowId":"row-1","ledgerAccount":"Expenses:Software","payee":"Evil\n2020-01-01 * \"Injected\"\n  Assets:Bank:Checking  -50.00 USD\n  Expenses:Software  50.00 USD","narration":"Legit narration","confidence":0.9,"needsHumanAttention":false}],"proposedRules":[]}"#;
+        let command = write_adapter_script(tempdir.path(), response);
+        configure_adapter(&root, &command);
+        let pass = start_ai_assist_pass(&root).unwrap();
+
+        let state = run_ai_assist_next_chunk(&root, &pass.pass_id).unwrap();
+
+        let suggestion = state
+            .suggestions
+            .iter()
+            .find(|s| s.statement_row_id == "row-1")
+            .unwrap()
+            .clone();
+        assert_eq!(suggestion.status, "suggested");
+        // Layer b: sanitized before it ever reached SQLite.
+        let stored_payee = suggestion.payee.clone().unwrap();
+        assert!(!stored_payee.contains('\n'));
+        assert!(!stored_payee.contains('\r'));
+
+        approve_ai_assist_batch(ApproveAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            pass_id: pass.pass_id,
+            entries: vec![AiAssistEntryInput {
+                statement_row_id: "row-1".to_string(),
+                ledger_account: "Expenses:Software".to_string(),
+                payee: suggestion.payee,
+                narration: suggestion.narration,
+            }],
+            rules: vec![],
+        })
+        .unwrap();
+
+        let monthly =
+            fs::read_to_string(Path::new(&root).join("transactions/2026-05.bean")).unwrap();
+        // No injected transaction date-line: the title stayed a single line.
+        assert!(!monthly.contains("\n2020-01-01"));
+        assert_eq!(monthly.matches("\n2026-05-06").count(), 1);
+        assert!(monthly.contains("Evil"));
+
+        let validation = validate_workspace(Path::new(&root)).unwrap();
+        assert_eq!(validation.status, LedgerStatus::Valid);
+    }
+
+    // --- Finding 2: revert row-restore verifies provenance ------------------
+
+    #[test]
+    fn revert_skips_rows_whose_provenance_no_longer_matches() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        insert_pending_row(&connection, "row-2", "B", "-2.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![
+                AiAssistEntryInput {
+                    statement_row_id: "row-1".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+                AiAssistEntryInput {
+                    statement_row_id: "row-2".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+            ],
+        ))
+        .unwrap();
+        let batch_id = list_ai_assist_batches(&root).unwrap()[0].id.clone();
+        // Simulate an out-of-band process that already repointed row-1's
+        // provenance to a different (hypothetical) entry.
+        connection
+            .execute(
+                "update statement_rows set diurnum_entry_id = 'tampered-id' where id = 'row-1'",
+                [],
+            )
+            .unwrap();
+
+        revert_ai_assist_batch(RevertAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            batch_id,
+        })
+        .unwrap();
+
+        let (row1_status, row1_entry_id): (String, Option<String>) = connection
+            .query_row(
+                "select status, diurnum_entry_id from statement_rows where id = 'row-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(row1_status, "accounted");
+        assert_eq!(row1_entry_id.as_deref(), Some("tampered-id"));
+        let (row2_status, row2_entry_id): (String, Option<String>) = connection
+            .query_row(
+                "select status, diurnum_entry_id from statement_rows where id = 'row-2'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(row2_status, "pending");
+        assert_eq!(row2_entry_id, None);
+    }
+
+    // --- Finding 3: revert has a post-rewrite validation gate ---------------
+
+    #[test]
+    fn revert_compensates_when_rewrite_leaves_the_ledger_invalid() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        // Many monthly files so the revert's per-file rewrite loop has a real
+        // window: a background thread races to splice an invalid, unrelated
+        // transaction into the transactions directory right after the first
+        // file's rewrite lands, but before the loop (and post-validation)
+        // finishes — mirroring the injection timing already used by
+        // `batch_approval_rolls_back_when_post_write_validation_errors`.
+        let file_count = 24;
+        let mut entries = Vec::new();
+        for index in 0..file_count {
+            let row_id = format!("row-{index}");
+            insert_pending_row(&connection, &row_id, "A", "-1.00");
+            let year = 2000 + index / 12;
+            let month = (index % 12) + 1;
+            connection
+                .execute(
+                    "update statement_rows set posted_date = ?2 where id = ?1",
+                    params![row_id, format!("{year:04}-{month:02}-06")],
+                )
+                .unwrap();
+            entries.push(AiAssistEntryInput {
+                statement_row_id: row_id,
+                ledger_account: "Expenses:Software".to_string(),
+                payee: None,
+                narration: None,
+            });
+        }
+        let pass = start_ai_assist_pass(&root).unwrap();
+        approve_ai_assist_batch(approve_input(&root, &pass.pass_id, entries)).unwrap();
+        let batch_id = list_ai_assist_batches(&root).unwrap()[0].id.clone();
+
+        let entries_json: String = connection
+            .query_row(
+                "select entries_json from ai_assist_batches where id = ?1",
+                [&batch_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let records: Vec<BatchEntryRecord> = serde_json::from_str(&entries_json).unwrap();
+        let originals: Vec<(std::path::PathBuf, String)> = records
+            .iter()
+            .map(|record| {
+                let path = Path::new(&root).join(&record.ledger_entry_file);
+                let contents = fs::read_to_string(&path).unwrap();
+                (path, contents)
+            })
+            .collect();
+        let mut relative_paths: Vec<String> = records
+            .iter()
+            .map(|record| record.ledger_entry_file.clone())
+            .collect();
+        relative_paths.sort();
+        let watched_path = Path::new(&root).join(&relative_paths[0]);
+        let bad_path = Path::new(&root).join("transactions/9999-01.bean");
+
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let injector = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            loop {
+                let contents = fs::read_to_string(&watched_path).unwrap_or_default();
+                if !contents.contains("ai_assist_batch_id") {
+                    break;
+                }
+                std::thread::yield_now();
+            }
+            // A single, unbalanced posting: no header from this batch, so
+            // pre-revert validation never sees it, but post-revert validation
+            // scans the whole transactions/ directory and will.
+            fs::write(
+                &bad_path,
+                "9999-01-06 * \"Injected\"\n  Assets:Bank:Checking  -1.00 USD\n",
+            )
+            .unwrap();
+        });
+        ready_rx.recv().unwrap();
+
+        let result = revert_ai_assist_batch(RevertAiAssistBatchInput {
+            workspace_root_path: root.clone(),
+            batch_id: batch_id.clone(),
+        });
+        injector.join().unwrap();
+
+        assert!(result.is_err());
+        for (path, contents) in &originals {
+            assert_eq!(&fs::read_to_string(path).unwrap(), contents);
+        }
+        let accounted: i64 = connection
+            .query_row(
+                "select count(*) from statement_rows where status = 'accounted'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(accounted, file_count as i64);
+        assert_eq!(list_ai_assist_batches(&root).unwrap().len(), 1);
+    }
+
+    // --- Finding 4: finalization re-checks rows are still pending -----------
+
+    #[test]
+    fn approval_compensates_when_a_row_is_no_longer_pending_during_finalization() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        insert_pending_row(&connection, "row-2", "B", "-2.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        let main_path = Path::new(&root).join("main.bean");
+        let main_before = fs::read_to_string(&main_path).unwrap();
+        let monthly_path = Path::new(&root).join("transactions/2026-05.bean");
+        // As row-1's own status update fires, sneak row-2 to 'accounted' too —
+        // simulating a concurrent per-row approval racing this batch.
+        connection
+            .execute_batch(
+                "create trigger flip_row_during_finalization
+                 before update of status on statement_rows
+                 when new.id = 'row-1' and new.status = 'accounted'
+                 begin
+                   update statement_rows set status = 'accounted' where id = 'row-2';
+                 end;",
+            )
+            .unwrap();
+
+        let result = approve_ai_assist_batch(approve_input(
+            &root,
+            &pass.pass_id,
+            vec![
+                AiAssistEntryInput {
+                    statement_row_id: "row-1".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+                AiAssistEntryInput {
+                    statement_row_id: "row-2".to_string(),
+                    ledger_account: "Expenses:Software".to_string(),
+                    payee: None,
+                    narration: None,
+                },
+            ],
+        ));
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(main_path).unwrap(), main_before);
+        assert!(!monthly_path.exists());
+        assert!(list_ai_assist_batches(&root).unwrap().is_empty());
+        // Whole transaction (including the trigger's side effect) rolled back.
+        let row1_status: String = connection
+            .query_row(
+                "select status from statement_rows where id = 'row-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let row2_status: String = connection
+            .query_row(
+                "select status from statement_rows where id = 'row-2'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            (row1_status.as_str(), row2_status.as_str()),
+            ("pending", "pending")
+        );
+    }
+
+    // --- Finding 5: dismiss status guard ------------------------------------
+
+    #[test]
+    fn dismiss_does_not_flip_a_terminal_approved_pass() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let root = test_workspace(&tempdir);
+        let connection = open_test_connection(&root);
+        insert_pending_row(&connection, "row-1", "A", "-1.00");
+        let pass = start_ai_assist_pass(&root).unwrap();
+        connection
+            .execute(
+                "update ai_assist_passes set status = 'approved' where id = ?1",
+                [&pass.pass_id],
+            )
+            .unwrap();
+
+        dismiss_ai_assist_pass(&root, &pass.pass_id).unwrap();
+
+        let status: String = connection
+            .query_row(
+                "select status from ai_assist_passes where id = ?1",
+                [&pass.pass_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "approved");
     }
 }

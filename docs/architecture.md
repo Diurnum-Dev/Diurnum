@@ -144,7 +144,13 @@ chart; approval never opens an adapter- or client-supplied account. It writes
 selected entries to monthly transaction files and validates
 the resulting ledger, then creates selected rules, updates Statement Row
 provenance, records the batch, and marks the pass approved in one SQLite
-transaction. Adapter-proposed rules are untrusted: source and ledger accounts
+transaction. Each provenance update is conditional on the row still being
+pending, so a concurrent per-row approval aborts the transaction and triggers
+filesystem compensation instead of overwriting newer state. Adapter free text
+is also untrusted: ASCII control characters are replaced at the SQLite ingress
+boundary and again before Beancount string escaping, preventing multiline
+payee, narration, or explanation values from injecting ledger syntax.
+Adapter-proposed rules are untrusted: source and ledger accounts
 must exist in the current chart, every recorded match must be a unique row from
 the current adapter request with the stated source account, and approval
 revalidates the durable proposal
@@ -166,9 +172,13 @@ default, and startup rechecks the column before attempting `ALTER`.
 Every approved entry carries `ai_assist_batch_id` in its Beancount metadata in
 addition to its `diurnum_entry_id`; the durable batch record maps Statement Row,
 entry id, ledger file, and created rule ids. Revert snapshots first, removes only
-the mapped transaction blocks, restores those rows to pending with cleared ledger
-provenance, deletes the batch-created rules and history record transactionally,
-and compensates from the snapshot if the ledger rewrite or SQLite work fails.
+the mapped transaction blocks, and validates that a previously valid ledger
+remains valid before changing SQLite. It restores a row to pending only when its
+current entry provenance still matches the batch record, then deletes the
+batch-created rules and history record transactionally. Any ledger rewrite,
+post-rewrite validation, or SQLite failure compensates from the snapshot.
+Dismissal is similarly state-aware and changes only running or completed passes,
+leaving approved terminal history intact.
 After a successful revert, the `AI Assist: reverted batch` Workspace Git commit
 is best effort and cannot turn the completed revert into a failure.
 
