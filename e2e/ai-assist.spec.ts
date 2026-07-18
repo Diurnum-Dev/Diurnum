@@ -273,7 +273,9 @@ test("AI Assist golden path: start → review → sign → approve", async ({
     "Chart of Accounts",
   );
   await page.getByRole("button", { name: /Run AI Assist/ }).click();
-  await expect(page.getByRole("status")).toContainText("0 of 4 categorized");
+  await expect(
+    page.getByRole("region", { name: "Inbox" }).getByRole("status"),
+  ).toContainText("0 of 4 categorized");
 
   await page.evaluate(() => window.__COMPLETE_AI_PASS__());
   await expect(
