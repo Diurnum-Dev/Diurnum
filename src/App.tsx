@@ -10,9 +10,14 @@ import {
   type WorkspaceScreen,
 } from "./components/AppShell";
 import {
+  dismissAiAssistPass,
+  getAiAssistPass,
   inspectWorkspacePaths,
   pickDirectory,
   revealWorkspace,
+  retryAiAssistFailedRows,
+  runAiAssistNextChunk,
+  startAiAssistPass,
   syncAppMenu,
 } from "./lib/workspace/api";
 import {
@@ -55,12 +60,20 @@ import {
   saveUpdatePrefs,
   type UpdatePrefs,
 } from "./lib/updatePreferences";
+import { useAiAssistLifecycle } from "./useAiAssistLifecycle";
 
 type View = "start" | "create" | "open" | "workspace";
 
 const RECENT_WORKSPACES_KEY = "diurnum.workspaceRecents.v1";
 const RECENT_COMMANDS_KEY = "diurnum.commandPaletteRecents.v1";
 const APP_VERSION = "0.1.0";
+const AI_ASSIST_API = {
+  getPass: getAiAssistPass,
+  startPass: startAiAssistPass,
+  runNextChunk: runAiAssistNextChunk,
+  retryFailedRows: retryAiAssistFailedRows,
+  dismissPass: dismissAiAssistPass,
+};
 
 export default function App() {
   // The open Workspace and its derived data live in one module. App owns only
@@ -111,6 +124,11 @@ export default function App() {
   );
   const [recentLedgerFiles, setRecentLedgerFiles] = useState<string[]>([]);
   const autoUpdateCheckRef = useRef(false);
+  const aiAssist = useAiAssistLifecycle({
+    workspaceRootPath: view === "workspace" ? (workspace?.rootPath ?? null) : null,
+    session,
+    api: AI_ASSIST_API,
+  });
 
   const checkForAppUpdate = useCallback(async (): Promise<boolean> => {
     setUpdateCheckInProgress(true);
@@ -579,9 +597,12 @@ export default function App() {
     mapping: CsvSourceMappingInput;
   }) {
     if (!workspace) return;
-    await session
-      .importRows({ workspaceRootPath: workspace.rootPath, ...input })
-      .catch(() => undefined);
+    try {
+      await session.importRows({ workspaceRootPath: workspace.rootPath, ...input });
+      setActiveScreen("inbox");
+    } catch {
+      // Error is surfaced through session state; remain on Import for recovery.
+    }
   }
 
   async function handleApproveSuggestedEntry(input: {
@@ -900,6 +921,18 @@ export default function App() {
             onApprove={handleApproveSuggestedEntry}
             onApproveTransfer={handleApproveTransferEntry}
             onRevertTransfer={handleRevertTransferToStandard}
+            aiAssist={{
+              pass: aiAssist.pass,
+              adapterConfigured: aiAdapterConfig.command != null,
+              running: aiAssist.running,
+              actionBusy: aiAssist.actionBusy,
+              disclosure: aiContextDisclosure,
+              onStart: aiAssist.start,
+              onApprove: aiAssist.approve,
+              onDismiss: aiAssist.dismiss,
+              onRetry: aiAssist.retry,
+              onOpenSettings: () => setActiveScreen("settings"),
+            }}
           />
         ) : activeScreen === "git" ? (
           <GitPanel

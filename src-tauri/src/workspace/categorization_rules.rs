@@ -55,7 +55,14 @@ pub fn create_categorization_rule(
     input: CreateCategorizationRuleInput,
 ) -> Result<CategorizationRule, WorkspaceError> {
     let connection = open_connection(Path::new(&input.workspace_root_path))?;
-    ensure_categorization_rules_table(&connection)?;
+    create_categorization_rule_from_connection(&connection, &input)
+}
+
+pub(crate) fn create_categorization_rule_from_connection(
+    connection: &Connection,
+    input: &CreateCategorizationRuleInput,
+) -> Result<CategorizationRule, WorkspaceError> {
+    ensure_categorization_rules_table(connection)?;
     let now = Utc::now().to_rfc3339();
     let rule = CategorizationRule {
         id: Uuid::new_v4().to_string(),
@@ -142,7 +149,14 @@ pub fn delete_categorization_rule(
     id: &str,
 ) -> Result<(), WorkspaceError> {
     let connection = open_connection(workspace_root_path.as_ref())?;
-    ensure_categorization_rules_table(&connection)?;
+    delete_categorization_rule_from_connection(&connection, id)
+}
+
+pub(crate) fn delete_categorization_rule_from_connection(
+    connection: &Connection,
+    id: &str,
+) -> Result<(), WorkspaceError> {
+    ensure_categorization_rules_table(connection)?;
     connection.execute("delete from categorization_rules where id = ?1", [id])?;
     Ok(())
 }

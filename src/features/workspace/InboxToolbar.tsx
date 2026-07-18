@@ -1,4 +1,5 @@
 // src/features/workspace/InboxToolbar.tsx
+import type { ReactNode } from "react";
 import type { InboxTab, MonthOption } from "./inboxFilters";
 
 type InboxToolbarProps = {
@@ -11,6 +12,7 @@ type InboxToolbarProps = {
   tab: InboxTab;
   onTabChange: (tab: InboxTab) => void;
   counts: Record<"all" | InboxTab, number>;
+  action?: ReactNode;
 };
 
 const tabDefs: Array<{ id: InboxTab; label: string }> = [
@@ -30,6 +32,7 @@ export function InboxToolbar({
   tab,
   onTabChange,
   counts,
+  action,
 }: InboxToolbarProps) {
   return (
     <div className="inbox-toolbar">
@@ -66,23 +69,26 @@ export function InboxToolbar({
         </label>
       </div>
 
-      <div className="inbox-tabs" role="tablist" aria-label="Filter transactions">
-        {tabDefs.map((definition) => {
-          const active = tab === definition.id;
-          return (
-            <button
-              key={definition.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className={`inbox-tab ${active ? "inbox-tab--active" : ""}`}
-              onClick={() => onTabChange(definition.id)}
-            >
-              {definition.label}
-              <span className="inbox-tab-count">{counts[definition.id]}</span>
-            </button>
-          );
-        })}
+      <div className="inbox-toolbar-actions">
+        <div className="inbox-tabs" role="tablist" aria-label="Filter transactions">
+          {tabDefs.map((definition) => {
+            const active = tab === definition.id;
+            return (
+              <button
+                key={definition.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`inbox-tab ${active ? "inbox-tab--active" : ""}`}
+                onClick={() => onTabChange(definition.id)}
+              >
+                {definition.label}
+                <span className="inbox-tab-count">{counts[definition.id]}</span>
+              </button>
+            );
+          })}
+        </div>
+        {action}
       </div>
     </div>
   );

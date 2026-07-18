@@ -4,7 +4,10 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import type {
   AddSourceAccountInput,
   AiAdapterConfig,
+  AiAssistBatchSummary,
+  AiAssistPassState,
   AiContextDisclosure,
+  ApproveAiAssistBatchInput,
   ApproveSuggestedEntryInput,
   ApproveTransferEntryInput,
   RevertTransferToStandardInput,
@@ -44,6 +47,7 @@ import type {
   ReadDocumentPreviewInput,
   RenameDocumentEntryInput,
   RenameSourceAccountInput,
+  RevertAiAssistBatchInput,
   ReportsInput,
   RestoreSnapshotInput,
   SaveLedgerFileInput,
@@ -131,6 +135,14 @@ type WorkspaceApi = {
   getAiAdapterConfig: (path: string) => Promise<AiAdapterConfig>;
   configureAiAdapter: (input: ConfigureAiAdapterInput) => Promise<AiAdapterConfig>;
   getAiContextDisclosure: (path: string) => Promise<AiContextDisclosure>;
+  startAiAssistPass?: (path: string) => Promise<AiAssistPassState>;
+  runAiAssistNextChunk?: (path: string, passId: string) => Promise<AiAssistPassState>;
+  getAiAssistPass?: (path: string) => Promise<AiAssistPassState | null>;
+  retryAiAssistFailedRows?: (path: string, passId: string) => Promise<AiAssistPassState>;
+  dismissAiAssistPass?: (path: string, passId: string) => Promise<void>;
+  approveAiAssistBatch?: (input: ApproveAiAssistBatchInput) => Promise<WorkspaceView>;
+  listAiAssistBatches?: (path: string) => Promise<AiAssistBatchSummary[]>;
+  revertAiAssistBatch?: (input: RevertAiAssistBatchInput) => Promise<WorkspaceView>;
   getMvpReports: (input: ReportsInput) => Promise<MvpReports>;
   updateWorkspaceMetadata: (input: WorkspaceMetadataUpdateInput) => Promise<WorkspaceView>;
   listSourceAccounts: (workspaceRootPath: string) => Promise<SourceAccountSummary[]>;
@@ -626,6 +638,86 @@ export async function getAiContextDisclosure(
     return window.__DIURNUM_TEST_API__.getAiContextDisclosure(path);
   }
   return invoke<AiContextDisclosure>("get_ai_context_disclosure", { path });
+}
+
+export async function startAiAssistPass(path: string): Promise<AiAssistPassState> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.startAiAssistPass;
+    if (!operation) throw new Error("Test API is missing required operation startAiAssistPass");
+    return operation(path);
+  }
+  return invoke<AiAssistPassState>("start_ai_assist_pass", { path });
+}
+
+export async function runAiAssistNextChunk(
+  path: string,
+  passId: string,
+): Promise<AiAssistPassState> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.runAiAssistNextChunk;
+    if (!operation) throw new Error("Test API is missing required operation runAiAssistNextChunk");
+    return operation(path, passId);
+  }
+  return invoke<AiAssistPassState>("run_ai_assist_next_chunk", { path, passId });
+}
+
+export async function getAiAssistPass(path: string): Promise<AiAssistPassState | null> {
+  if (window.__DIURNUM_TEST_API__) {
+    return (await window.__DIURNUM_TEST_API__.getAiAssistPass?.(path)) ?? null;
+  }
+  return invoke<AiAssistPassState | null>("get_ai_assist_pass", { path });
+}
+
+export async function retryAiAssistFailedRows(
+  path: string,
+  passId: string,
+): Promise<AiAssistPassState> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.retryAiAssistFailedRows;
+    if (!operation) {
+      throw new Error("Test API is missing required operation retryAiAssistFailedRows");
+    }
+    return operation(path, passId);
+  }
+  return invoke<AiAssistPassState>("retry_ai_assist_failed_rows", { path, passId });
+}
+
+export async function dismissAiAssistPass(path: string, passId: string): Promise<void> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.dismissAiAssistPass;
+    if (!operation) throw new Error("Test API is missing required operation dismissAiAssistPass");
+    return operation(path, passId);
+  }
+  await invoke("dismiss_ai_assist_pass", { path, passId });
+}
+
+export async function approveAiAssistBatch(
+  input: ApproveAiAssistBatchInput,
+): Promise<WorkspaceView> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.approveAiAssistBatch;
+    if (!operation) throw new Error("Test API is missing required operation approveAiAssistBatch");
+    return operation(input);
+  }
+  return invoke<WorkspaceView>("approve_ai_assist_batch", { input });
+}
+
+export async function listAiAssistBatches(path: string): Promise<AiAssistBatchSummary[]> {
+  if (window.__DIURNUM_TEST_API__) {
+    return (await window.__DIURNUM_TEST_API__.listAiAssistBatches?.(path)) ?? [];
+  }
+  return invoke<AiAssistBatchSummary[]>("list_ai_assist_batches", { path });
+}
+
+export async function revertAiAssistBatch(
+  input: RevertAiAssistBatchInput,
+): Promise<WorkspaceView> {
+  if (window.__DIURNUM_TEST_API__) {
+    const operation = window.__DIURNUM_TEST_API__.revertAiAssistBatch;
+    if (!operation) throw new Error("Test API is missing required operation revertAiAssistBatch");
+    return operation(input);
+  }
+  return invoke<WorkspaceView>("revert_ai_assist_batch", { input });
 }
 
 export async function getMvpReports(input: ReportsInput): Promise<MvpReports> {

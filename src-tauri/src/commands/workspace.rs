@@ -1,6 +1,10 @@
 use crate::workspace::ai_adapter::{
     self, AiAdapterConfig, AiContextDisclosure, ConfigureAiAdapterInput,
 };
+use crate::workspace::ai_assist::{
+    self, AiAssistBatchSummary, AiAssistPassState, ApproveAiAssistBatchInput,
+    RevertAiAssistBatchInput,
+};
 use crate::workspace::approval::{
     self, ApproveSuggestedEntryInput, ApproveTransferEntryInput, BrokenProvenance,
     RevertTransferToStandardInput, SuggestedEntry,
@@ -41,7 +45,9 @@ use crate::workspace::source_accounts::{self, AddSourceAccountInput};
 use crate::workspace::types::{CreateWorkspaceInput, LedgerValidationSummary, WorkspaceSummary};
 use crate::workspace::validation::{self, ValidateLedgerBufferInput};
 use crate::workspace::view::{self, WorkspaceView};
-use crate::workspace::WorkspaceError;
+use crate::workspace::{WorkspaceError, WorkspaceErrorCode};
+
+use super::inflight_guard::InflightGuard;
 
 #[tauri::command]
 pub fn get_workspace_view(path: String) -> Result<WorkspaceView, WorkspaceError> {
@@ -141,10 +147,15 @@ pub fn read_document_preview(
 }
 
 #[tauri::command]
-pub fn get_predictive_entry_completion(
+pub async fn get_predictive_entry_completion(
     input: PredictiveEntryCompletionInput,
 ) -> Result<Option<PredictiveEntryCompletion>, WorkspaceError> {
-    ledger_editor::get_predictive_entry_completion(input)
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        ledger_editor::get_predictive_entry_completion(input)
+    })
+    .await
+    .map_err(|error| WorkspaceError::io(format!("Predictive completion failed to run: {error}")))?
 }
 
 #[tauri::command]
@@ -312,6 +323,77 @@ pub fn get_ai_context_disclosure(path: String) -> Result<AiContextDisclosure, Wo
 }
 
 #[tauri::command]
+pub fn start_ai_assist_pass(path: String) -> Result<AiAssistPassState, WorkspaceError> {
+    ai_assist::start_ai_assist_pass(path)
+}
+
+#[tauri::command]
+pub async fn run_ai_assist_next_chunk(
+    path: String,
+    pass_id: String,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        // Single-flight guard: if another chunk for this workspace is already
+        // running, don't spend adapter tokens again — just hand back the
+        // current pass state so the caller can keep polling.
+        match InflightGuard::try_acquire(&path) {
+            Some(_guard) => ai_assist::run_ai_assist_next_chunk(path, &pass_id),
+            None => match ai_assist::get_ai_assist_pass(&path)? {
+                Some(state) => Ok(state),
+                None => Err(WorkspaceError::new(
+                    WorkspaceErrorCode::InvalidLedger,
+                    "AI Assist pass is not running.",
+                )),
+            },
+        }
+    })
+    .await
+    .map_err(|error| WorkspaceError::io(format!("AI Assist task failed to run: {error}")))?
+}
+
+#[tauri::command]
+pub fn get_ai_assist_pass(path: String) -> Result<Option<AiAssistPassState>, WorkspaceError> {
+    ai_assist::get_ai_assist_pass(path)
+}
+
+#[tauri::command]
+pub fn retry_ai_assist_failed_rows(
+    path: String,
+    pass_id: String,
+) -> Result<AiAssistPassState, WorkspaceError> {
+    ai_assist::retry_ai_assist_failed_rows(path, &pass_id)
+}
+
+#[tauri::command]
+pub fn dismiss_ai_assist_pass(path: String, pass_id: String) -> Result<(), WorkspaceError> {
+    ai_assist::dismiss_ai_assist_pass(path, &pass_id)
+}
+
+#[tauri::command]
+pub fn approve_ai_assist_batch(
+    input: ApproveAiAssistBatchInput,
+) -> Result<WorkspaceView, WorkspaceError> {
+    let path = input.workspace_root_path.clone();
+    ai_assist::approve_ai_assist_batch(input)?;
+    view::load(path)
+}
+
+#[tauri::command]
+pub fn list_ai_assist_batches(path: String) -> Result<Vec<AiAssistBatchSummary>, WorkspaceError> {
+    ai_assist::list_ai_assist_batches(path)
+}
+
+#[tauri::command]
+pub fn revert_ai_assist_batch(
+    input: RevertAiAssistBatchInput,
+) -> Result<WorkspaceView, WorkspaceError> {
+    let path = input.workspace_root_path.clone();
+    ai_assist::revert_ai_assist_batch(input)?;
+    view::load(path)
+}
+
+#[tauri::command]
 pub fn get_mvp_reports(input: ReportsInput) -> Result<MvpReports, WorkspaceError> {
     reports::get_mvp_reports(input)
 }
@@ -383,10 +465,13 @@ pub fn detect_ai_adapters() -> Result<Vec<DetectedAiAdapter>, WorkspaceError> {
 }
 
 #[tauri::command]
-pub fn test_ai_adapter(
+pub async fn test_ai_adapter(
     input: TestAiAdapterInput,
 ) -> Result<Option<crate::workspace::ai_adapter::AiSuggestion>, WorkspaceError> {
-    settings::test_ai_adapter(input)
+    // The adapter subprocess call blocks, so it must never run on the main thread.
+    tauri::async_runtime::spawn_blocking(move || settings::test_ai_adapter(input))
+        .await
+        .map_err(|error| WorkspaceError::io(format!("AI Adapter test failed to run: {error}")))?
 }
 
 #[cfg(test)]

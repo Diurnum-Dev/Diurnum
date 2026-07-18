@@ -5,13 +5,25 @@ use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::imports::ensure_import_tables;
 use crate::workspace::types::WorkspaceManifest;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 const ADAPTER_CONFIG_KEY: &str = "byo_ai_adapter_command";
+
+/// Upper bound for a single adapter invocation. Generous enough for a real
+/// agent harness to reason over a full 40-row chunk; exists to reap wedged or
+/// interactive adapters, not to rush legitimate work.
+const ADAPTER_TIMEOUT: Duration = Duration::from_secs(600);
+
+/// Sent inside every per-row request so general-purpose agent harnesses (which
+/// receive the payload as their prompt) know to answer with the contract JSON
+/// instead of prose. Purpose-built wrapper scripts can ignore it.
+pub(crate) const PER_ROW_RESPONSE_CONTRACT: &str = "You are an accounting categorization adapter. Reply with exactly one JSON object and no other text, markdown, or code fences: {\"ledgerAccount\":<an exact account from chartOfAccounts, or null>,\"sourceAccount\":<string or null>,\"sourceAmount\":<string or null>,\"payee\":<string or null>,\"narration\":<string or null>,\"confidence\":<number 0-1 or null>,\"explanation\":<short string or null>,\"needsHumanAttention\":<boolean>}.";
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +48,8 @@ pub struct AiContextDisclosure {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CuratedLedgerContext {
+    #[serde(default)]
+    pub response_contract: String,
     pub statement_row: AiStatementRowContext,
     pub source_account: String,
     pub chart_of_accounts: Vec<String>,
@@ -176,6 +190,7 @@ fn build_curated_context<T: AiSuggestionRow>(
     ensure_categorization_rules_table(connection)?;
     let manifest = read_manifest(root)?;
     Ok(CuratedLedgerContext {
+        response_contract: PER_ROW_RESPONSE_CONTRACT.to_string(),
         statement_row: AiStatementRowContext {
             posted_date: row.posted_date().to_string(),
             description: row.description().to_string(),
@@ -199,10 +214,15 @@ fn build_curated_context<T: AiSuggestionRow>(
     })
 }
 
-fn invoke_adapter(
+pub(crate) fn invoke_adapter_raw(command: &str, payload: &[u8]) -> Result<Vec<u8>, WorkspaceError> {
+    invoke_adapter_raw_with_timeout(command, payload, ADAPTER_TIMEOUT)
+}
+
+fn invoke_adapter_raw_with_timeout(
     command: &str,
-    context: &CuratedLedgerContext,
-) -> Result<AiSuggestion, WorkspaceError> {
+    payload: &[u8],
+    timeout: Duration,
+) -> Result<Vec<u8>, WorkspaceError> {
     let parts = split_command(command)?;
     let Some((program, args)) = parts.split_first() else {
         return Err(WorkspaceError::new(
@@ -217,27 +237,143 @@ fn invoke_adapter(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| WorkspaceError::io(format!("BYO AI Adapter failed to start: {error}")))?;
-    {
-        let stdin = child.stdin.as_mut().ok_or_else(|| {
-            WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string())
-        })?;
-        let payload =
-            serde_json::to_vec(context).map_err(|error| WorkspaceError::io(error.to_string()))?;
-        stdin.write_all(&payload)?;
-    }
-    let output = child.wait_with_output()?;
-    if !output.status.success() {
+
+    // The pipes are pumped on helper threads so a full pipe buffer can never
+    // deadlock the child while we poll for exit.
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| WorkspaceError::io("BYO AI Adapter stdin was not available.".to_string()))?;
+    let payload = payload.to_vec();
+    let stdin_writer = thread::spawn(move || stdin.write_all(&payload));
+
+    let mut stdout = child.stdout.take().ok_or_else(|| {
+        WorkspaceError::io("BYO AI Adapter stdout was not available.".to_string())
+    })?;
+    let stdout_reader = thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stdout.read_to_end(&mut buffer);
+        buffer
+    });
+
+    let mut stderr = child.stderr.take().ok_or_else(|| {
+        WorkspaceError::io("BYO AI Adapter stderr was not available.".to_string())
+    })?;
+    let stderr_reader = thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stderr.read_to_end(&mut buffer);
+        buffer
+    });
+
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdin_writer.join();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(WorkspaceError::io(format!(
+                "BYO AI Adapter did not finish within {} seconds and was stopped.",
+                timeout.as_secs()
+            )));
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+
+    let _ = stdin_writer.join();
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| WorkspaceError::io("BYO AI Adapter stdout reader failed.".to_string()))?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| WorkspaceError::io("BYO AI Adapter stderr reader failed.".to_string()))?;
+    if !status.success() {
         return Err(WorkspaceError::io(format!(
             "BYO AI Adapter exited unsuccessfully: {}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&stderr)
         )));
     }
-    serde_json::from_slice::<AiSuggestion>(&output.stdout).map_err(|error| {
+    Ok(stdout)
+}
+
+fn invoke_adapter(
+    command: &str,
+    context: &CuratedLedgerContext,
+) -> Result<AiSuggestion, WorkspaceError> {
+    let payload =
+        serde_json::to_vec(context).map_err(|error| WorkspaceError::io(error.to_string()))?;
+    let stdout = invoke_adapter_raw(command, &payload)?;
+    parse_adapter_output::<AiSuggestion>(&stdout).map_err(|error| {
         WorkspaceError::io(format!("BYO AI Adapter returned invalid JSON: {error}"))
     })
 }
 
-fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
+/// Parses adapter stdout, tolerating agent harnesses that wrap the contract
+/// JSON in prose or markdown fences. Falls back to the strict parse error when
+/// no embedded JSON object matches.
+pub(crate) fn parse_adapter_output<T: DeserializeOwned>(
+    bytes: &[u8],
+) -> Result<T, serde_json::Error> {
+    match serde_json::from_slice::<T>(bytes) {
+        Ok(value) => Ok(value),
+        Err(strict_error) => {
+            let text = String::from_utf8_lossy(bytes);
+            for candidate in embedded_json_objects(&text) {
+                if let Ok(value) = serde_json::from_str::<T>(&candidate) {
+                    return Ok(value);
+                }
+            }
+            Err(strict_error)
+        }
+    }
+}
+
+/// Extracts balanced top-level `{...}` substrings, ignoring braces inside
+/// string literals, so prose-wrapped output can still be parsed.
+fn embedded_json_objects(text: &str) -> Vec<String> {
+    let mut objects = Vec::new();
+    let mut depth = 0usize;
+    let mut start = None;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (index, ch) in text.char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' if depth > 0 => in_string = true,
+            '{' => {
+                if depth == 0 {
+                    start = Some(index);
+                }
+                depth += 1;
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(begin) = start.take() {
+                        objects.push(text[begin..=index].to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    objects
+}
+
+pub(crate) fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
     let parts = command
         .split_whitespace()
         .map(str::to_string)
@@ -251,14 +387,14 @@ fn split_command(command: &str) -> Result<Vec<String>, WorkspaceError> {
     Ok(parts)
 }
 
-fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
+pub(crate) fn read_manifest(root: &Path) -> Result<WorkspaceManifest, WorkspaceError> {
     serde_json::from_str(&fs::read_to_string(
         root.join(".diurnum").join("workspace.json"),
     )?)
     .map_err(|error| WorkspaceError::io(error.to_string()))
 }
 
-fn read_chart_of_accounts(root: &Path) -> Result<Vec<String>, WorkspaceError> {
+pub(crate) fn read_chart_of_accounts(root: &Path) -> Result<Vec<String>, WorkspaceError> {
     let accounts = fs::read_to_string(root.join("accounts.bean"))?;
     Ok(accounts
         .lines()
@@ -319,7 +455,9 @@ pub(crate) fn ensure_ai_adapter_table(connection: &Connection) -> Result<(), Wor
     Ok(())
 }
 
-fn load_adapter_command(connection: &Connection) -> Result<Option<String>, WorkspaceError> {
+pub(crate) fn load_adapter_command(
+    connection: &Connection,
+) -> Result<Option<String>, WorkspaceError> {
     connection
         .query_row(
             "select value from ai_adapter_config where key = ?1",
@@ -330,7 +468,7 @@ fn load_adapter_command(connection: &Connection) -> Result<Option<String>, Works
         .map_err(WorkspaceError::from)
 }
 
-fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
+pub(crate) fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
     Ok(Connection::open(
         root.join(".diurnum").join("diurnum.sqlite"),
     )?)
@@ -339,16 +477,28 @@ fn open_connection(root: &Path) -> Result<Connection, WorkspaceError> {
 #[cfg(test)]
 mod tests {
     use crate::workspace::ai_adapter::{
-        configure_ai_adapter, get_ai_adapter_config, get_ai_context_disclosure, suggestion_for_row,
-        AiSuggestionRow, ConfigureAiAdapterInput,
+        configure_ai_adapter, get_ai_adapter_config, get_ai_context_disclosure,
+        invoke_adapter_raw_with_timeout, suggestion_for_row, AiSuggestionRow,
+        ConfigureAiAdapterInput,
     };
     use crate::workspace::create::create_workspace;
     use crate::workspace::types::CreateWorkspaceInput;
     use rusqlite::Connection;
     use std::fs;
     use std::path::Path;
+    use std::time::{Duration, Instant};
 
     struct TestRow;
+
+    #[test]
+    fn unresponsive_adapter_is_killed_after_timeout() {
+        let started = Instant::now();
+        let error = invoke_adapter_raw_with_timeout("sleep 30", b"{}", Duration::from_millis(200))
+            .unwrap_err();
+
+        assert!(error.message.contains("did not finish"));
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
 
     impl AiSuggestionRow for TestRow {
         fn posted_date(&self) -> &str {
@@ -428,6 +578,51 @@ mod tests {
             .fields_sent
             .iter()
             .any(|field| field.contains("Statement Row")));
+    }
+
+    #[test]
+    fn prose_wrapped_adapter_output_is_accepted() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        let adapter_path = tempdir.path().join("chatty-adapter.sh");
+        fs::write(
+            &adapter_path,
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s' 'Here is the suggestion:\n```json\n{\"ledgerAccount\":\"Expenses:Software\",\"payee\":\"Vendor\",\"confidence\":0.88,\"needsHumanAttention\":false}\n```\n'",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = fs::metadata(&adapter_path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&adapter_path, permissions).unwrap();
+        }
+        configure_ai_adapter(ConfigureAiAdapterInput {
+            workspace_root_path: created.root_path.clone(),
+            command: Some(adapter_path.to_string_lossy().to_string()),
+        })
+        .unwrap();
+        let connection = Connection::open(
+            Path::new(&created.root_path)
+                .join(".diurnum")
+                .join("diurnum.sqlite"),
+        )
+        .unwrap();
+
+        let suggestion = suggestion_for_row(Path::new(&created.root_path), &connection, &TestRow)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            suggestion.ledger_account.as_deref(),
+            Some("Expenses:Software")
+        );
     }
 
     #[test]

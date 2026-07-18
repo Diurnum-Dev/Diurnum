@@ -338,16 +338,20 @@ pub fn update_git_identity(
 }
 
 pub fn detect_ai_adapters() -> Result<Vec<DetectedAiAdapter>, WorkspaceError> {
+    // The persisted command is invoked non-interactively: Diurnum pipes the
+    // curated context on stdin and expects suggestion JSON on stdout, so each
+    // adapter must use its print-and-exit mode (a bare binary name launches an
+    // interactive session that never exits).
     let adapters = [
-        ("Claude Code CLI", "claude"),
-        ("OpenAI Codex CLI", "codex"),
-        ("OpenCode", "opencode"),
+        ("Claude Code CLI", "claude", "claude --print"),
+        ("OpenAI Codex CLI", "codex", "codex exec"),
+        ("OpenCode", "opencode", "opencode run"),
     ];
 
     adapters
         .into_iter()
-        .map(|(name, command)| {
-            let command_path = which(command);
+        .map(|(name, program, command)| {
+            let command_path = which(program);
             Ok(DetectedAiAdapter {
                 name: name.to_string(),
                 command: command.to_string(),
@@ -751,5 +755,29 @@ impl AiSuggestionRow for TestAiRow {
 
     fn import_fingerprint(&self) -> &str {
         "settings-test-fingerprint"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::detect_ai_adapters;
+
+    #[test]
+    fn detected_adapters_use_non_interactive_invocations() {
+        // A bare binary name (e.g. "opencode") launches an interactive session
+        // that never exits; detected commands must include the print-and-exit mode.
+        let adapters = detect_ai_adapters().unwrap();
+
+        assert_eq!(adapters.len(), 3);
+        for adapter in &adapters {
+            assert!(
+                adapter.command.contains(' '),
+                "detected command for {} must not be a bare binary name",
+                adapter.name
+            );
+        }
+        assert_eq!(adapters[0].command, "claude --print");
+        assert_eq!(adapters[1].command, "codex exec");
+        assert_eq!(adapters[2].command, "opencode run");
     }
 }

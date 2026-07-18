@@ -52,6 +52,32 @@ flowchart TB
   Issues --> PRs
 ```
 
+## AI Assist Design Artifact Boundary
+
+The approved AI Assist bulk-categorization specification currently has three
+standalone HTML interface studies under `docs/html-mockups/ai-assist/`. They are
+design artifacts for comparing review models, not runtime routes or implemented
+React components. A later implementation plan will select or synthesize one
+direction before changing the product runtime.
+
+```mermaid
+flowchart LR
+  Spec[Approved AI Assist design spec]
+  Ledger[Category Ledger HTML study]
+  Matrix[Review Matrix HTML study]
+  Folio[Guided Review Folio HTML study]
+  Plan[Future implementation plan]
+  Runtime[React Inbox review mode]
+
+  Spec --> Ledger
+  Spec --> Matrix
+  Spec --> Folio
+  Ledger -. compare and synthesize .-> Plan
+  Matrix -. compare and synthesize .-> Plan
+  Folio -. compare and synthesize .-> Plan
+  Plan --> Runtime
+```
+
 ## Workspace Session
 
 The open Workspace is owned by a single React-free store,
@@ -66,6 +92,135 @@ Each mutation command returns a single `WorkspaceView` (assembled by
 so a change costs one round-trip plus the mutation rather than a per-slice
 read fan-out. Reports stay on-demand (cleared during Invalid Ledger State) and
 AI adapter detection stays an open-time scan, so neither rides the view.
+AI Assist lifecycle commands also cross this boundary. Batch approval and revert
+return a refreshed `WorkspaceView`, which the session applies atomically through
+the same `applyView` path as per-row approval. The full protocol, persistence,
+review, approval, and recovery design is described below.
+
+## AI Assist
+
+AI Assist is an explicit, human-approved batch workflow over the same optional
+BYO adapter used by predictive completion. The adapter protocol is documented in
+`docs/ai-assist-adapter.md`; `src-tauri/src/workspace/ai_assist.rs` owns its
+versioned request/response types, 40-row chunk operation, response validation,
+persistence, approval history, and revert. `ai_adapter.rs` remains responsible
+for adapter configuration, subprocess invocation, shared context types, and the
+legacy per-row completion contract.
+
+Adapter invocation is defensive by design. Detection stores each harness's
+non-interactive invocation (`claude --print`, `codex exec`, `opencode run`) —
+a bare binary name would launch an interactive session that never exits. Every
+request carries a `responseContract` instruction so a general-purpose harness,
+which receives the payload as its prompt, answers with the contract JSON;
+responses are parsed strictly first, then by extracting a JSON object embedded
+in prose or markdown fences. Every
+subprocess call is bounded by a 10-minute timeout that kills a wedged adapter,
+with stdin/stdout/stderr pumped on helper threads so a full pipe buffer cannot
+deadlock the child. The Tauri commands that can reach the adapter
+(`run_ai_assist_next_chunk`, `test_ai_adapter`, `get_predictive_entry_completion`)
+are `async` and dispatch onto `tauri::async_runtime::spawn_blocking`, so a slow
+or stuck adapter can never freeze the main thread.
+
+```mermaid
+flowchart LR
+  Trigger[Inbox AI Assist trigger] --> Hook[useAiAssistLifecycle]
+  Hook -->|one chunk at a time| Batch[ai_assist.rs batch protocol]
+  Batch --> Adapter[Configured BYO adapter]
+  Adapter --> Batch
+  Batch --> PassState[AI Assist pass and suggestion tables]
+  PassState --> Review[InboxPanel momentum review]
+  Review -->|selected entries and rules| Approval[Atomic batch approval]
+  Approval --> Ledger[Monthly Beancount files]
+  Approval --> History[AI Assist batch history]
+  History --> Revert[Batch revert]
+  Revert --> Ledger
+```
+
+The SQLite model separates lifecycle from results:
+
+| Table | Responsibility |
+| --- | --- |
+| `ai_assist_passes` | Pass identity, start time, status, and total eligible rows. |
+| `ai_assist_pass_rows` | Pass membership and per-row processed state, which makes chunking resumable. |
+| `ai_assist_suggestions` | Per-pass, per-Statement-Row status and adapter draft fields. |
+| `ai_assist_proposed_rules` | Validated, deduplicated rule proposals with actual matched Statement Row ids; display counts are derived from those ids. |
+| `ai_assist_batches` | Durable approved-batch history, including entry mappings and created rule ids needed by revert. |
+
+`useAiAssistLifecycle` is mounted by `App.tsx` and owns pass rehydration,
+pass-scoped mutation locks, and the sequential chunk loop. Its driver key is the
+Workspace root plus pass id, so retries queue behind an unresolved chunk instead
+of overlapping adapter calls. Lifecycle and generation tokens discard stale
+responses after Workspace changes, pass replacement, approval, or dismissal. A
+running durable pass resumes when the Workspace is opened again. Starting a
+pass and retrying failed rows are each single SQLite transactions. A start
+cannot leave the previous pass dismissed unless its replacement and membership
+are durable. Retry accepts only the current completed pass when it still has
+failed rows, so terminal, superseded, and unknown pass ids cannot be resurrected.
+
+`InboxPanel` owns the disclosure gate and switches the Inbox body into
+`AiAssistReview`. The pure `buildAiAssistGroups` transformation filters out rows
+that are no longer pending, groups accepted suggestions by ledger account, and
+places failed, low-confidence, adapter-flagged, or account-rejected rows in
+“Needs your eye.” `AiAssistReview` keeps selection and momentum state only:
+normal groups begin selected, the attention group begins unselected, and editing
+a row temporarily returns to the ordinary Inbox inspector without discarding the
+pass. Signing sends the exact selected entries and rules to Rust; the review UI
+never writes ledger files itself. A proposed rule remains selected only while
+one of that rule's recorded matched rows is selected. With zero staged entries,
+approval is disabled while signing navigation and dismissal stay available.
+
+The test-API-backed Playwright golden path in `e2e/ai-assist.spec.ts` verifies
+the disclosure, progress, grouped review, signing, and refreshed-Inbox flow with
+a deterministic backend double; production continues to use the Tauri command
+boundary shown above.
+
+Approval coordinates Beancount and SQLite with a pre-write snapshot. Rust first
+rejects duplicate Statement Row ids in the request as conflicting input before
+any snapshot or mutation, rejects an already-invalid ledger, and filters
+selections to rows that are still
+pending members of the current pass with a durable eligible suggestion. The
+submitted account must equal that validated suggestion and still exist in the
+chart; approval never opens an adapter- or client-supplied account. It writes
+selected entries to monthly transaction files and validates
+the resulting ledger, then creates selected rules, updates Statement Row
+provenance, records the batch, and marks the pass approved in one SQLite
+transaction. Each provenance update is conditional on the row still being
+pending, so a concurrent per-row approval aborts the transaction and triggers
+filesystem compensation instead of overwriting newer state. Adapter free text
+is also untrusted: ASCII control characters are replaced at the SQLite ingress
+boundary and again before Beancount string escaping, preventing multiline
+payee, narration, or explanation values from injecting ledger syntax.
+Adapter-proposed rules are untrusted: source and ledger accounts
+must exist in the current chart, every recorded match must be a unique row from
+the current adapter request with the stated source account, and approval
+revalidates the durable proposal
+against selected rows. Canonical rule keys prevent duplicates within a request
+and against existing enabled or disabled rules. Every entry-write, validation,
+or SQLite-stage failure before the Git commit uses checked snapshot and
+newly-created-file compensation, while the SQLite transaction rolls back
+without partial rules or batch state. Final pass consumption is conditional on
+the pass still being the current running/complete pass inside that transaction;
+a concurrent supersession rolls back SQLite and triggers filesystem
+compensation. If the original operation and either
+compensation step fail, the returned error preserves all failures. The later
+Workspace Git commit is best effort.
+
+Existing local databases are upgraded additively and idempotently: proposed
+rules gain a non-destructive `matched_row_ids_json` column with an empty-array
+default, and startup rechecks the column before attempting `ALTER`.
+
+Every approved entry carries `ai_assist_batch_id` in its Beancount metadata in
+addition to its `diurnum_entry_id`; the durable batch record maps Statement Row,
+entry id, ledger file, and created rule ids. Revert snapshots first, removes only
+the mapped transaction blocks, and validates that a previously valid ledger
+remains valid before changing SQLite. It restores a row to pending only when its
+current entry provenance still matches the batch record, then deletes the
+batch-created rules and history record transactionally. Any ledger rewrite,
+post-rewrite validation, or SQLite failure compensates from the snapshot.
+Dismissal is similarly state-aware and changes only running or completed passes,
+leaving approved terminal history intact.
+After a successful revert, the `AI Assist: reverted batch` Workspace Git commit
+is best effort and cannot turn the completed revert into a failure.
 
 ## Product Runtime Flow
 
@@ -76,6 +231,7 @@ sequenceDiagram
   participant Core as Tauri + Rust core
   participant Ledger as Beancount files
   participant State as SQLite staging/state
+  participant Git as Workspace Git
 
   User->>UI: Launch with no workspace open
   UI->>UI: Render Welcome Screen outside App Shell
@@ -114,6 +270,21 @@ sequenceDiagram
   Core->>Ledger: Create Source Account document folders and copy imported CSVs
   Core->>State: Store source mappings and normalized statement rows
   Core-->>UI: Imported, skipped, and pending-review counts
+  UI->>UI: Navigate to Inbox after a successful import
+
+  User->>UI: Confirm AI Assist disclosure and start a pass
+  loop One serialized chunk at a time per Workspace and pass
+    UI->>Core: Run next chunk for captured Workspace and pass
+    Core->>State: Persist suggestions and pass progress
+    Core-->>UI: Running or complete pass state
+  end
+  Note over UI,State: Workspace entry rehydrates the durable pass; a running pass resumes
+  User->>UI: Review grouped proposals or edit a row in the normal Inbox inspector
+  User->>UI: Sign selected entries and rules
+  UI->>Core: Approve AI Assist batch
+  Core->>Ledger: Snapshot, write, and validate selected entries
+  Core->>State: Atomically record provenance, rules, batch, and approved pass
+  Core-->>UI: Refreshed Workspace view
 
   User->>UI: Browse or drop files in Documents
   UI->>Core: List folders/files, import files, or read previews
@@ -127,6 +298,18 @@ sequenceDiagram
   Core->>Ledger: Write approved monthly transactions only
   Core->>State: Mark approved rows accounted
   Core-->>UI: Refreshed workspace summary
+
+  User->>UI: Revert an approved AI Assist batch
+  UI->>Core: Batch id from durable AI Assist history
+  Core->>Ledger: Snapshot, then atomically remove matching transaction blocks
+  Core->>State: Atomically restore rows, clear provenance, and delete batch-created rules and batch record
+  alt Revert succeeds
+    Core->>Git: Best-effort commit of reverted workspace changes
+    Core-->>UI: Refreshed workspace summary
+  else Ledger rewrite or SQLite transaction fails
+    Core->>Ledger: Restore the pre-revert snapshot
+    Core-->>UI: Return the original error, including compensation failure if any
+  end
 
   User->>UI: Recheck ledger, restore snapshot, run MVP reports, or close workspace
   UI->>Core: Validation/restore/report command
@@ -152,6 +335,9 @@ flowchart LR
     Mappings[source_mappings]
     Rules[categorization_rules]
     Adapter[ai_adapter_config]
+    AiPasses[ai_assist_passes and pass rows]
+    AiSuggestions[ai_assist_suggestions and proposed rules]
+    AiBatches[ai_assist_batches]
   end
 
   subgraph AppConfig[Browser-local app config]
@@ -166,6 +352,7 @@ flowchart LR
     Settings[Workspace Settings]
     Validation[Ledger validation]
     Approval[Approval and transfer matching]
+    AiReview[AI Assist momentum review and staged selection]
     Provenance[Broken provenance check]
     Reports[MVP reports]
   end
@@ -179,6 +366,12 @@ flowchart LR
   LedgerFiles --> Validation
   LedgerFiles --> Reports
   SQLite --> Approval
+  Rows --> AiReview
+  Rules --> AiReview
+  AiPasses --> AiReview
+  AiSuggestions --> AiReview
+  AiReview --> Approval
+  Approval --> AiBatches
   SQLite --> Provenance
   Recents --> Shell
   Shell --> Editor
@@ -228,7 +421,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 | Workspace UI         | `src/features/workspace/*`                                                                                                                                                   | Welcome/create/open screens, New Workspace template selection, CodeMirror Ledger Editor, Documents browser, command palette, shell-hosted MVP panels for ledger details, source-account setup, CSV import, AI adapter configuration, Settings, suggested-entry review, categorization rules, Git history, MVP reports, and broken-provenance display. |
 | Frontend boundary    | `src/lib/workspace/api.ts`, `src/lib/workspace/types.ts`                                                                                                                     | Typed calls from React into native Tauri workspace commands.                                                                                                                                                   |
 | Tauri bridge         | `src-tauri/src/commands/workspace.rs`                                                                                                                                        | Command handlers that translate frontend requests into Rust workspace operations.                                                                                                                              |
-| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `documents.rs`, `ledger_editor.rs`, `shell.rs`, `git.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `categorization_rules.rs`, `reports.rs`, `settings.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Documents folder browsing and previews, Ledger Editor file/session/completion state, snapshots, restore, App Shell path/git inspection, Git history and commit actions, source accounts, CSV staging, approval, AI suggestions, rules, transfer matching, provenance, workspace metadata, Git identity, source mapping management, and MVP reporting. |
+| Rust workspace core  | `src-tauri/src/workspace/create.rs`, `open.rs`, `validation.rs`, `data_integrity.rs`, `documents.rs`, `ledger_editor.rs`, `shell.rs`, `git.rs`, `source_accounts.rs`, `imports.rs`, `approval.rs`, `ai_adapter.rs`, `ai_assist.rs`, `categorization_rules.rs`, `reports.rs`, `settings.rs` | Domain operations for workspace lifecycle, validation, atomic file writes, Documents folder browsing and previews, Ledger Editor file/session/completion state, snapshots, restore, App Shell path/git inspection, Git history and commit actions, source accounts, CSV staging, per-row and batch AI adapters, approval, rules, transfer matching, provenance, workspace metadata, Git identity, source mapping management, and MVP reporting. |
 | Core support         | `src-tauri/src/workspace/beancount.rs`, `paths.rs`, `types.rs`, `errors.rs`                                                                                                  | Beancount rendering/parsing helpers, workspace paths, shared DTOs, and error handling.                                                                                                                         |
 | Golden path test     | `src-tauri/src/workspace/golden_path_validation.rs`                                                                                                                          | End-to-end native workflow coverage from workspace creation through CSV import, approval, transfer approval, validation, provenance checks, invalid-ledger blocking, and MVP reports.                          |
 | Local agent workflow | `.agents/skills/work-ready-issues/SKILL.md`                                                                                                                                  | Sequential ready-for-agent issue selection, branch work, review, PR, merge, and continuation workflow.                                                                                                         |
@@ -263,6 +456,7 @@ The simplified diagrams intentionally group files by responsibility. Use this in
 - Git metadata helpers ensure the Workspace `.gitignore` covers `.diurnum/*`, the workspace manifest exception, and snapshots before any Git status or Git panel flow runs.
 - Ledger Editor validation uses the same native structural validation as the rest of the app, with file-aware diagnostics rendered in the CodeMirror gutter and shared status bar.
 - Approval creates a Snapshot before mutating `main.bean` or Monthly Transaction Files. Valid Workspace open creates one daily Snapshot at most, and restore creates a pre-restore Snapshot before replacing current `.bean` contents and rerunning Ledger Validation.
+- AI Assist owns durable batch passes, suggestions, proposed rules, approval history, provenance, and revert as described in the dedicated section above.
 - Workspace `.gitignore` excludes `.diurnum/*` while explicitly keeping `workspace.json` committable, and it also excludes snapshot folders; Beancount files, Workspace metadata, and `documents/` remain committable.
 - The Workspace overview renders Invalid Ledger State details from `WorkspaceSummary.ledgerValidation` and blocks unsafe Approval and MVP Report affordances while validation is invalid.
 - The Workspace overview currently exposes recent Snapshots and restore actions, and shows them as a recovery affordance when opening a Workspace in Invalid Ledger State. The full V1 Settings navigation will host the same Snapshot surface when issue #41 lands.

@@ -1,4 +1,4 @@
-use crate::workspace::ai_adapter::{suggestion_for_row, AiSuggestion, AiSuggestionRow};
+use crate::workspace::ai_adapter::{AiSuggestion, AiSuggestionRow};
 use crate::workspace::categorization_rules::matching_rule_for_row;
 use crate::workspace::data_integrity::{atomic_append, create_snapshot, SnapshotReason};
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
@@ -379,18 +379,13 @@ fn apply_suggestion_layers(
     connection: &Connection,
     mut entry: SuggestedEntry,
 ) -> Result<SuggestedEntry, WorkspaceError> {
+    let _ = root;
     if entry.kind == SuggestedEntryKind::Standard {
         if let Some(rule) =
             matching_rule_for_row(connection, &entry.source_account, &entry.description)?
         {
             entry.suggested_ledger_account = Some(rule.ledger_account);
             entry.categorization_rule_id = Some(rule.id);
-        }
-        if entry.suggested_ledger_account.is_none() {
-            if let Some(ai_suggestion) = suggestion_for_row(root, connection, &entry)? {
-                entry.suggested_ledger_account = ai_suggestion.ledger_account.clone();
-                entry.ai_suggestion = Some(ai_suggestion);
-            }
         }
     }
     Ok(entry)
@@ -408,7 +403,7 @@ fn linked_statement_row(row: SuggestedEntry) -> LinkedStatementRow {
     }
 }
 
-fn load_pending_suggested_entry(
+pub(crate) fn load_pending_suggested_entry(
     connection: &Connection,
     statement_row_id: &str,
 ) -> Result<SuggestedEntry, WorkspaceError> {
@@ -446,7 +441,10 @@ fn load_pending_suggested_entry(
         })
 }
 
-fn open_ledger_account_if_missing(root: &Path, ledger_account: &str) -> Result<(), WorkspaceError> {
+pub(crate) fn open_ledger_account_if_missing(
+    root: &Path,
+    ledger_account: &str,
+) -> Result<(), WorkspaceError> {
     let accounts_path = root.join("accounts.bean");
     let accounts = fs::read_to_string(&accounts_path)?;
     if accounts
@@ -523,7 +521,7 @@ impl AiSuggestionRow for SuggestedEntry {
     }
 }
 
-fn parse_amount(value: &str) -> Result<f64, WorkspaceError> {
+pub(crate) fn parse_amount(value: &str) -> Result<f64, WorkspaceError> {
     value.parse::<f64>().map_err(|_| {
         WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
@@ -563,7 +561,7 @@ fn looks_like_one_sided_transfer(row: &SuggestedEntry) -> bool {
     description.contains("transfer") || description.contains("payment")
 }
 
-fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError> {
+pub(crate) fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError> {
     if posted_date.len() < 7 {
         return Err(WorkspaceError::new(
             WorkspaceErrorCode::InvalidLedger,
@@ -573,7 +571,10 @@ fn monthly_transaction_file(posted_date: &str) -> Result<String, WorkspaceError>
     Ok(format!("transactions/{}.bean", &posted_date[..7]))
 }
 
-fn ensure_main_includes(root: &Path, monthly_relative_path: &str) -> Result<(), WorkspaceError> {
+pub(crate) fn ensure_main_includes(
+    root: &Path,
+    monthly_relative_path: &str,
+) -> Result<(), WorkspaceError> {
     let main_path = root.join("main.bean");
     let include = format!("include \"{monthly_relative_path}\"");
     let main = fs::read_to_string(&main_path)?;
@@ -654,7 +655,7 @@ fn append_transfer_entry(
     atomic_append(monthly_path, &entry)
 }
 
-fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceError> {
+pub(crate) fn ensure_provenance_columns(connection: &Connection) -> Result<(), WorkspaceError> {
     let columns = connection
         .prepare("pragma table_info(statement_rows)")?
         .query_map([], |row| row.get::<_, String>(1))?
@@ -1132,7 +1133,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_configured_ai_adapter_suggestions_to_future_suggested_entries() {
+    fn configured_ai_adapter_is_not_invoked_per_row_by_suggestion_layers() {
         let tempdir = tempfile::tempdir().unwrap();
         let created = create_workspace(CreateWorkspaceInput {
             business_name: "Acme Studio".to_string(),
@@ -1193,17 +1194,10 @@ mod tests {
 
         let suggested_entries = get_suggested_entries(&created.root_path).unwrap();
 
-        assert_eq!(
-            suggested_entries[0].suggested_ledger_account.as_deref(),
-            Some("Expenses:Software")
-        );
-        assert_eq!(
-            suggested_entries[0]
-                .ai_suggestion
-                .as_ref()
-                .and_then(|suggestion| suggestion.explanation.as_deref()),
-            Some("Matched software vendor.")
-        );
+        // AI Assist owns AI suggestions now; the inbox's rules layer never
+        // calls the adapter per row, even when one is configured.
+        assert_eq!(suggested_entries[0].suggested_ledger_account, None);
+        assert!(suggested_entries[0].ai_suggestion.is_none());
     }
 
     #[test]
