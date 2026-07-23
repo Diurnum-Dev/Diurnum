@@ -160,6 +160,31 @@ describe("InboxPanel", () => {
     expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
   });
 
+  it("toggles between review and the Inbox from the toolbar without dismissing the pass", () => {
+    const onDismiss = vi.fn(async () => undefined);
+    render(
+      <InboxPanel
+        suggestedEntries={entries}
+        ledgerStatus="valid"
+        onApprove={vi.fn()}
+        aiAssist={aiAssist({ pass: aiAssistPass, onDismiss })}
+      />,
+    );
+
+    // Reviewing by default; the toolbar button offers a way back to the Inbox.
+    expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /View Inbox/ }));
+
+    // Back in the Inbox list, and the pass was kept (not dismissed).
+    expect(screen.queryByLabelText("AI Assist review")).toBeNull();
+    expect(screen.getByLabelText("Transaction inspector")).toBeTruthy();
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    // The same button jumps straight back into the same pass.
+    fireEvent.click(screen.getByRole("button", { name: /Review AI Assist/ }));
+    expect(screen.getByLabelText("AI Assist review")).toBeTruthy();
+  });
+
   it("clears filters so an edited review row remains selected and visible", () => {
     const inactiveAssist = aiAssist();
     const { rerender } = render(

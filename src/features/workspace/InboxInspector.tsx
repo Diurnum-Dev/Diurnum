@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
 import { formatInboxAmount, formatInboxDate } from "./inboxFormat";
+import { AccountCombobox } from "./AccountCombobox";
 
 type InboxInspectorProps = {
   entry: SuggestedEntry;
@@ -187,19 +188,14 @@ export function InboxInspector({
       {showEditForm ? (
         <form className="inbox-edit-form" onSubmit={handleSubmit}>
           <label htmlFor="ledger-account-input">Ledger Account</label>
-          <input
+          <AccountCombobox
             id="ledger-account-input"
             ref={inputRef}
-            list="known-accounts"
             value={ledgerAccount}
-            onChange={(event) => setLedgerAccount(event.target.value)}
+            onChange={setLedgerAccount}
+            knownAccounts={knownAccounts}
             placeholder="Expenses:Software"
           />
-          <datalist id="known-accounts">
-            {knownAccounts.map((account) => (
-              <option key={account} value={account} />
-            ))}
-          </datalist>
           {isNewAccount ? (
             <span className="new-account-hint">New account — will be created on approval</span>
           ) : null}

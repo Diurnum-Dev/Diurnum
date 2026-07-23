@@ -82,6 +82,62 @@ describe("InboxInspector", () => {
     });
   });
 
+  it("filters accounts by substring and fills the field on selection", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    render(
+      <InboxInspector
+        entry={entry({ suggestedLedgerAccount: null, aiSuggestion: null })}
+        ledgerStatus="valid"
+        knownAccounts={[
+          "Income:4100-Fundraising",
+          "Income:4100-Fundraising:4110-Donations",
+          "Income:4200-School:4210-Tuition",
+          "Expenses:Software",
+        ]}
+        editing
+        onEditingChange={vi.fn()}
+        onApprove={onApprove}
+      />,
+    );
+
+    const input = screen.getByLabelText("Ledger Account");
+    await user.clear(input);
+    await user.type(input, "Donations");
+
+    const option = await screen.findByRole("option", {
+      name: "Income:4100-Fundraising:4110-Donations",
+    });
+    // Only the substring match should be offered, not unrelated Income accounts.
+    expect(screen.queryByRole("option", { name: "Income:4200-School:4210-Tuition" })).toBeNull();
+
+    await user.click(option);
+    expect(input).toHaveValue("Income:4100-Fundraising:4110-Donations");
+  });
+
+  it("selects the highlighted suggestion with the keyboard instead of submitting", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    render(
+      <InboxInspector
+        entry={entry({ suggestedLedgerAccount: null, aiSuggestion: null })}
+        ledgerStatus="valid"
+        knownAccounts={["Income:4100-Fundraising", "Income:4100-Fundraising:4110-Donations"]}
+        editing
+        onEditingChange={vi.fn()}
+        onApprove={onApprove}
+      />,
+    );
+
+    const input = screen.getByLabelText("Ledger Account");
+    await user.clear(input);
+    await user.type(input, "Inco");
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(input).toHaveValue("Income:4100-Fundraising");
+    expect(onApprove).not.toHaveBeenCalled();
+  });
+
   it("approves a matched transfer", async () => {
     const user = userEvent.setup();
     const onApproveTransfer = vi.fn().mockResolvedValue(undefined);

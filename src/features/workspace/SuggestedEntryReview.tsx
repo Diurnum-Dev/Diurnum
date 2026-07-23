@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { LedgerStatus, SuggestedEntry } from "../../lib/workspace/types";
+import { AccountCombobox } from "./AccountCombobox";
 
 type SuggestedEntryReviewProps = {
   suggestedEntries: SuggestedEntry[];
@@ -215,18 +216,13 @@ export function SuggestedEntryDetail({
         <form className="workspace-form" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="ledger-account-input">Ledger Account</label>
-            <input
+            <AccountCombobox
               id="ledger-account-input"
-              list="known-accounts"
               value={ledgerAccount}
-              onChange={(event) => setLedgerAccount(event.target.value)}
+              onChange={setLedgerAccount}
+              knownAccounts={knownAccounts}
               placeholder="Expenses:Software"
             />
-            <datalist id="known-accounts">
-              {knownAccounts.map((account) => (
-                <option key={account} value={account} />
-              ))}
-            </datalist>
             {isNewAccount ? (
               <span className="new-account-hint">New account — will be created on approval</span>
             ) : null}

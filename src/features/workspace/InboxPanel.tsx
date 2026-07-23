@@ -96,10 +96,15 @@ export function InboxPanel({
       return;
     }
     if (activeReviewPass && reviewExitPassId === activeReviewPass.passId) {
+      // Left the review earlier; jump back into the same pass.
       setReviewExitPassId(null);
       return;
     }
-    if (activeReviewPass) return;
+    if (activeReviewPass) {
+      // Reviewing now; step back to the Inbox but keep the pass alive.
+      setReviewExitPassId(activeReviewPass.passId);
+      return;
+    }
     if (readDisclosureAcknowledgment()) {
       aiAssist.onStart();
     } else {
@@ -217,7 +222,7 @@ export function InboxPanel({
     <button
       type="button"
       className="inbox-ai-assist-button"
-      disabled={aiAssist.running || reviewing}
+      disabled={aiAssist.running}
       onClick={handleAiAssistClick}
     >
       <span>
@@ -225,9 +230,11 @@ export function InboxPanel({
           ? "Set up AI Assist"
           : aiAssist.running
             ? `Categorizing… ${aiAssist.pass?.processedRows ?? 0}/${aiAssist.pass?.totalRows ?? 0}`
-            : activeReviewPass
-              ? "Review AI Assist"
-              : "AI Assist"}
+            : reviewing
+              ? "View Inbox"
+              : activeReviewPass
+                ? "Review AI Assist"
+                : "AI Assist"}
       </span>
       {!aiAssist.running && !activeReviewPass ? (
         <small>{suggestedEntries.length} pending</small>

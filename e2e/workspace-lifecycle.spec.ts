@@ -35,7 +35,7 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
     const buildWorkspaceView = (): WorkspaceView => ({
       summary: workspace,
       suggestedEntries,
-      knownAccounts: [],
+      knownAccounts: ["Assets:Bank:Operating-Checking", "Expenses:Software", "Income:Donations"],
       brokenProvenance: [],
       categorizationRules: [],
       sourceAccounts: [
@@ -524,7 +524,19 @@ test("creates and reopens a Workspace through the app shell", async ({ page }) =
   // The redesigned inspector shows the suggested account with Accept/Edit; the
   // Ledger Account field + Approve Entry button are revealed by entering edit mode.
   await page.getByRole("button", { name: "Edit" }).click();
-  await page.getByLabel("Ledger Account").fill("Expenses:Software");
+  // The account suggestion list must render anchored to the field (not the native
+  // <datalist>, which the webview draws detached at the edge of the screen).
+  await page.getByLabel("Ledger Account").fill("Oper");
+  const suggestion = page.getByRole("option", { name: "Assets:Bank:Operating-Checking" });
+  await expect(suggestion).toBeVisible();
+  const field = page.locator(".inbox-account-field").getByLabel("Ledger Account");
+  const fieldBox = await field.boundingBox();
+  const listBox = await page.getByRole("listbox").boundingBox();
+  // Anchored: the list sits just under the input, not parked at a screen corner.
+  expect(Math.abs((listBox?.x ?? 0) - (fieldBox?.x ?? 0))).toBeLessThan(4);
+  expect(listBox?.y ?? 0).toBeGreaterThan((fieldBox?.y ?? 0) + (fieldBox?.height ?? 0) - 1);
+  await suggestion.click();
+  await expect(page.getByLabel("Ledger Account")).toHaveValue("Assets:Bank:Operating-Checking");
   await page.getByRole("button", { name: "Approve Entry" }).click();
   await expect(page.getByLabel("Ledger Editor")).toBeVisible();
   await expect(page.getByRole("tab", { name: /2026-05.bean/ })).toBeVisible();
