@@ -79,9 +79,15 @@ select {
   padding: 28px 24px;
 }
 
+/* `position: sticky` makes the sidebar a stacking context, so the switcher menu's
+   own z-index only ranks it against its sidebar siblings. Without a z-index here
+   the sidebar ties with .shell-main and loses on DOM order, letting main-pane
+   content paint over the open menu. Overlays that must cover the sidebar (command
+   palette, dialogs) sit well above this. */
 .app-shell--workspace .sidebar {
   position: sticky;
   top: 0;
+  z-index: 2;
   height: 100vh;
   min-width: 0;
   padding: 0 14px 16px;
