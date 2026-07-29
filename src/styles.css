@@ -2786,7 +2786,7 @@ dd {
   list-style: none;
   border: var(--border-width) solid var(--color-border);
   border-radius: 4px;
-  background: var(--color-surface);
+  background: var(--color-bg);
   box-shadow: 0 18px 42px rgba(28, 26, 23, 0.14);
 }
 
@@ -2804,7 +2804,7 @@ dd {
 
 .inbox-account-option--active,
 .inbox-account-option:hover {
-  background: var(--color-surface-muted);
+  background: var(--color-bg-muted);
 }
 
 .inbox-posting,
