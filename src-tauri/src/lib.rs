@@ -76,6 +76,8 @@ pub fn run() {
             commands::workspace::list_source_mappings,
             commands::workspace::save_source_mapping,
             commands::workspace::rename_source_account,
+            commands::workspace::preview_account_rename,
+            commands::workspace::rename_account,
             commands::workspace::close_source_account,
             commands::workspace::update_source_account_opening_balance,
             commands::workspace::get_git_identity,

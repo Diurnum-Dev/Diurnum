@@ -46,6 +46,8 @@ import type {
   ReadLedgerFileInput,
   ReadDocumentPreviewInput,
   RenameDocumentEntryInput,
+  RenameAccountInput,
+  AccountRenamePreview,
   RenameSourceAccountInput,
   RevertAiAssistBatchInput,
   ReportsInput,
@@ -149,6 +151,8 @@ type WorkspaceApi = {
   listSourceMappings: (workspaceRootPath: string) => Promise<SourceMappingSummary[]>;
   saveSourceMapping: (input: SourceMappingUpdateInput) => Promise<SourceMappingSummary>;
   renameSourceAccount: (input: RenameSourceAccountInput) => Promise<WorkspaceView>;
+  previewAccountRename: (input: RenameAccountInput) => Promise<AccountRenamePreview>;
+  renameAccount: (input: RenameAccountInput) => Promise<WorkspaceView>;
   closeSourceAccount: (input: CloseSourceAccountInput) => Promise<WorkspaceView>;
   updateSourceAccountOpeningBalance: (
     input: UpdateSourceAccountOpeningBalanceInput,
@@ -164,9 +168,14 @@ type WorkspaceApi = {
   openExternalPath: (path: string) => Promise<void>;
 };
 
+type WorkspaceTestApi = Omit<WorkspaceApi, "previewAccountRename" | "renameAccount"> & {
+  previewAccountRename?: WorkspaceApi["previewAccountRename"];
+  renameAccount?: WorkspaceApi["renameAccount"];
+};
+
 declare global {
   interface Window {
-    __DIURNUM_TEST_API__?: WorkspaceApi;
+    __DIURNUM_TEST_API__?: WorkspaceTestApi;
   }
 }
 
@@ -445,6 +454,24 @@ export async function renameSourceAccount(
     return window.__DIURNUM_TEST_API__.renameSourceAccount(input);
   }
   return invoke<WorkspaceView>("rename_source_account", { input });
+}
+
+export async function previewAccountRename(
+  input: RenameAccountInput,
+): Promise<AccountRenamePreview> {
+  if (window.__DIURNUM_TEST_API__?.previewAccountRename) {
+    return window.__DIURNUM_TEST_API__.previewAccountRename(input);
+  }
+  return invoke<AccountRenamePreview>("preview_account_rename", { input });
+}
+
+export async function renameAccount(
+  input: RenameAccountInput,
+): Promise<WorkspaceView> {
+  if (window.__DIURNUM_TEST_API__?.renameAccount) {
+    return window.__DIURNUM_TEST_API__.renameAccount(input);
+  }
+  return invoke<WorkspaceView>("rename_account", { input });
 }
 
 export async function closeSourceAccount(

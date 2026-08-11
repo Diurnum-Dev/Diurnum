@@ -50,6 +50,7 @@ import { GitPanel } from "./features/workspace/GitPanel";
 import { SettingsPanel } from "./features/workspace/SettingsPanel";
 import type { WorkspaceTemplate } from "./features/workspace/CreateWorkspaceForm";
 import { LedgerEditor } from "./features/workspace/LedgerEditor";
+import { RenameAccountDialog } from "./features/workspace/RenameAccountDialog";
 import { OpenWorkspaceForm } from "./features/workspace/OpenWorkspaceForm";
 import { WorkspaceOverview } from "./features/workspace/WorkspaceOverview";
 import { WorkspaceStart } from "./features/workspace/WorkspaceStart";
@@ -113,6 +114,7 @@ export default function App() {
   const [ledgerRequestedVersion, setLedgerRequestedVersion] = useState(0);
   const [ledgerCursor, setLedgerCursor] = useState<{ line: number; column: number } | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [renameAccountDialogOpen, setRenameAccountDialogOpen] = useState(false);
   const [commandPaletteMode, setCommandPaletteMode] =
     useState<CommandPaletteMode>("commands");
   const [recentCommands, setRecentCommands] = useState<string[]>(loadRecentCommands);
@@ -437,6 +439,17 @@ export default function App() {
           recordRecentCommand("import-csv");
           setActiveScreen("import");
           closeCommandPalette();
+        },
+      },
+      {
+        id: "rename-ledger-account",
+        label: "Rename Ledger Account…",
+        group: "Actions",
+        iconPath: "M4 12h8m-4-4 4 4-4 4M13 4h2a1 1 0 0 1 1 1v6",
+        onSelect: () => {
+          recordRecentCommand("rename-ledger-account");
+          closeCommandPalette();
+          setRenameAccountDialogOpen(true);
         },
       },
       {
@@ -1018,6 +1031,15 @@ export default function App() {
             error={error}
           />
         )}
+        {renameAccountDialogOpen ? (
+          <RenameAccountDialog
+            workspaceRootPath={workspace.rootPath}
+            knownAccounts={knownAccounts}
+            onPreview={session.previewAccountRename}
+            onRename={session.renameAccount}
+            onClose={() => setRenameAccountDialogOpen(false)}
+          />
+        ) : null}
         <CommandPalette
           open={commandPaletteOpen}
           mode={commandPaletteMode}

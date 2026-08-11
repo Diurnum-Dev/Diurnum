@@ -3,9 +3,10 @@ use crate::workspace::data_integrity::atomic_write;
 use crate::workspace::errors::{WorkspaceError, WorkspaceErrorCode};
 use crate::workspace::imports::CsvSourceMappingInput;
 use crate::workspace::open::open_workspace;
+use crate::workspace::rename_account::{self, RenameAccountInput};
 use crate::workspace::source_accounts::{documents_slug_for_account, sanitize_account_segment};
 use crate::workspace::types::{WorkspaceBusiness, WorkspaceManifest, WorkspaceSummary};
-use crate::workspace::{categorization_rules, imports, shell};
+use crate::workspace::{imports, shell};
 use chrono::Utc;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -237,27 +238,17 @@ pub fn save_source_mapping(
 pub fn rename_source_account(
     input: RenameSourceAccountInput,
 ) -> Result<WorkspaceSummary, WorkspaceError> {
-    let root = Path::new(&input.workspace_root_path);
-    let manifest = read_manifest(root)?;
     let new_segment = sanitize_account_segment(&input.new_name)?;
     let new_account_name = rename_account_name(&input.source_account, &new_segment)?;
-    rewrite_accounts_file(
-        root,
-        &manifest,
-        &input.source_account,
-        &new_account_name,
-        None,
-    )?;
-    rewrite_opening_balances_file(
-        root,
-        &manifest,
-        &input.source_account,
-        &new_account_name,
+    rename_account::rename_account_with_opening_balance(
+        RenameAccountInput {
+            workspace_root_path: input.workspace_root_path,
+            old_account: input.source_account,
+            new_account: new_account_name,
+            merge: false,
+        },
         input.opening_balance.as_deref(),
-    )?;
-    rename_source_account_rows(root, &input.source_account, &new_account_name)?;
-    rename_documents_folder(root, &input.source_account, &new_account_name)?;
-    open_workspace(root)
+    )
 }
 
 pub fn close_source_account(
@@ -486,48 +477,6 @@ fn opening_balance_for_account(contents: &str, account_name: &str) -> Option<Str
     })
 }
 
-fn rewrite_accounts_file(
-    root: &Path,
-    manifest: &WorkspaceManifest,
-    source_account: &str,
-    new_account_name: &str,
-    close_directive: Option<&str>,
-) -> Result<(), WorkspaceError> {
-    let path = root.join(&manifest.layout.accounts_file);
-    let contents = fs::read_to_string(&path)?;
-    let mut rewritten = Vec::new();
-    let mut replaced = false;
-
-    for line in contents.lines() {
-        let parts = line.split_whitespace().collect::<Vec<_>>();
-        if parts.len() >= 4
-            && (parts[1] == "open" || parts[1] == "close")
-            && parts[2] == source_account
-        {
-            let directive = close_directive.unwrap_or(parts[1]);
-            let date = if directive == "close" {
-                Utc::now().date_naive().to_string()
-            } else {
-                parts[0].to_string()
-            };
-            let currency = parts[3];
-            rewritten.push(format!("{date} {directive} {new_account_name} {currency}"));
-            replaced = true;
-        } else {
-            rewritten.push(line.to_string());
-        }
-    }
-
-    if !replaced {
-        return Err(WorkspaceError::new(
-            WorkspaceErrorCode::InvalidLedger,
-            "Source Account was not found in accounts.bean.",
-        ));
-    }
-
-    atomic_write(path, &(rewritten.join("\n") + "\n"))
-}
-
 fn close_account_in_accounts_file(
     root: &Path,
     manifest: &WorkspaceManifest,
@@ -608,51 +557,6 @@ fn rewrite_opening_balances_file(
     }
 
     atomic_write(path, &(rewritten.join("\n") + "\n"))
-}
-
-fn rename_source_account_rows(
-    root: &Path,
-    source_account: &str,
-    new_account_name: &str,
-) -> Result<(), WorkspaceError> {
-    let sqlite = Connection::open(root.join(".diurnum").join("diurnum.sqlite"))?;
-    imports::ensure_import_tables(&sqlite)?;
-    categorization_rules::ensure_categorization_rules_table(&sqlite)?;
-    sqlite.execute(
-        "update source_mappings set source_account = ?1 where source_account = ?2",
-        params![new_account_name, source_account],
-    )?;
-    sqlite.execute(
-        "update statement_rows set source_account = ?1 where source_account = ?2",
-        params![new_account_name, source_account],
-    )?;
-    sqlite.execute(
-        "update categorization_rules set source_account = ?1 where source_account = ?2",
-        params![new_account_name, source_account],
-    )?;
-    Ok(())
-}
-
-fn rename_documents_folder(
-    root: &Path,
-    source_account: &str,
-    new_account_name: &str,
-) -> Result<(), WorkspaceError> {
-    let old_folder = root
-        .join("documents")
-        .join(documents_slug_for_account(source_account));
-    let new_folder = root
-        .join("documents")
-        .join(documents_slug_for_account(new_account_name));
-    if old_folder == new_folder {
-        return Ok(());
-    }
-    if old_folder.exists() {
-        fs::rename(old_folder, &new_folder)?;
-    } else {
-        fs::create_dir_all(&new_folder)?;
-    }
-    Ok(())
 }
 
 fn kind_for_account(account_name: &str) -> SourceAccountKind {
@@ -760,7 +664,14 @@ impl AiSuggestionRow for TestAiRow {
 
 #[cfg(test)]
 mod tests {
-    use super::detect_ai_adapters;
+    use super::{detect_ai_adapters, rename_source_account, RenameSourceAccountInput};
+    use crate::workspace::create::create_workspace;
+    use crate::workspace::source_accounts::{
+        add_source_account, AddSourceAccountInput, SourceAccountKind,
+    };
+    use crate::workspace::types::CreateWorkspaceInput;
+    use std::fs;
+    use std::path::Path;
 
     #[test]
     fn detected_adapters_use_non_interactive_invocations() {
@@ -779,5 +690,79 @@ mod tests {
         assert_eq!(adapters[0].command, "claude --print");
         assert_eq!(adapters[1].command, "codex exec");
         assert_eq!(adapters[2].command, "opencode run");
+    }
+
+    #[test]
+    fn source_account_rename_rolls_back_when_opening_balance_invalidates_ledger() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        add_source_account(AddSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            kind: SourceAccountKind::Bank,
+            name: "Old Checking".to_string(),
+            opening_balance: Some("1.00".to_string()),
+        })
+        .unwrap();
+
+        let error = rename_source_account(RenameSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            source_account: "Assets:Bank:Old-Checking".to_string(),
+            new_name: "Renamed Checking".to_string(),
+            opening_balance: Some("not-a-number".to_string()),
+        })
+        .unwrap_err();
+        assert_eq!(
+            error.code,
+            crate::workspace::WorkspaceErrorCode::InvalidLedger
+        );
+        let accounts =
+            fs::read_to_string(Path::new(&created.root_path).join("accounts.bean")).unwrap();
+        assert!(accounts.contains("open Assets:Bank:Old-Checking"));
+        assert!(!accounts.contains("Renamed-Checking"));
+    }
+
+    #[test]
+    fn source_account_rename_delegates_and_updates_opening_balance_once() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let created = create_workspace(CreateWorkspaceInput {
+            business_name: "Acme Studio".to_string(),
+            base_currency: "USD".to_string(),
+            books_start_date: "2026-01-01".to_string(),
+            parent_directory: tempdir.path().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        add_source_account(AddSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            kind: SourceAccountKind::Bank,
+            name: "Old Checking".to_string(),
+            opening_balance: Some("1.00".to_string()),
+        })
+        .unwrap();
+
+        rename_source_account(RenameSourceAccountInput {
+            workspace_root_path: created.root_path.clone(),
+            source_account: "Assets:Bank:Old-Checking".to_string(),
+            new_name: "Renamed Checking".to_string(),
+            opening_balance: Some("42.00".to_string()),
+        })
+        .unwrap();
+
+        let contents =
+            fs::read_to_string(Path::new(&created.root_path).join("opening-balances.bean"))
+                .unwrap();
+        assert_eq!(
+            contents
+                .lines()
+                .filter(|line| line.contains("Assets:Bank:Renamed-Checking"))
+                .count(),
+            1
+        );
+        assert!(contents.contains("balance Assets:Bank:Renamed-Checking 42.00 USD"));
     }
 }

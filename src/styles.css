@@ -3133,6 +3133,143 @@ dd {
   padding: 2px 4px;
 }
 
+.rename-account-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 8vh 16px 32px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(1px);
+}
+
+.rename-account-dialog {
+  display: grid;
+  gap: 20px;
+  width: min(760px, calc(100vw - 32px));
+  border: 1px solid #EDEAE4;
+  border-radius: 4px;
+  background: #FBF6EC;
+  box-shadow: 0 18px 42px rgba(28, 26, 23, 0.16);
+  padding: 24px;
+}
+
+.rename-account-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rename-account-header h1 {
+  margin-bottom: 8px;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+
+.rename-account-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.rename-account-fields label {
+  display: grid;
+  gap: 6px;
+  color: #6B6051;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.rename-account-fields input {
+  width: 100%;
+}
+
+.rename-account-preview {
+  margin-top: 24px;
+  border: 1px solid #EDEAE4;
+  border-radius: 3px;
+  background: #FEFCF8;
+  padding: 16px;
+}
+
+.rename-account-preview .section-heading {
+  margin-bottom: 14px;
+}
+
+.rename-account-preview h2 {
+  margin-bottom: 0;
+}
+
+.rename-account-changes {
+  display: grid;
+  gap: 12px;
+}
+
+.rename-account-file {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid #EDEAE4;
+  padding-top: 10px;
+}
+
+.rename-account-file strong {
+  overflow-wrap: anywhere;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+}
+
+.rename-account-lines {
+  display: grid;
+  gap: 4px;
+}
+
+.rename-account-line {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+
+.rename-account-line-number {
+  color: #938775;
+  text-align: right;
+}
+
+.rename-account-line code {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.rename-account-before {
+  grid-column: 2;
+  color: #A03228;
+}
+
+.rename-account-after {
+  grid-column: 2;
+  color: #243B6B;
+}
+
+.rename-account-merge-warning {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #C9B98B;
+  border-radius: 3px;
+  background: #F6F0DE;
+  color: #7A6A3A;
+  padding: 12px 14px;
+}
+
+.rename-account-merge-warning .toggle-row {
+  color: #1C1A17;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 1fr;
