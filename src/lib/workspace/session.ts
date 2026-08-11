@@ -1,5 +1,6 @@
 import * as workspaceApi from "./api";
 import type {
+  AccountRenamePreview,
   AddSourceAccountInput,
   AiAdapterConfig,
   ApproveAiAssistBatchInput,
@@ -17,6 +18,7 @@ import type {
   GitPanelState,
   LedgerValidationSummary,
   MvpReports,
+  RenameAccountInput,
   RenameSourceAccountInput,
   ReportsInput,
   RestoreSnapshotInput,
@@ -59,6 +61,8 @@ export type WorkspaceSessionApi = Pick<
   | "importStatementRows"
   | "addSourceAccount"
   | "renameSourceAccount"
+  | "previewAccountRename"
+  | "renameAccount"
   | "closeSourceAccount"
   | "updateSourceAccountOpeningBalance"
   | "updateWorkspaceMetadata"
@@ -124,6 +128,8 @@ export type WorkspaceSession = {
   importRows: (input: CsvImportInput) => Promise<void>;
   addSourceAccount: (input: AddSourceAccountInput) => Promise<void>;
   renameSourceAccount: (input: RenameSourceAccountInput) => Promise<void>;
+  previewAccountRename: (input: RenameAccountInput) => Promise<AccountRenamePreview>;
+  renameAccount: (input: RenameAccountInput) => Promise<void>;
   closeSourceAccount: (input: CloseSourceAccountInput) => Promise<void>;
   updateOpeningBalance: (
     input: UpdateSourceAccountOpeningBalanceInput,
@@ -427,6 +433,15 @@ export function createWorkspaceSession(api: WorkspaceSessionApi): WorkspaceSessi
     renameSourceAccount: (input) =>
       withErrorReset(async () => {
         applyView(await api.renameSourceAccount(input));
+        queueGitBackup();
+      }),
+
+    previewAccountRename: (input) =>
+      withErrorReset(() => api.previewAccountRename(input)),
+
+    renameAccount: (input) =>
+      withErrorReset(async () => {
+        applyView(await api.renameAccount(input));
         queueGitBackup();
       }),
 

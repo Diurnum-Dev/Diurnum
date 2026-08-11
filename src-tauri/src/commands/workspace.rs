@@ -34,6 +34,7 @@ use crate::workspace::ledger_editor::{
     SaveLedgerEditorSessionInput,
 };
 use crate::workspace::open;
+use crate::workspace::rename_account::{self, AccountRenamePreview, RenameAccountInput};
 use crate::workspace::reports::{self, MvpReports, ReportsInput};
 use crate::workspace::settings::{
     self, CloseSourceAccountInput, DetectedAiAdapter, GitIdentitySummary, RenameSourceAccountInput,
@@ -431,6 +432,18 @@ pub fn rename_source_account(
     input: RenameSourceAccountInput,
 ) -> Result<WorkspaceView, WorkspaceError> {
     view::load_from_summary(settings::rename_source_account(input)?)
+}
+
+#[tauri::command]
+pub fn preview_account_rename(
+    input: RenameAccountInput,
+) -> Result<AccountRenamePreview, WorkspaceError> {
+    rename_account::preview_account_rename(input)
+}
+
+#[tauri::command]
+pub fn rename_account(input: RenameAccountInput) -> Result<WorkspaceView, WorkspaceError> {
+    view::load_from_summary(rename_account::rename_account(input)?)
 }
 
 #[tauri::command]

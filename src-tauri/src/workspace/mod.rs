@@ -12,6 +12,7 @@ pub mod imports;
 pub mod ledger_editor;
 pub mod open;
 pub mod paths;
+pub mod rename_account;
 pub mod reports;
 pub mod settings;
 pub mod shell;

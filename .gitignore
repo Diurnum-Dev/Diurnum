@@ -6,3 +6,4 @@ src-tauri/target/
 src-tauri/~/
 .worktrees/
 .DS_Store
+.pi-subagents/

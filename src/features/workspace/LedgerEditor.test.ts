@@ -1,9 +1,18 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   alignTransactionAmounts,
   completionLinePrefixAtCursor,
   validationErrorsForFile,
 } from "./LedgerEditor";
+
+describe("Ledger Editor rename boundary", () => {
+  it("does not call account rename APIs from its save flow", () => {
+    const source = readFileSync("src/features/workspace/LedgerEditor.tsx", "utf8");
+    expect(source).not.toContain("previewAccountRename");
+    expect(source).not.toContain("renameAccount");
+  });
+});
 
 describe("validationErrorsForFile", () => {
   // These strings are the exact format the Rust validator emits. If that format

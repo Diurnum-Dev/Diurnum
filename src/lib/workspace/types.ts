@@ -280,6 +280,33 @@ export type RenameSourceAccountInput = {
   openingBalance?: string | null;
 };
 
+export type RenameAccountInput = {
+  workspaceRootPath: string;
+  oldAccount: string;
+  newAccount: string;
+  merge: boolean;
+};
+
+export type AccountRenameLineChange = {
+  lineNumber: number;
+  before: string;
+  after: string;
+};
+
+export type AccountRenameFileChange = {
+  relativePath: string;
+  lines: AccountRenameLineChange[];
+};
+
+export type AccountRenamePreview = {
+  oldAccount: string;
+  newAccount: string;
+  merge: boolean;
+  destinationExists: boolean;
+  sourceAccount: boolean;
+  changes: AccountRenameFileChange[];
+};
+
 export type CloseSourceAccountInput = {
   workspaceRootPath: string;
   sourceAccount: string;

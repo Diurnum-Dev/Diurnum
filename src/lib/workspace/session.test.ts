@@ -101,6 +101,15 @@ function makeFakeApi(initial: WorkspaceView) {
     }),
     addSourceAccount: vi.fn(async () => view),
     renameSourceAccount: vi.fn(async () => view),
+    previewAccountRename: vi.fn(async () => ({
+      oldAccount: "Assets:Bank:Checking",
+      newAccount: "Assets:Bank:Operating",
+      merge: false,
+      destinationExists: false,
+      sourceAccount: true,
+      changes: [],
+    })),
+    renameAccount: vi.fn(async () => view),
     closeSourceAccount: vi.fn(async () => view),
     updateSourceAccountOpeningBalance: vi.fn(async () => view),
     updateWorkspaceMetadata: vi.fn(async () => view),
@@ -157,6 +166,48 @@ describe("WorkspaceSession", () => {
 
     expect(session.getState().workspace?.rootPath).toBe(ROOT);
     expect(session.getState().suggestedEntries).toHaveLength(2);
+  });
+
+  it("previews an account rename without changing the session view", async () => {
+    const { api } = makeFakeApi(emptyView());
+    const session = createWorkspaceSession(api);
+
+    const preview = await session.previewAccountRename({
+      workspaceRootPath: ROOT,
+      oldAccount: "Assets:Bank:Checking",
+      newAccount: "Assets:Bank:Operating",
+      merge: false,
+    });
+
+    expect(api.previewAccountRename).toHaveBeenCalledWith({
+      workspaceRootPath: ROOT,
+      oldAccount: "Assets:Bank:Checking",
+      newAccount: "Assets:Bank:Operating",
+      merge: false,
+    });
+    expect(preview.destinationExists).toBe(false);
+  });
+
+  it("applies the returned WorkspaceView after renaming an account", async () => {
+    const renamedView = {
+      ...emptyView(),
+      summary: { ...summary(), businessName: "Renamed" },
+      knownAccounts: ["Assets:Bank:Operating"],
+    };
+    const { api, setView } = makeFakeApi(emptyView());
+    setView(renamedView);
+    const session = createWorkspaceSession(api);
+
+    await session.renameAccount({
+      workspaceRootPath: ROOT,
+      oldAccount: "Assets:Bank:Checking",
+      newAccount: "Assets:Bank:Operating",
+      merge: false,
+    });
+
+    expect(api.renameAccount).toHaveBeenCalledOnce();
+    expect(session.getState().workspace).toEqual(renamedView.summary);
+    expect(session.getState().knownAccounts).toEqual(["Assets:Bank:Operating"]);
   });
 
   it("refreshes the whole view as one unit after Approval", async () => {

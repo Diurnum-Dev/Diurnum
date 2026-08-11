@@ -29,6 +29,7 @@ pub enum SnapshotReason {
     Approval,
     Daily,
     PreRestore,
+    RenameAccount,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -306,7 +307,7 @@ fn prune_old_snapshots(root: &Path) -> Result<(), WorkspaceError> {
     Ok(())
 }
 
-fn ledger_files(root: &Path) -> Result<Vec<String>, WorkspaceError> {
+pub(crate) fn ledger_files(root: &Path) -> Result<Vec<String>, WorkspaceError> {
     let mut files = Vec::new();
     collect_ledger_files(root, root, &mut files)?;
     files.sort();
